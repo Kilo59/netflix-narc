@@ -1,0 +1,8 @@
+# Netflix Narc Rules
+
+- Project uses `uv` for dependency management.
+- The Common Sense Media API is strictly rate-limited (5 requests/min). You MUST use `hishel` caching via `httpx` to prevent spamming the API.
+- Use `textual` for the terminal UI.
+- When building the Textual UI, include an onboarding flow that collects the user's API Key and initial criteria (max age rating, category weights) if it doesn't exist.
+- Rely on `csv`, `json`, and `pydantic-settings` instead of `pandas` to keep the project light.
+- To understand the architecture and next steps, read `.agent/architecture.md` and `.agent/plan.md`.
