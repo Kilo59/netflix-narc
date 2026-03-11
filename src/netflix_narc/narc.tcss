@@ -25,3 +25,33 @@ Screen {
     width: 1fr;
     height: 100%;
 }
+
+/* Setup Screen Styling */
+#setup-container {
+    align: center middle;
+    width: 60;
+    height: 20;
+    background: $panel;
+    border: solid $primary;
+    padding: 2;
+}
+
+.title {
+    content-align: center middle;
+    text-style: bold;
+    color: $accent;
+    padding-bottom: 2;
+}
+
+.instructions {
+    content-align: center middle;
+    padding-bottom: 2;
+}
+
+Input {
+    margin-bottom: 2;
+}
+
+Button {
+    width: 100%;
+}
