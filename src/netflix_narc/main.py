@@ -104,6 +104,11 @@ class NetflixNarcApp(App):
             self.notify(f"Error loading CSV: {e}", severity="error")
 
 
-if __name__ == "__main__":
+def main():
+    """CLI Entrypoint to start the Netflix Narc application."""
     app = NetflixNarcApp(csv_path="NetflixViewingHistory.csv")
     app.run()
+
+
+if __name__ == "__main__":
+    main()

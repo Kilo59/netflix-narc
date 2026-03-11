@@ -11,6 +11,12 @@ dependencies = [
     "textual>=8.1.1",
 ]
 
+[project.scripts]
+netflix-narc = "netflix_narc.main:main"
+
+[tool.uv]
+package = true
+
 [dependency-groups]
 dev = [
     "mypy>=1.19.1",
