@@ -1,11 +1,23 @@
 [project]
 name = "netflix-narc"
-version = "0.1.0"
+version = "0.1.0.dev0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "hishel>=1.1.9",
     "httpx>=0.28.1",
+    "pydantic-settings>=2.13.1",
+    "textual>=8.1.1",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "respx>=0.22.0",
+    "ruff>=0.15.5",
 ]
 
 [tool.ruff-sync]
@@ -251,12 +263,3 @@ docstring-code-format = true
 # This only has an effect when the `docstring-code-format` setting is
 # enabled.
 docstring-code-line-length = "dynamic"
-
-[dependency-groups]
-dev = [
-    "mypy>=1.19.1",
-    "pytest>=9.0.2",
-    "pytest-cov>=7.0.0",
-    "respx>=0.22.0",
-    "ruff>=0.15.5",
-]
