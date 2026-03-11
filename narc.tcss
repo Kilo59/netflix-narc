@@ -1,0 +1,27 @@
+Screen {
+    background: $surface;
+}
+
+#sidebar {
+    width: 30;
+    dock: left;
+    height: 100%;
+    background: $panel;
+    border-right: solid $primary;
+    padding: 1 2;
+}
+
+.sidebar-title {
+    text-style: bold;
+    color: $accent;
+    padding-bottom: 1;
+}
+
+.sidebar-item {
+    padding-bottom: 1;
+}
+
+#history-table {
+    width: 1rf;
+    height: 100%;
+}
