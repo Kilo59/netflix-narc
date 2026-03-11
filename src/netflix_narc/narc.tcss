@@ -22,6 +22,6 @@ Screen {
 }
 
 #history-table {
-    width: 1rf;
+    width: 1fr;
     height: 100%;
 }
