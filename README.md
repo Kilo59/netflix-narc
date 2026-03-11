@@ -1,5 +1,7 @@
 # Netflix Narc 🕵️‍♂️🍿
 
+![Netflix Narc Hero Art](./assets/hero.png)
+
 **Your automated, terminal-based snitch.**
 
 Netflix Narc is a fast, beautiful Terminal UI built to ingest your family's Netflix viewing history, cross-reference it with the **Common Sense Media API**, and gently narc on anyone watching something they shouldn't.
@@ -16,32 +18,16 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 
 ## 🚀 Getting Started
 
+Netflix Narc is currently in active development.
+
 ### Prerequisites
 - Python 3.13+
-- [uv](https://github.com/astral-sh/uv) (for lightning-fast dependency management)
 - A Common Sense Media API Key
 
-### Installation
-
-Clone the repo and install dependencies:
-```bash
-git clone https://github.com/yourusername/netflix-narc.git
-cd netflix-narc
-uv sync
-```
-
-### Running the App
-
-```bash
-uv run textual run main.py
-```
-
-*Note: On your first run, the built-in onboarding flow will guide you through entering your API key and setting up your baseline judgement criteria!*
-
 ## 📜 How it Works
-1. Go to your [Netflix Account Settings](https://www.netflix.com/settings/viewing-history) and select **Download all** to get your `ViewingHistory.csv`.
-2. Boot up Netflix Narc.
-3. Watch the app cross-reference your history against your personal Common Sense thresholds and highlight exactly where things went wrong.
+1. You provide your Netflix viewing history.
+2. You define your personal thresholds (e.g., maximum age rating, tolerance for "Language" or "Violence").
+3. Netflix Narc cross-references the history against Common Sense Media and highlights exactly where things went wrong.
 
 ---
 
