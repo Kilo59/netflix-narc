@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "httpx>=0.28.1",
+]
 
 [tool.ruff-sync]
 exclude = [
@@ -15,7 +17,7 @@ exclude = [
 [tool.ruff]
 line-length = 100
 indent-width = 4
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [
@@ -250,3 +252,11 @@ docstring-code-format = true
 # enabled.
 docstring-code-line-length = "dynamic"
 
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "respx>=0.22.0",
+    "ruff>=0.15.5",
+]
