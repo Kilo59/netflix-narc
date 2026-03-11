@@ -55,13 +55,13 @@ class CSMClient:
         self.settings = settings
         self._cache_dir = cache_dir or Path(".csm_cache")
 
-        # We use hishel's CacheController to handle the HTTP caching.
-        self._controller = hishel.Controller()
-        self._storage = hishel.FileStorage(base_path=self._cache_dir)
-
-        self.client = hishel.CacheClient(
+        # We use hishel's SyncCacheClient and SyncSqliteStorage.
+        self._storage = hishel.SyncSqliteStorage(database_path=str(self._cache_dir))
+        
+        from hishel.httpx import SyncCacheClient
+        
+        self.client = SyncCacheClient(
             storage=self._storage,
-            controller=self._controller,
             headers={"x-api-key": self.settings.csm_api_key},
             http2=True,
             timeout=10.0,
