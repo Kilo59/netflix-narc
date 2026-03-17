@@ -100,6 +100,17 @@ class SetupScreen(Screen):
 def open_setup(self):
     self.push_screen(SetupScreen(), callback=self.on_setup_completed)
 
+
 def on_setup_completed(self, payload: str):
     self.notify(f"Setup returned: {payload}")
 ```
+
+## Official Documentation & Reference
+
+For more detailed information, consult the official Textual documentation:
+
+- [Reference](https://textual.textualize.io/reference/): Comprehensive guides and concept explanations.
+- [Guide](https://textual.textualize.io/guide/): Step-by-step tutorials to get started.
+- [How-to](https://textual.textualize.io/how-to/): Specific recipes for common tasks.
+- [FAQ](https://textual.textualize.io/FAQ/): Answers to frequently asked questions.
+- [API Reference](https://textual.textualize.io/api/): Detailed documentation for the Textual Python API.
