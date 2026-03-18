@@ -20,7 +20,10 @@ class CategoryWeights(BaseSettings):
 class Settings(BaseSettings):
     """Core application configuration."""
 
+    active_rating_provider: str = "csm"
     csm_api_key: str = ""
+    omdb_api_key: str = ""
+    tmdb_api_key: str = ""
     max_age_rating: int = 12
     min_quality_rating: int = 3
 

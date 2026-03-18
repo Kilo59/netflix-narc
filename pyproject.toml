@@ -24,12 +24,14 @@ dev = [
     "pytest-cov>=7.0.0",
     "respx>=0.22.0",
     "ruff>=0.15.5",
+    "ruff-sync>=0.1.0",
 ]
 
 [tool.ruff-sync]
 exclude = [
     "target-version",
     "line-length",
+    "lint.per"
 ]
 
 [tool.ruff]
@@ -176,6 +178,13 @@ ignore = [
 fixable = ["ALL"]
 unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "ANN201", # Missing return type annotation in test functions
+    "D",   # Don't care about docstrings in tests
+    "S101",   # Use of assert in tests
+]
 
 [tool.ruff.lint.mccabe]
 # Flag errors (`C901`) whenever the complexity level exceeds 10.

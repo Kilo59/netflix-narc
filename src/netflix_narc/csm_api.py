@@ -5,6 +5,7 @@ import hishel
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
+from netflix_narc.rating_api import NormalizedMetadata, RatingProvider
 from netflix_narc.settings import Settings
 
 
@@ -37,10 +38,11 @@ class CSMMetadata(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-class CSMClient:
+class CSMClient(RatingProvider):
     """Client for interacting with the Common Sense Media API with rate-limit caching."""
 
     BASE_URL = "https://api.commonsensemedia.org/v1"
+    provider_name = "csm"
 
     def __init__(self, settings: Settings, cache_dir: Path | None = None):
         """Initialize the client.
@@ -57,9 +59,9 @@ class CSMClient:
 
         # We use hishel's SyncCacheClient and SyncSqliteStorage.
         self._storage = hishel.SyncSqliteStorage(database_path=str(self._cache_dir))
-        
+
         from hishel.httpx import SyncCacheClient
-        
+
         self.client = SyncCacheClient(
             storage=self._storage,
             headers={"x-api-key": self.settings.csm_api_key},
@@ -67,7 +69,7 @@ class CSMClient:
             timeout=10.0,
         )
 
-    def search_title(self, title: str) -> CSMMetadata | None:
+    def search_title(self, title: str) -> NormalizedMetadata | None:
         """Search for a title in the CSM API and return normalized metadata.
 
         This method is rate-limited to 5 requests per minute by the API.
@@ -88,11 +90,18 @@ class CSMClient:
             data = response.json()
             # For this MVP, we return a mock object if we get a 200 OK.
             # Real implementation would parse `data` into `CSMMetadata`.
-            return CSMMetadata(
+
+            # Normalize CSM metadata to NormalizedMetadata
+            # CSM age rating matches content rating (conceptually)
+            # CSM quality rating is 1-5, so we normalize to 0-10 (double it)
+            return NormalizedMetadata(
                 title=title,
-                age_rating=8,
-                quality_rating=4,
-                category_scores={CSMRatingCategory.VIOLENCE: 1},
+                content_rating=str(8),  # Mocked
+                user_rating=8.0,  # 4/5 * 2 = 8/10
+                provider_name=self.provider_name,
+                category_scores={
+                    CSMRatingCategory.VIOLENCE.value: 1,
+                },
             )
 
         except httpx.HTTPError as e:
