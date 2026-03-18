@@ -1,3 +1,5 @@
+"""Application-wide settings and configuration schemas."""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

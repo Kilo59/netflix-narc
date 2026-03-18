@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -18,12 +18,13 @@ def test_parse_netflix_history_valid_data(tmp_path: Path):
 
     records = parse_netflix_history(csv_file)
 
-    assert len(records) == 2
+    expected_records_count = 2
+    assert len(records) == expected_records_count
     assert records[0].title == "Peppa Pig: Season 3: The Camping Holiday"
-    assert records[0].date_watched == datetime(2026, 1, 3)
+    assert records[0].date_watched == datetime(2026, 1, 3, tzinfo=UTC)
 
     assert records[1].title == "Spider-Man: Into the Spider-Verse"
-    assert records[1].date_watched == datetime(2025, 12, 31)
+    assert records[1].date_watched == datetime(2025, 12, 31, tzinfo=UTC)
 
 
 def test_parse_netflix_history_missing_fields(tmp_path: Path):

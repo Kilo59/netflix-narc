@@ -1,3 +1,5 @@
+"""Utility for parsing Netflix viewing history CSV files."""
+
 import csv
 from datetime import datetime
 from pathlib import Path
@@ -29,7 +31,7 @@ def parse_netflix_history(filepath: Path) -> list[ViewingRecord]:
     """
     records: list[ViewingRecord] = []
 
-    with open(filepath, encoding="utf-8") as file:
+    with filepath.open(encoding="utf-8") as file:
         reader = csv.DictReader(file)
 
         for row in reader:
@@ -41,7 +43,7 @@ def parse_netflix_history(filepath: Path) -> list[ViewingRecord]:
 
             try:
                 # The provided CSV uses '%m/%d/%y' format (e.g., '1/3/26')
-                parsed_date = datetime.strptime(raw_date, "%m/%d/%y")
+                parsed_date = datetime.strptime(raw_date, "%m/%d/%y").replace(tzinfo=datetime.UTC)
 
                 # Netflix often formats titles as "Series Name: Season X: Episode Title"
                 # We retain the full string here; the CSM API integration may need to strip this
@@ -52,6 +54,7 @@ def parse_netflix_history(filepath: Path) -> list[ViewingRecord]:
                 # If date parsing fails, we could log it or raise.
                 # For this implementation, we will log a warning or raise depending on strictness.
                 # Here we raise to ensure data integrity during development.
-                raise ValueError(f"Failed to parse row: {row}. Error: {e}") from e
+                msg = f"Failed to parse row: {row}. Error: {e}"
+                raise ValueError(msg) from e
 
     return records

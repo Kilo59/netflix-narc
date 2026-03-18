@@ -1,3 +1,5 @@
+"""Logic for evaluating movie/TV titles against user-defined criteria."""
+
 from netflix_narc.rating_api import NormalizedMetadata
 from netflix_narc.settings import Settings
 
@@ -30,15 +32,19 @@ def evaluate_title(metadata: NormalizedMetadata, criteria: Settings) -> list[str
 
     # 2. Check general quality threshold (out of 10)
     # The CSMClient now returns a 0-10 user_rating.
-    # The setting 'min_quality_rating' was originally out of 5, so we multiply it by 2 for comparison.
+    # The setting 'min_quality_rating' was originally out of 5,
+    # so we multiply it by 2 for comparison.
     min_normalized = criteria.min_quality_rating * 2
     if metadata.user_rating is not None and metadata.user_rating < min_normalized:
         flags.append(
-            f"Quality rating ({metadata.user_rating}/10) is below minimum required ({min_normalized}/10)."
+            f"Quality rating ({metadata.user_rating}/10) is "
+            f"below minimum required ({min_normalized}/10)."
         )
 
     # 3. Evaluate weighted specific categories
-    FLAG_THRESHOLD = 8
+    flag_threshold = 8
+    low_score_threshold = 2
+    high_weight_threshold = 3
     scores = metadata.category_scores
 
     # Map normalized category strings to weights in Settings
@@ -64,11 +70,12 @@ def evaluate_title(metadata: NormalizedMetadata, criteria: Settings) -> list[str
         weighted_score = raw_score * weight
 
         if category in positive_categories:
-            if raw_score <= 2 and weight >= 3:
+            if raw_score <= low_score_threshold and weight >= high_weight_threshold:
                 flags.append(f"Low '{category}' score ({raw_score}/5) with high priority weight.")
-        elif weighted_score >= FLAG_THRESHOLD:
+        elif weighted_score >= flag_threshold:
             flags.append(
-                f"High '{category}' score ({raw_score}/5)"f" exacerbated by priority weight ({weight})."
+                f"High '{category}' score ({raw_score}/5) "
+                f"exacerbated by priority weight ({weight})."
             )
 
     return flags

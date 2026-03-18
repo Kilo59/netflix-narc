@@ -1,5 +1,8 @@
+"""Main entry point for the Netflix Narc application."""
+
 from collections.abc import Sequence
-from typing import ClassVar
+from pathlib import Path
+from typing import Any, ClassVar
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
@@ -16,6 +19,7 @@ class SetupScreen(Screen):
     """A screen prompting for initial configuration (API Key, etc.)."""
 
     def compose(self) -> ComposeResult:
+        """Compose the setup screen widgets."""
         yield Container(
             Static("Welcome to Netflix Narc!", classes="title"),
             Static(
@@ -31,6 +35,7 @@ class SetupScreen(Screen):
         )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button press events in the setup screen."""
         if event.button.id == "save-btn":
             api_input = self.query_one("#api-key-input", Input).value
             if api_input:
@@ -43,6 +48,7 @@ class DetailsSidebar(Vertical):
     """Sidebar for configuring weights dynamically."""
 
     def compose(self) -> ComposeResult:
+        """Compose the sidebar widgets."""
         yield Static("Settings & Criteria", classes="sidebar-title")
         yield Static("Max Age: 12", classes="sidebar-item")
         yield Static("Min Quality: 3", classes="sidebar-item")
@@ -63,7 +69,13 @@ class NetflixNarcApp(App):
         ("e", "evaluate", "Evaluate Titles"),
     ]
 
-    def __init__(self, csv_path: str | None = None, **kwargs):
+    def __init__(self, csv_path: str | None = None, **kwargs: Any) -> None:  # noqa: ANN401
+        """Initialize the Netflix Narc application.
+
+        Args:
+            csv_path: Path to the Netflix history CSV file.
+            **kwargs: Additional keyword arguments for the Textual App.
+        """
         super().__init__(**kwargs)
         self.csv_path = csv_path
 
@@ -87,7 +99,7 @@ class NetflixNarcApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        """Called when app starts."""
+        """Configure the data table on mount."""
         table = self.query_one(DataTable)
         table.cursor_type = "row"
         table.add_columns("Date Watched", "Title", "Flags")
@@ -98,26 +110,31 @@ class NetflixNarcApp(App):
         if self.settings.csm_api_key or self.settings.omdb_api_key or self.settings.tmdb_api_key:
             try:
                 self.rating_provider = get_rating_provider(settings=self.settings)
-            except Exception as e:
+            except (ValueError, NotImplementedError) as e:
                 self.notify(f"Error initializing provider: {e}", severity="error")
 
     def action_settings(self) -> None:
+        """Push the setup screen to configure API keys."""
         self.push_screen(SetupScreen(), self.handle_setup_complete)
 
     def handle_setup_complete(self, api_key: str | None) -> None:
-        """Callback when the SetupScreen is dismissed."""
+        """Handle the completion of the setup screen.
+
+        Args:
+            api_key: The configured API key, if any.
+        """
         if api_key:
             # For now, we assume setup sets the CSM key as primary
             self.settings.csm_api_key = api_key
             self.rating_provider = get_rating_provider(settings=self.settings)
 
             # Save to .env for persistence
-            with open(".env", "a") as f:
+            with Path(".env").open("a") as f:
                 f.write(f"\nCSM_API_KEY={api_key}\n")
             self.notify("API Key saved.")
 
     def action_load_csv(self) -> None:
-        """An action to load a hardcoded or prompted CSV file."""
+        """Load the Netflix history from a CSV file."""
         # Hardcoding the local path for this iteration based on user context
         self.load_data("NetflixViewingHistory.csv")
 
@@ -132,6 +149,7 @@ class NetflixNarcApp(App):
         self.rebuild_table(evaluate=True)
 
     def load_data(self, filepath: str) -> None:
+        """Load and parse Netflix viewing history from the given path."""
         try:
             records: list[ViewingRecord] = parse_netflix_history(filepath)
 
@@ -144,10 +162,13 @@ class NetflixNarcApp(App):
                 self.grouped_records[base_title].append(record)
 
             self.rebuild_table()
-        except Exception as e:
-            self.notify(f"Error loading CSV: {e}", severity="error")
+        except FileNotFoundError as e:
+            self.notify(f"History file not found: {e}", severity="error")
+        except ValueError as e:
+            self.notify(f"Error parsing CSV: {e}", severity="error")
 
     def rebuild_table(self, *, evaluate: bool = False) -> None:
+        """Rebuild the data table with current grouped records."""
         table = self.query_one(DataTable)
         table.clear()
 
@@ -181,6 +202,7 @@ class NetflixNarcApp(App):
                     )
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Handle row selection in the data table."""
         row_key = event.row_key.value
 
         # We only toggle parent rows (base titles)

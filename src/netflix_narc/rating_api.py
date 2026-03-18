@@ -1,3 +1,5 @@
+"""Standardized interfaces for title rating API providers."""
+
 from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
