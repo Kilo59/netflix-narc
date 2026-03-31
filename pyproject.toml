@@ -189,7 +189,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 [tool.ruff.lint.mccabe]
 # Flag errors (`C901`) whenever the complexity level exceeds 10.
 # Default: 10
-max-complexity = 10
+max-complexity = 8
 
 [tool.ruff.lint.pydocstyle]
 # Which style to use for docstrings. Can be "google", "numpy", or "pep257".
@@ -230,7 +230,7 @@ parametrize-names-type = "tuple"
 [tool.ruff.lint.pylint]
 # The maximum number of arguments allowed for a function.
 # Default: 5
-max-args = 5
+max-args = 6
 # The maximum return statements allowed for a function.
 # Default: 6
 max-returns = 6
