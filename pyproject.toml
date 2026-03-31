@@ -3,7 +3,7 @@ name = "netflix-narc"
 version = "0.1.0.dev0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
     "hishel>=1.1.9",
     "httpx[http2]>=0.28.1",
@@ -278,3 +278,21 @@ docstring-code-format = true
 # This only has an effect when the `docstring-code-format` setting is
 # enabled.
 docstring-code-line-length = "dynamic"
+
+[tool.mypy]
+python_version = "3.13"
+files = ["src", "tests/"]
+strict = true
+warn_unused_configs = true
+ignore_missing_imports = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+implicit_reexport = false
+disallow_any_generics = true
+enable_error_code = ['ignore-without-code', 'explicit-override']
+exclude = 'site/.*'
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disable_error_code = ['type-arg', 'no-untyped-def']
