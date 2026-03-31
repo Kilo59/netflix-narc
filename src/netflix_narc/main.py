@@ -1,10 +1,10 @@
 """Main entry point for the Netflix Narc application."""
 
-from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, override
 
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Static
@@ -14,10 +14,14 @@ from netflix_narc.factory import get_rating_provider
 from netflix_narc.parser import ViewingRecord, parse_netflix_history
 from netflix_narc.settings import Settings
 
+if TYPE_CHECKING:
+    from netflix_narc.rating_api import RatingProvider
 
-class SetupScreen(Screen):
+
+class SetupScreen(Screen[str | None]):
     """A screen prompting for initial configuration (API Key, etc.)."""
 
+    @override
     def compose(self) -> ComposeResult:
         """Compose the setup screen widgets."""
         yield Container(
@@ -47,6 +51,7 @@ class SetupScreen(Screen):
 class DetailsSidebar(Vertical):
     """Sidebar for configuring weights dynamically."""
 
+    @override
     def compose(self) -> ComposeResult:
         """Compose the sidebar widgets."""
         yield Static("Settings & Criteria", classes="sidebar-title")
@@ -58,11 +63,11 @@ class DetailsSidebar(Vertical):
         # In the future, these would be interactive sliders/inputs bound to `Settings`.
 
 
-class NetflixNarcApp(App):
+class NetflixNarcApp(App[None]):
     """A Textual TUI for viewing and evaluating Netflix history."""
 
     CSS_PATH = "narc.tcss"
-    BINDINGS: ClassVar[Sequence[tuple[str, str, str]]] = [
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         ("q", "quit", "Quit"),
         ("l", "load_csv", "Load CSV"),
         ("s", "settings", "Settings"),
@@ -81,13 +86,14 @@ class NetflixNarcApp(App):
 
         # Load settings (reads from environment variables / .env)
         self.settings = Settings()
-        self.rating_provider = None
+        self.rating_provider: RatingProvider | None = None
 
         # State for grouping history
         self.grouped_records: dict[str, list[ViewingRecord]] = {}
         self.expanded_titles: set[str] = set()
         self.evaluated_flags: dict[str, str] = {}
 
+    @override
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header()
@@ -151,7 +157,7 @@ class NetflixNarcApp(App):
     def load_data(self, filepath: str) -> None:
         """Load and parse Netflix viewing history from the given path."""
         try:
-            records: list[ViewingRecord] = parse_netflix_history(filepath)
+            records: list[ViewingRecord] = parse_netflix_history(Path(filepath))
 
             # Group records by base title
             self.grouped_records.clear()

@@ -2,6 +2,7 @@
 
 from enum import StrEnum
 from pathlib import Path
+from typing import override
 
 import hishel
 import httpx
@@ -55,6 +56,7 @@ class CSMClient(RatingProvider):
             timeout=10.0,
         )
 
+    @override
     def search_title(self, title: str) -> NormalizedMetadata | None:
         """Search for a title in the CSM API and return normalized metadata.
 
@@ -93,6 +95,7 @@ class CSMClient(RatingProvider):
             # Handle standard HTTP errors
             return None
 
+    @override
     def close(self) -> None:
         """Close the underlying HTTP client."""
         self.client.close()

@@ -1,7 +1,7 @@
 """Utility for parsing Netflix viewing history CSV files."""
 
 import csv
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -43,7 +43,7 @@ def parse_netflix_history(filepath: Path) -> list[ViewingRecord]:
 
             try:
                 # The provided CSV uses '%m/%d/%y' format (e.g., '1/3/26')
-                parsed_date = datetime.strptime(raw_date, "%m/%d/%y").replace(tzinfo=datetime.UTC)
+                parsed_date = datetime.strptime(raw_date, "%m/%d/%y").replace(tzinfo=UTC)
 
                 # Netflix often formats titles as "Series Name: Season X: Episode Title"
                 # We retain the full string here; the CSM API integration may need to strip this
