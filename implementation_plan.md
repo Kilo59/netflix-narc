@@ -1,65 +1,48 @@
-# Goal Description
-The objective is to make the application flexible enough to use multiple APIS to evaluate a user's viewing history. Currently, the app is hardcoded to use [CSMClient](src/netflix_narc/csm_api.py#40-106) (Common Sense Media) and its specialized [CSMMetadata](src/netflix_narc/csm_api.py#23-38). We will introduce a new abstraction/interface that standardizes the metadata across different providers (OMDb, TMDB, TMS, CSM) and allows easy swapping or combining of these APIs.
+# Completion Plan: Rating API Abstraction
 
-## Proposed Changes
+The objective is to finish the ongoing architectural shift to a plugin-based rating provider system. While the core interfaces are in place, several components remain mocked or unimplemented.
 
-We will introduce a new module `src/netflix_narc/rating_api.py` (or modify the existing API structure) containing the abstract interfaces and normalized data models.
+## Accomplished So Far
+- [x] **`src/netflix_narc/rating_api.py`**: Defined `NormalizedMetadata` and the `RatingProvider` protocol.
+- [x] **`src/netflix_narc/factory.py`**: Implemented the provider factory.
+- [x] **`src/netflix_narc/evaluator.py`**: Refactored to consume `NormalizedMetadata`.
+- [x] **`src/netflix_narc/main.py`**: Initial integration with the factory and provider interface.
 
-### `src/netflix_narc/rating_api.py` (New Module)
-This file will define the core abstractions.
+## Remaining Tasks
 
-- **[NEW] `NormalizedMetadata` (Pydantic Model)**:
-  A standardized model representing the common denominator across all APIs.
-  ```python
-  class NormalizedMetadata(BaseModel):
-      title: str
-      content_rating: str | None = Field(default=None, description="Standard content rating (e.g., PG-13, TV-MA).")
-      user_rating: float | None = Field(default=None, description="Normalized 0.0 - 10.0 user rating scale.")
-      provider_name: str = Field(description="Name of the API provider (e.g., 'omdb', 'tmdb').")
-      category_scores: dict[str, int | float] = Field(
-          default_factory=dict,
-          description="Scores for specific advanced criteria (e.g., 'Violence & Scariness', 'Language', 'Educational Value'). Typically 0-5."
-      )
-      # Provider-specific raw data can optionally be retained here, or specific subclasses can extend it.
-  ```
+### 1. Concrete CSM Implementation
+Modify [csm_api.py](src/netflix_narc/csm_api.py) to replace the mock logic with real API interaction.
+- Implement proper parsing of the JSON response.
+- Map CSM-specific ratings (1-5) to the normalized 0-10 scale.
+- Handle rate-limiting (5 req/min) gracefully beyond simple RuntimeError.
 
-- **[NEW] `RatingProvider` (Protocol / ABC)**:
-  An interface that all specific API clients must implement.
-  ```python
-  from typing import Protocol
+### 2. Add OMDb Support
+Create a new module to verify the multi-provider abstraction.
+- **[NEW] `src/netflix_narc/omdb_api.py`**:
+  - Implement `OMDBClient(RatingProvider)`.
+  - Handle OMDb-specific fields (e.g., `imdbRating`, `Rated`).
+- **Update `get_rating_provider`**: Register the new client in the factory.
 
-  class RatingProvider(Protocol):
-      provider_name: str
+### 3. UI and Configuration Enhancements
+Update [main.py](src/netflix_narc/main.py) to support switching providers.
+- **`SetupScreen`**: Add a selection for the active provider.
+- **Persistence**: Ensure `ACTIVE_RATING_PROVIDER` is saved to `.env` along with provider-specific keys.
+- **Dynamic Loading**: Refresh the `rating_provider` when settings change without requiring an app restart.
 
-      def search_title(self, title: str) -> NormalizedMetadata | None:
-          """Search for a title and return its normalized metadata."""
-          ...
+### 4. Automated Testing
+Fulfill the original verification plan:
+- [ ] Unit tests for `NormalizedMetadata` validation.
+- [ ] Mocked integration tests for `CSMClient` and `OMDBClient`.
+- [ ] Factory tests ensuring correct instantiation.
 
-      def close(self) -> None:
-          """Cleanup resources."""
-          ...
-  ```
-
-### [src/netflix_narc/csm_api.py](src/netflix_narc/csm_api.py)
-- Modify [CSMClient](src/netflix_narc/csm_api.py#40-106) to implement the new `RatingProvider` Protocol.
-- It will return `NormalizedMetadata`, possibly by mapping [CSMMetadata](src/netflix_narc/csm_api.py#23-38)'s `age_rating` to a `content_rating` representation, and `quality_rating` to the 0-10 `user_rating` scale.
-
-### [src/netflix_narc/settings.py](src/netflix_narc/settings.py)
-- Add settings to configure which provider to use.
-  ```python
-  class Settings(BaseSettings):
-      ...
-      active_rating_provider: str = Field(default="csm", description="Which API to use: csm, omdb, tmdb, etc.")
-      omdb_api_key: str | None = None
-      tmdb_api_key: str | None = None
-  ```
-
-### Provider Factory (e.g., `src/netflix_narc/factory.py`)
-- We will need a factory function or dependency injection configuration to instantiate the correct `RatingProvider` based on the `active_rating_provider` setting.
+## Open Questions
+- Do we want to support **fallback providers** (e.g., if CSM fails, try OMDb)?
+- Should we normalize content ratings (PG, R, etc.) to a numeric scale for easier evaluation, or keep them as strings?
 
 ## Verification Plan
-1. **Automated Tests**:
-   - Write unit tests for the abstract `NormalizedMetadata` model.
-   - Write tests ensuring [CSMClient](src/netflix_narc/csm_api.py#40-106) correctly implements `RatingProvider` and normalizes its specific data to `NormalizedMetadata`.
-2. **Manual Verification**:
-   - N/A for this phase, as the goal is only to capture the architectural design.
+### Automated Tests
+- `pytest tests/test_rating_api.py`
+- `pytest tests/test_providers.py`
+
+### Manual Verification
+- Launch the TUI, switch to OMDb via settings, and verify that evaluations still work using OMDb data.
