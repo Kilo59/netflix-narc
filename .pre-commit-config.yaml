@@ -11,7 +11,7 @@ repos:
       - id: no-commit-to-branch
         args: [--branch, develop, --branch, main]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.15.5"
+    rev: "v0.15.8"
     hooks:
       - id: ruff-check
         args: ["--fix"]
@@ -22,7 +22,7 @@ repos:
       - id: prettier
         types_or: [yaml, json]
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.11
+    rev: v1.7.12
     hooks:
       - id: actionlint
         exclude: .github/workflows/complexity.yaml
