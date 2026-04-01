@@ -1,31 +1,63 @@
+/* Netflix Brand Palette */
+/* Background: #141414, Primary Red: #E50914, Secondary: #2F2F2F */
+
 Screen {
-    background: $surface;
+    background: #141414;
+    color: #E5E5E5;
 }
-
-/* Sidebar - TODO: v0.2
-#sidebar {
-    width: 30;
-    dock: left;
-    height: 100%;
-    background: $panel;
-    border-right: solid $primary;
-    padding: 1 2;
-}
-
-.sidebar-title {
-    text-style: bold;
-    color: $accent;
-    padding-bottom: 1;
-}
-
-.sidebar-item {
-    padding-bottom: 1;
-}
-*/
 
 #history-table {
     width: 1fr;
     height: 100%;
+    background: #141414;
+    border: none;
+    padding: 1 2;
+}
+
+/* DataTable Customization */
+DataTable {
+    background: #141414;
+    color: #E5E5E5;
+    height: 100%;
+}
+
+DataTable > .datatable--header {
+    background: #141414;
+    color: #808080;
+    text-style: bold;
+}
+
+DataTable > .datatable--cursor {
+    background: #E50914 30%;
+    color: #FFFFFF;
+    text-style: bold;
+}
+
+DataTable > .datatable--odd-row {
+    background: #181818;
+}
+
+/* Header & Footer */
+Header {
+    background: #000000;
+    color: #E50914;
+    text-style: bold;
+    dock: top;
+}
+
+Footer {
+    background: #000000;
+    color: #808080;
+}
+
+Footer > .footer--highlight {
+    background: #E50914;
+    color: #FFFFFF;
+}
+
+Footer > .footer--key {
+    color: #E50914;
+    text-style: bold;
 }
 
 /* Setup Screen Styling */
@@ -34,25 +66,33 @@ Screen {
     width: 60;
     height: auto;
     min-height: 20;
-    background: $panel;
-    border: double $primary;
+    background: #181818;
+    border: tall #333333;
     padding: 2;
 }
 
 .title {
     content-align: center middle;
     text-style: bold;
-    color: $accent;
+    color: #E50914;
     padding-bottom: 2;
 }
 
 .instructions {
     content-align: center middle;
     padding-bottom: 2;
+    color: #808080;
 }
 
 Input {
     margin-bottom: 2;
+    background: #333333;
+    border: none;
+    color: #FFFFFF;
+}
+
+Input:focus {
+    border: tall #E50914;
 }
 
 #setup-container Horizontal {
@@ -63,14 +103,32 @@ Input {
 #setup-container Button {
     width: 1fr;
     margin: 0 1;
+    background: #333333;
+    color: #FFFFFF;
+    border: none;
+}
+
+#setup-container Button.-primary {
+    background: #E50914;
+    color: #FFFFFF;
+    text-style: bold;
+}
+
+#setup-container Button.-error {
+    background: #333333;
+    color: #808080;
 }
 
 Select {
     margin-bottom: 1;
+    background: #333333;
+    color: #FFFFFF;
 }
 
 /* Loading indicator shown during background evaluation */
 #loading-indicator {
     dock: bottom;
     height: 1;
+    color: #E50914;
+    background: #000000;
 }
