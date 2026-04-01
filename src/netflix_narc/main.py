@@ -355,7 +355,13 @@ class NetflixNarcApp(App[None]):
         except ValueError as e:
             self.notify(f"Error parsing CSV: {e}", severity="error")
 
-    def rebuild_table(self, *, evaluate: bool = False, cache_only: bool = False) -> None:
+    def rebuild_table(
+        self,
+        *,
+        evaluate: bool = False,
+        cache_only: bool = False,
+        cursor_to_key: str | None = None,
+    ) -> None:
         """Rebuild the data table with current grouped records.
 
         For non-evaluate rebuilds (e.g. expand/collapse), previously fetched
@@ -397,6 +403,10 @@ class NetflixNarcApp(App[None]):
                         key=f"{base_title}_{rec.title}_{rec.date_watched.isoformat()}",
                     )
 
+        if cursor_to_key:
+            with contextlib.suppress(Exception):
+                table.cursor_coordinate = (table.get_row_index(cursor_to_key), 0)
+
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle row selection in the data table."""
         row_key = event.row_key.value
@@ -407,7 +417,7 @@ class NetflixNarcApp(App[None]):
                 self.expanded_titles.remove(row_key)
             else:
                 self.expanded_titles.add(row_key)
-            self.rebuild_table(evaluate=False)
+            self.rebuild_table(evaluate=False, cursor_to_key=row_key)
 
 
 def main() -> None:
