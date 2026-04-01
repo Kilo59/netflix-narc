@@ -1,9 +1,15 @@
 """Factory for instantiating rating providers based on application settings."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from netflix_narc.csm_api import CSMClient
 from netflix_narc.omdb_api import OMDBClient
-from netflix_narc.rating_api import RatingProvider
 from netflix_narc.settings import RatingProviderType, Settings
+
+if TYPE_CHECKING:
+    from netflix_narc.rating_api import RatingProvider
 
 
 def get_rating_provider(settings: Settings) -> RatingProvider:

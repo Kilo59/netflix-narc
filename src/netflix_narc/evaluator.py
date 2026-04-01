@@ -1,7 +1,12 @@
 """Logic for evaluating movie/TV titles against user-defined criteria."""
 
-from netflix_narc.rating_api import NormalizedMetadata
-from netflix_narc.settings import Settings
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from netflix_narc.rating_api import NormalizedMetadata
+    from netflix_narc.settings import Settings
 
 
 def _get_age_limit(content_rating: str | None) -> int | None:

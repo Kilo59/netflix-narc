@@ -193,9 +193,23 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 max-complexity = 8
 
 [tool.ruff.lint.pydocstyle]
-# Which style to use for docstrings. Can be "google", "numpy", or "pep257".
-# Default: "pep257"
-convention = "pep257"
+convention = "google"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"unittest.mock".msg = "Prefer dedicated libraries to mock at external dependencies, such as `httpx` or `pyfakefs`."
+
+[tool.ruff.lint.flake8-import-conventions]
+# Declare the banned `from` imports.
+banned-from = ["pathlib", "datetime"]
+
+[tool.ruff.lint.flake8-import-conventions.aliases]
+# Declare the default aliases.
+datetime = "dt"
+"pprint.pprint" = "pp"
+"pprint.pformat" = "pf"
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.lint.flake8-quotes]
 # The style to use for inline strings: "single" or "double"
@@ -214,11 +228,6 @@ avoid-escape = true
 [tool.ruff.lint.flake8-tidy-imports]
 # Ban absolute imports from specific modules
 # ban-relative-imports = "all" # Default: "parents"
-
-[tool.ruff.lint.isort]
-# How to group imports: "std", "third-party", "first-party", "local-folder".
-# Default: ["future", "standard-library", "third-party", "first-party", "local-folder"]
-# section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
 
 [tool.ruff.lint.flake8-pytest-style]
 # Whether to require parentheses for pytest fixtures.

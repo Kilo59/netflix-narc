@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import pathlib
 
 from invoke import Context, task  # type: ignore[attr-defined]
 
 # Project constants
 PROJECT_NAME = "netflix-narc"
-PYPROJECT_TOML = Path("pyproject.toml")
+PYPROJECT_TOML = pathlib.Path("pyproject.toml")
 
 
 @task

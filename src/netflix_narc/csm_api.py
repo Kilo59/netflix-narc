@@ -1,15 +1,19 @@
 """Client implementation for the Common Sense Media (CSM) API."""
 
+from __future__ import annotations
+
+import pathlib
 from enum import StrEnum
-from pathlib import Path
-from typing import override
+from typing import TYPE_CHECKING, Any, override
 
 import hishel
 import httpx
 from hishel.httpx import SyncCacheClient
 
 from netflix_narc.rating_api import NormalizedMetadata, RatingProvider
-from netflix_narc.settings import Settings
+
+if TYPE_CHECKING:
+    from netflix_narc.settings import Settings
 
 HTTP_TOO_MANY_REQUESTS = 429
 
@@ -32,19 +36,25 @@ class CSMClient(RatingProvider):
     BASE_URL = "https://api.commonsensemedia.org/v1"
     provider_name = "csm"
 
-    def __init__(self, settings: Settings, cache_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        cache_dir: pathlib.Path | None = None,
+        **kwargs: Any,  # noqa: ANN401, ARG002
+    ) -> None:
         """Initialize the client.
 
         Args:
-            settings: Application settings, must contain `csm_api_key`.
-            cache_dir: Directory to store the hishel HTTP cache. Defaults to `.csm_cache`.
+            settings: Configuration settings for the client.
+            cache_dir: Optional directory for HTTP caching.
+            **kwargs: Additional keyword arguments.
         """
         if not settings.csm_api_key.get_secret_value():
             msg = "CSM API Key must be configured to use the CSMClient."
             raise ValueError(msg)
 
         self.settings = settings
-        self._cache_dir = cache_dir or Path(".csm_cache")
+        self._cache_dir = cache_dir or pathlib.Path(".csm_cache")
 
         # We use hishel's SyncCacheClient and SyncSqliteStorage.
         # Pass a file path (not a directory) for the sqlite DB.

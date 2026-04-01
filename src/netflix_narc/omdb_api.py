@@ -1,14 +1,18 @@
 """Client implementation for the OMDb API."""
 
-from pathlib import Path
-from typing import override
+from __future__ import annotations
+
+import pathlib
+from typing import TYPE_CHECKING, override
 
 import hishel
 import httpx
 from hishel.httpx import SyncCacheClient
 
 from netflix_narc.rating_api import NormalizedMetadata, RatingProvider
-from netflix_narc.settings import Settings
+
+if TYPE_CHECKING:
+    from netflix_narc.settings import Settings
 
 
 class OMDBClient(RatingProvider):
@@ -17,7 +21,7 @@ class OMDBClient(RatingProvider):
     BASE_URL = "http://www.omdbapi.com/"
     provider_name = "omdb"
 
-    def __init__(self, settings: Settings, cache_dir: Path | None = None) -> None:
+    def __init__(self, settings: Settings, cache_dir: pathlib.Path | None = None) -> None:
         """Initialize the client with settings and caching.
 
         Args:
@@ -29,7 +33,7 @@ class OMDBClient(RatingProvider):
             raise ValueError(msg)
 
         self.settings = settings
-        self._cache_dir = cache_dir or Path(".omdb_cache")
+        self._cache_dir = cache_dir or pathlib.Path(".omdb_cache")
 
         # Persistent storage for hishel
         cache_path = str(self._cache_dir / "cache.sqlite")

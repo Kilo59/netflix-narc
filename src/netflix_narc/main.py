@@ -1,11 +1,12 @@
 """Main entry point for the Netflix Narc application."""
 
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, override
+from __future__ import annotations
+
+import pathlib
+from typing import TYPE_CHECKING, ClassVar, NamedTuple, override
 
 from pydantic import SecretStr, TypeAdapter
 from textual.app import App, ComposeResult
-from textual.binding import Binding
 from textual.containers import Container, Horizontal
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Select, Static
@@ -16,6 +17,10 @@ from netflix_narc.parser import ViewingRecord, parse_netflix_history
 from netflix_narc.settings import RatingProviderType, Settings
 
 if TYPE_CHECKING:
+    from typing import Any
+
+    from textual.binding import Binding
+
     from netflix_narc.rating_api import RatingProvider
 
 
@@ -80,8 +85,6 @@ class SetupScreen(Screen[SetupConfig | None]):
         else:
             self.notify("Provider and API Key required", severity="warning")
 
-        # In the future, these would be interactive sliders/inputs bound to `Settings`.
-
 
 class NetflixNarcApp(App[None]):
     """A Textual TUI for viewing and evaluating Netflix history."""
@@ -96,18 +99,22 @@ class NetflixNarcApp(App[None]):
         ("e", "evaluate", "Evaluate Titles"),
     ]
 
-    def __init__(self, csv_path: str | None = None, **kwargs: Any) -> None:  # noqa: ANN401
+    def __init__(
+        self,
+        settings: Settings,
+        cache_dir: pathlib.Path | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
         """Initialize the Netflix Narc application.
 
         Args:
-            csv_path: Path to the Netflix history CSV file.
+            settings: Configuration settings for the application.
+            cache_dir: Optional directory for HTTP caching.
             **kwargs: Additional keyword arguments for the Textual App.
         """
         super().__init__(**kwargs)
-        self.csv_path = csv_path
-
-        # Load settings (reads from environment variables / .env)
-        self.settings = Settings()
+        self.settings = settings
+        self.cache_dir = cache_dir
         self.rating_provider: RatingProvider | None = None
 
         # State for grouping history
@@ -138,8 +145,10 @@ class NetflixNarcApp(App[None]):
         table.add_column("Title", width=45)
         table.add_column("Flags")
 
-        if self.csv_path:
-            self.load_data(self.csv_path)
+        # Auto-load if the default file exists
+        default_csv = pathlib.Path("NetflixViewingHistory.csv")
+        if default_csv.exists():
+            self.load_data(str(default_csv))
 
         if self.settings.csm_api_key or self.settings.omdb_api_key or self.settings.tmdb_api_key:
             try:
@@ -171,7 +180,7 @@ class NetflixNarcApp(App[None]):
 
     def _update_env_file(self, provider: RatingProviderType, api_key: SecretStr) -> None:
         """Update the .env file with new provider settings, deduplicating keys."""
-        env_path = Path(".env")
+        env_path = pathlib.Path(".env")
         env_lines = []
         if env_path.exists():
             env_lines = env_path.read_text().splitlines()
@@ -247,7 +256,7 @@ class NetflixNarcApp(App[None]):
     def load_data(self, filepath: str) -> None:
         """Load and parse Netflix viewing history from the given path."""
         try:
-            records: list[ViewingRecord] = parse_netflix_history(Path(filepath))
+            records: list[ViewingRecord] = parse_netflix_history(pathlib.Path(filepath))
 
             # Group records by base title
             self.grouped_records.clear()
@@ -312,7 +321,8 @@ class NetflixNarcApp(App[None]):
 
 def main() -> None:
     """CLI Entrypoint to start the Netflix Narc application."""
-    app = NetflixNarcApp(csv_path="NetflixViewingHistory.csv")
+    settings = Settings()
+    app = NetflixNarcApp(settings=settings)
     app.run()
 
 

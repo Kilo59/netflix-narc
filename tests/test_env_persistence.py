@@ -8,18 +8,18 @@ import pytest
 from pydantic import SecretStr
 
 from netflix_narc.main import NetflixNarcApp
-from netflix_narc.settings import RatingProviderType
+from netflix_narc.settings import RatingProviderType, Settings
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    import pathlib
 
 
 class MockApp(NetflixNarcApp):
     """Mocked version of NetflixNarcApp that overrides Path('.env') usage."""
 
-    def __init__(self, env_path: Path, **kwargs: Any) -> None:  # noqa: ANN401, ARG002
+    def __init__(self, settings: Settings, env_path: pathlib.Path, **kwargs: Any) -> None:  # noqa: ANN401, ARG002
         self._mock_env_path = env_path
-        super().__init__()
+        super().__init__(settings=settings)
 
     @override
     def _update_env_file(self, provider: RatingProviderType, api_key: SecretStr) -> None:
@@ -57,14 +57,14 @@ class MockApp(NetflixNarcApp):
         temp_env.replace(env_path)
 
 
-def test_update_env_file_deduplication(tmp_path: Path) -> None:
+def test_update_env_file_deduplication(tmp_path: pathlib.Path, fake_settings: Settings) -> None:
     """Test that _update_env_file updates existing keys and doesn't duplicate them."""
     env_file = tmp_path / ".env"
 
     # 1. Initial state
     env_file.write_text("EXISTING_VAR=val\nACTIVE_RATING_PROVIDER=csm\nCSM_API_KEY=old-key\n")
 
-    app = MockApp(env_path=env_file)
+    app = MockApp(settings=fake_settings, env_path=env_file)
 
     # 2. Update to OMDB
     app._update_env_file(RatingProviderType.OMDB, SecretStr("new-omdb-key"))  # noqa: SLF001
@@ -79,7 +79,9 @@ def test_update_env_file_deduplication(tmp_path: Path) -> None:
     assert "CSM_API_KEY=old-key" in content
 
 
-def test_update_env_file_preserves_formatting(tmp_path: Path) -> None:
+def test_update_env_file_preserves_formatting(
+    tmp_path: pathlib.Path, fake_settings: Settings
+) -> None:
     """Test that comments and blank lines are preserved."""
     env_file = tmp_path / ".env"
     initial_content = (
@@ -87,7 +89,7 @@ def test_update_env_file_preserves_formatting(tmp_path: Path) -> None:
     )
     env_file.write_text(initial_content)
 
-    app = MockApp(env_path=env_file)
+    app = MockApp(settings=fake_settings, env_path=env_file)
     app._update_env_file(RatingProviderType.OMDB, SecretStr("new-key"))  # noqa: SLF001  # noqa: SLF001
 
     content = env_file.read_text()

@@ -1,5 +1,7 @@
 """Application-wide settings and configuration schemas."""
 
+from __future__ import annotations
+
 from enum import StrEnum
 from typing import ClassVar
 
