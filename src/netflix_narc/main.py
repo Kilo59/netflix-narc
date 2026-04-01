@@ -13,7 +13,7 @@ from textual.widgets import Button, DataTable, Footer, Header, Input, Select, St
 from netflix_narc.evaluator import evaluate_title
 from netflix_narc.factory import get_rating_provider
 from netflix_narc.parser import ViewingRecord, parse_netflix_history
-from netflix_narc.settings import Settings
+from netflix_narc.settings import RatingProviderType, Settings
 
 if TYPE_CHECKING:
     from netflix_narc.rating_api import RatingProvider
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class SetupConfig(NamedTuple):
     """Configuration result from the setup screen."""
 
-    provider: str
+    provider: RatingProviderType
     api_key: str
 
 
@@ -39,8 +39,8 @@ class SetupScreen(Screen[SetupConfig | None]):
                 classes="instructions",
             ),
             Select(
-                [("Common Sense Media", "csm"), ("OMDb API", "omdb")],
-                value="omdb",
+                [(p.name.replace("_", " "), p) for p in RatingProviderType],
+                value=RatingProviderType.OMDB,
                 id="provider-select",
             ),
             Input(placeholder="Enter API Key...", id="api-key-input", password=True),
@@ -56,8 +56,8 @@ class SetupScreen(Screen[SetupConfig | None]):
         if event.button.id == "save-btn":
             provider = self.query_one("#provider-select", Select).value
             api_key = self.query_one("#api-key-input", Input).value
-            if provider and api_key:
-                self.dismiss(SetupConfig(provider=str(provider), api_key=api_key))
+            if provider and api_key and isinstance(provider, RatingProviderType):
+                self.dismiss(SetupConfig(provider=provider, api_key=api_key))
         elif event.button.id == "cancel-btn":
             self.dismiss(None)
 
@@ -148,10 +148,13 @@ class NetflixNarcApp(App[None]):
             api_key = config.api_key
 
             self.settings.active_rating_provider = provider
-            if provider == "csm":
-                self.settings.csm_api_key = SecretStr(api_key)
-            elif provider == "omdb":
-                self.settings.omdb_api_key = SecretStr(api_key)
+            match provider:
+                case RatingProviderType.CSM:
+                    self.settings.csm_api_key = SecretStr(api_key)
+                case RatingProviderType.OMDB:
+                    self.settings.omdb_api_key = SecretStr(api_key)
+                case RatingProviderType.TMDB:
+                    self.settings.tmdb_api_key = SecretStr(api_key)
 
             try:
                 self.rating_provider = get_rating_provider(settings=self.settings)

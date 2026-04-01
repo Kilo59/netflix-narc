@@ -1,9 +1,18 @@
 """Application-wide settings and configuration schemas."""
 
+from enum import StrEnum
 from typing import ClassVar
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class RatingProviderType(StrEnum):
+    """Available rating providers for the application."""
+
+    CSM = "csm"
+    OMDB = "omdb"
+    TMDB = "tmdb"
 
 
 class CategoryWeights(BaseSettings):
@@ -31,7 +40,7 @@ class Settings(BaseSettings):
         "env_nested_delimiter": "__",
     }
 
-    active_rating_provider: str = "omdb"
+    active_rating_provider: RatingProviderType = RatingProviderType.OMDB
     csm_api_key: SecretStr = SecretStr("")
     omdb_api_key: SecretStr = SecretStr("")
     tmdb_api_key: SecretStr = SecretStr("")
