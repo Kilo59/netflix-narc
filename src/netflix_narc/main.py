@@ -167,6 +167,56 @@ class NetflixNarcApp(App[None]):
         """Push the setup screen to configure API keys."""
         self.push_screen(SetupScreen(), self.handle_setup_complete)
 
+    def _parse_env_line(
+        self, raw_line: str, new_values: dict[str, str], seen_keys: set[str]
+    ) -> str | None:
+        """Parse a single .env line and return the updated version, or None if skipped."""
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            return line
+
+        if "=" in line:
+            k, _ = line.split("=", 1)
+            if k in new_values:
+                seen_keys.add(k)
+                return f"{k}={new_values[k]}"
+            return line
+        return line
+
+    def _update_env_file(self, provider: RatingProviderType, api_key: SecretStr) -> None:
+        """Update the .env file with new provider settings, deduplicating keys."""
+        env_path = Path(".env")
+        env_lines = []
+        if env_path.exists():
+            env_lines = env_path.read_text().splitlines()
+
+        # Map prefix to new value
+        new_values = {
+            "ACTIVE_RATING_PROVIDER": str(provider),
+        }
+        if provider == RatingProviderType.CSM:
+            new_values["CSM_API_KEY"] = api_key.get_secret_value()
+        elif provider == RatingProviderType.OMDB:
+            new_values["OMDB_API_KEY"] = api_key.get_secret_value()
+
+        # Process existing lines, updating matches
+        updated_lines = []
+        seen_keys: set[str] = set()
+        for raw_line in env_lines:
+            updated_line = self._parse_env_line(raw_line, new_values, seen_keys)
+            if updated_line is not None:
+                updated_lines.append(updated_line)
+
+        # Add new keys that weren't in the file
+        for k, v in new_values.items():
+            if k not in seen_keys:
+                updated_lines.append(f"{k}={v}")
+
+        # Write atomically
+        temp_env = env_path.with_suffix(".tmp")
+        temp_env.write_text("\n".join(updated_lines) + "\n")
+        temp_env.replace(env_path)
+
     def handle_setup_complete(self, config: SetupConfig | None) -> None:
         """Handle the completion of the setup screen.
 
@@ -188,15 +238,7 @@ class NetflixNarcApp(App[None]):
 
             try:
                 self.rating_provider = get_rating_provider(settings=self.settings)
-
-                # Save to .env for persistence
-                env_path = Path(".env")
-                with env_path.open("a") as f:
-                    f.write(f"\nACTIVE_RATING_PROVIDER={provider}\n")
-                    if provider == RatingProviderType.CSM:
-                        f.write(f"CSM_API_KEY={api_key.get_secret_value()}\n")
-                    elif provider == RatingProviderType.OMDB:
-                        f.write(f"OMDB_API_KEY={api_key.get_secret_value()}\n")
+                self._update_env_file(provider, api_key)
                 self.notify(f"Settings saved for {provider.upper()}.")
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Initialization error: {e}", severity="error")
