@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, override
 from pydantic import SecretStr, TypeAdapter
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Horizontal
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Select, Static
 
@@ -80,19 +80,6 @@ class SetupScreen(Screen[SetupConfig | None]):
         else:
             self.notify("Provider and API Key required", severity="warning")
 
-
-class DetailsSidebar(Vertical):
-    """Sidebar for configuring weights dynamically."""
-
-    @override
-    def compose(self) -> ComposeResult:
-        """Compose the sidebar widgets."""
-        yield Static("Settings & Criteria", classes="sidebar-title")
-        yield Static("Max Age: 12", classes="sidebar-item")
-        yield Static("Min Quality: 3", classes="sidebar-item")
-        yield Static("---", classes="sidebar-item")
-        yield Static("Violence Weight: High", classes="sidebar-item")
-        yield Static("Language Weight: Med", classes="sidebar-item")
         # In the future, these would be interactive sliders/inputs bound to `Settings`.
 
 
@@ -134,7 +121,6 @@ class NetflixNarcApp(App[None]):
         yield Header()
 
         with Horizontal():
-            yield DetailsSidebar(id="sidebar")
             yield DataTable(id="history-table")
 
         yield Footer()

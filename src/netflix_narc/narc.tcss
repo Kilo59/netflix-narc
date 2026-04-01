@@ -2,6 +2,7 @@ Screen {
     background: $surface;
 }
 
+/* Sidebar - TODO: v0.2
 #sidebar {
     width: 30;
     dock: left;
@@ -20,6 +21,7 @@ Screen {
 .sidebar-item {
     padding-bottom: 1;
 }
+*/
 
 #history-table {
     width: 1fr;

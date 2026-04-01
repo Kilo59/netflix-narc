@@ -19,6 +19,7 @@ package = true
 
 [dependency-groups]
 dev = [
+    "invoke>=2.2.1",
     "mypy>=1.19.1",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",

@@ -18,7 +18,7 @@ from netflix_narc.omdb_api import OMDBClient
 from netflix_narc.settings import Settings
 
 if TYPE_CHECKING:
-    import pathlib
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # OMDb Client Tests
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 def test_omdb_search_happy_path(
-    tmp_path: pathlib.Path,
+    tmp_path: Path,
     fake_settings: Settings,
     omdb_response_payload: dict[str, str],
 ) -> None:
@@ -48,7 +48,7 @@ def test_omdb_search_happy_path(
 
 
 def test_omdb_search_returns_none_on_false_response(
-    tmp_path: pathlib.Path,
+    tmp_path: Path,
     fake_settings: Settings,
 ) -> None:
     """OMDBClient.search_title returns None when the API reports Response=False."""
@@ -63,7 +63,7 @@ def test_omdb_search_returns_none_on_false_response(
 
 
 def test_omdb_search_handles_na_rating(
-    tmp_path: pathlib.Path,
+    tmp_path: Path,
     fake_settings: Settings,
     omdb_response_payload: dict[str, str],
 ) -> None:
@@ -81,7 +81,7 @@ def test_omdb_search_handles_na_rating(
 
 
 def test_omdb_search_returns_none_on_http_error(
-    tmp_path: pathlib.Path,
+    tmp_path: Path,
     fake_settings: Settings,
 ) -> None:
     """OMDBClient.search_title returns None when the server returns an HTTP error."""
@@ -99,7 +99,7 @@ def test_omdb_search_returns_none_on_http_error(
 # ---------------------------------------------------------------------------
 
 
-def test_csm_client_raises_on_empty_key(tmp_path: pathlib.Path) -> None:
+def test_csm_client_raises_on_empty_key(tmp_path: Path) -> None:
     """CSMClient raises ValueError when instantiated without an API key."""
     settings = Settings(csm_api_key=SecretStr(""), _env_file=None)  # type: ignore[call-arg]
     with pytest.raises(ValueError, match="CSM API Key must be configured"):
@@ -107,7 +107,7 @@ def test_csm_client_raises_on_empty_key(tmp_path: pathlib.Path) -> None:
 
 
 def test_csm_search_raises_on_rate_limit(
-    tmp_path: pathlib.Path,
+    tmp_path: Path,
     fake_settings: Settings,
 ) -> None:
     """CSMClient.search_title raises RuntimeError on HTTP 429 (rate limit exceeded)."""
@@ -122,7 +122,7 @@ def test_csm_search_raises_on_rate_limit(
 
 
 def test_csm_search_happy_path(
-    tmp_path: pathlib.Path,
+    tmp_path: Path,
     fake_settings: Settings,
 ) -> None:
     """CSMClient.search_title returns NormalizedMetadata on a successful response."""
