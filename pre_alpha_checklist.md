@@ -183,7 +183,7 @@ Complexity levels are assigned by the scope of reasoning required:
 
 - [x] **#1** — Implement real CSM JSON response parsing in `csm_api.py`: map `data[0].age` → `content_rating`, `data[0].rating * 2` → `user_rating`, `data[0].categories` → `category_scores`; update `test_csm_search_happy_path` to assert parsed fields
 - [x] **#2** — Fix hardcoded CSV path: added `--csv PATH` CLI argument to `main()` via `argparse`; also accepts the explicit path in the `NetflixNarcApp` constructor; `README.md` updated with `--csv` usage example
-- [x] **#4** — Prevent OMDb API key appearing in hishel's SQLite cache: risk documented in `tests/test_rating_api.py` header (local file, low risk for personal CLI; full fix deferred to v0.2)
+- [x] **#4** — Prevent OMDb API key appearing in hishel's SQLite cache: risk documented in `tests/test_rating_api.py` and [ADR #2](.agent/decisions.md) (local file, low risk; full fix deferred)
 - [x] **#7** — Move title evaluation off the main thread using `functools.partial` + `run_worker(thread=True)`; rows update progressively via `call_from_thread`
 - [x] **#8** — Added a `LoadingIndicator` to the TUI that is visible during evaluation and hidden when all workers finish; styled in `narc.tcss`
 - [x] **#9** — Auto-present `SetupScreen` on mount when `rating_provider` is `None` after initial settings load via `call_after_refresh(self.action_settings)`
