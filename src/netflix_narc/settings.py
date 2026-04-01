@@ -32,9 +32,9 @@ class Settings(BaseSettings):
     }
 
     active_rating_provider: str = "omdb"
-    csm_api_key: SecretStr = ""
-    omdb_api_key: SecretStr = ""
-    tmdb_api_key: SecretStr = ""
+    csm_api_key: SecretStr = SecretStr("")
+    omdb_api_key: SecretStr = SecretStr("")
+    tmdb_api_key: SecretStr = SecretStr("")
     max_age_rating: int = 12
     min_quality_rating: int = 3
 

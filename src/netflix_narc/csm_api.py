@@ -39,7 +39,7 @@ class CSMClient(RatingProvider):
             settings: Application settings, must contain `csm_api_key`.
             cache_dir: Directory to store the hishel HTTP cache. Defaults to `.csm_cache`.
         """
-        if not settings.csm_api_key:
+        if not settings.csm_api_key.get_secret_value():
             msg = "CSM API Key must be configured to use the CSMClient."
             raise ValueError(msg)
 
@@ -51,7 +51,7 @@ class CSMClient(RatingProvider):
 
         self.client = SyncCacheClient(
             storage=self._storage,
-            headers={"x-api-key": self.settings.csm_api_key},
+            headers={"x-api-key": self.settings.csm_api_key.get_secret_value()},
             http2=True,
             timeout=10.0,
         )

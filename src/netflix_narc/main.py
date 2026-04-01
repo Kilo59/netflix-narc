@@ -1,8 +1,9 @@
 """Main entry point for the Netflix Narc application."""
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, override
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, override
 
+from pydantic import SecretStr
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
@@ -18,7 +19,14 @@ if TYPE_CHECKING:
     from netflix_narc.rating_api import RatingProvider
 
 
-class SetupScreen(Screen[dict[str, str] | None]):
+class SetupConfig(NamedTuple):
+    """Configuration result from the setup screen."""
+
+    provider: str
+    api_key: str
+
+
+class SetupScreen(Screen[SetupConfig | None]):
     """A screen prompting for initial configuration (Provider, API Key)."""
 
     @override
@@ -49,8 +57,7 @@ class SetupScreen(Screen[dict[str, str] | None]):
             provider = self.query_one("#provider-select", Select).value
             api_key = self.query_one("#api-key-input", Input).value
             if provider and api_key:
-                # Select.value is technically str | None or Select.BLANK
-                self.dismiss({"provider": str(provider), "api_key": api_key})
+                self.dismiss(SetupConfig(provider=str(provider), api_key=api_key))
         elif event.button.id == "cancel-btn":
             self.dismiss(None)
 
@@ -130,21 +137,21 @@ class NetflixNarcApp(App[None]):
         """Push the setup screen to configure API keys."""
         self.push_screen(SetupScreen(), self.handle_setup_complete)
 
-    def handle_setup_complete(self, config: dict[str, str] | None) -> None:
+    def handle_setup_complete(self, config: SetupConfig | None) -> None:
         """Handle the completion of the setup screen.
 
         Args:
             config: The configured provider and API key, if any.
         """
         if config:
-            provider = config["provider"]
-            api_key = config["api_key"]
+            provider = config.provider
+            api_key = config.api_key
 
             self.settings.active_rating_provider = provider
             if provider == "csm":
-                self.settings.csm_api_key = api_key
+                self.settings.csm_api_key = SecretStr(api_key)
             elif provider == "omdb":
-                self.settings.omdb_api_key = api_key
+                self.settings.omdb_api_key = SecretStr(api_key)
 
             try:
                 self.rating_provider = get_rating_provider(settings=self.settings)

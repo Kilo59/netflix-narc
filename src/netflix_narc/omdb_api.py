@@ -24,7 +24,7 @@ class OMDBClient(RatingProvider):
             settings: Application settings, must contain `omdb_api_key`.
             cache_dir: Directory to store the hishel HTTP cache. Defaults to `.omdb_cache`.
         """
-        if not settings.omdb_api_key:
+        if not settings.omdb_api_key.get_secret_value():
             msg = "OMDb API Key must be configured to use the OMDBClient."
             raise ValueError(msg)
 
@@ -46,7 +46,7 @@ class OMDBClient(RatingProvider):
         """Search for a title and return normalized metadata."""
         params = {
             "t": title,
-            "apikey": self.settings.omdb_api_key,
+            "apikey": self.settings.omdb_api_key.get_secret_value(),
         }
 
         try:
