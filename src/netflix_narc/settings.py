@@ -1,5 +1,8 @@
 """Application-wide settings and configuration schemas."""
 
+from typing import ClassVar
+
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,17 +25,17 @@ class CategoryWeights(BaseSettings):
 class Settings(BaseSettings):
     """Core application configuration."""
 
+    model_config: ClassVar[SettingsConfigDict] = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "env_nested_delimiter": "__",
+    }
+
     active_rating_provider: str = "omdb"
-    csm_api_key: str = ""
-    omdb_api_key: str = ""
-    tmdb_api_key: str = ""
+    csm_api_key: SecretStr = ""
+    omdb_api_key: SecretStr = ""
+    tmdb_api_key: SecretStr = ""
     max_age_rating: int = 12
     min_quality_rating: int = 3
 
     weights: CategoryWeights = CategoryWeights()
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_nested_delimiter="__",
-    )
