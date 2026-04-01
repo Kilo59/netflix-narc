@@ -42,15 +42,19 @@ class OMDBClient(RatingProvider):
         )
 
     @override
-    def search_title(self, title: str) -> NormalizedMetadata | None:
+    def search_title(self, title: str, *, cache_only: bool = False) -> NormalizedMetadata | None:
         """Search for a title and return normalized metadata."""
         params = {
             "t": title,
             "apikey": self.settings.omdb_api_key.get_secret_value(),
         }
 
+        headers = {}
+        if cache_only:
+            headers["Cache-Control"] = "only-if-cached"
+
         try:
-            response = self.client.get(self.BASE_URL, params=params)
+            response = self.client.get(self.BASE_URL, params=params, headers=headers)
             response.raise_for_status()
             data = response.json()
 

@@ -57,16 +57,18 @@ class CSMClient(RatingProvider):
         )
 
     @override
-    def search_title(self, title: str) -> NormalizedMetadata | None:
-        """Search for a title in the CSM API and return normalized metadata.
+    def search_title(self, title: str, *, cache_only: bool = False) -> NormalizedMetadata | None:
+        """Search for a title in the CSM API and return normalized metadata."""
+        headers = {}
+        if cache_only:
+            headers["Cache-Control"] = "only-if-cached"
 
-        This method is rate-limited to 5 requests per minute by the API.
-        The `hishel` CacheClient ensures we don't make requests for titles we've already seen.
-        """
         # Note: This is a mocked implementation outline since we don't have the exact API schema.
         # In a real scenario, this would format the query params per the CSM API docs.
         try:
-            response = self.client.get(f"{self.BASE_URL}/reviews", params={"query": title})
+            response = self.client.get(
+                f"{self.BASE_URL}/reviews", params={"query": title}, headers=headers
+            )
 
             if response.status_code == HTTP_TOO_MANY_REQUESTS:
                 msg = "CSM API Rate Limit Exceeded (5 req/min). Please try again later."

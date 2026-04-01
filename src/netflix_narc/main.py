@@ -153,8 +153,8 @@ class NetflixNarcApp(App[None]):
         if self.settings.csm_api_key or self.settings.omdb_api_key or self.settings.tmdb_api_key:
             try:
                 self.rating_provider = get_rating_provider(settings=self.settings)
-                # Auto-evaluate on startup to show cached results
-                self.rebuild_table(evaluate=True)
+                # Auto-evaluate on startup but ONLY from cache (don't hit network)
+                self.rebuild_table(evaluate=True, cache_only=True)
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Error initializing provider: {e}", severity="error")
 
@@ -209,7 +209,7 @@ class NetflixNarcApp(App[None]):
             return
 
         self.notify("Evaluating displayed titles...")
-        self.rebuild_table(evaluate=True)
+        self.rebuild_table(evaluate=True, cache_only=False)
 
     def load_data(self, filepath: str) -> None:
         """Load and parse Netflix viewing history from the given path."""
@@ -230,7 +230,7 @@ class NetflixNarcApp(App[None]):
         except ValueError as e:
             self.notify(f"Error parsing CSV: {e}", severity="error")
 
-    def rebuild_table(self, *, evaluate: bool = False) -> None:
+    def rebuild_table(self, *, evaluate: bool = False, cache_only: bool = False) -> None:
         """Rebuild the data table with current grouped records."""
         table = self.query_one(DataTable)
         table.clear()
@@ -239,7 +239,7 @@ class NetflixNarcApp(App[None]):
             flags_str = self.evaluated_flags.get(base_title, "None")
 
             if evaluate and self.rating_provider and base_title not in self.evaluated_flags:
-                metadata = self.rating_provider.search_title(base_title)
+                metadata = self.rating_provider.search_title(base_title, cache_only=cache_only)
                 if metadata:
                     flags = evaluate_title(metadata, self.settings)
                     if flags:

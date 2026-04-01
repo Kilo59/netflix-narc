@@ -29,7 +29,7 @@ class RatingProvider(Protocol):
 
     provider_name: str
 
-    def search_title(self, title: str) -> NormalizedMetadata | None:
+    def search_title(self, title: str, *, cache_only: bool = False) -> NormalizedMetadata | None:
         """Search for a title and return its normalized metadata."""
         ...
 
