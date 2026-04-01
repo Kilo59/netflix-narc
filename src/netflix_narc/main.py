@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, override
 
-from pydantic import SecretStr
+from pydantic import SecretStr, TypeAdapter
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
@@ -23,7 +23,7 @@ class SetupConfig(NamedTuple):
     """Configuration result from the setup screen."""
 
     provider: RatingProviderType
-    api_key: str
+    api_key: SecretStr
 
 
 class SetupScreen(Screen[SetupConfig | None]):
@@ -57,7 +57,8 @@ class SetupScreen(Screen[SetupConfig | None]):
             provider = self.query_one("#provider-select", Select).value
             api_key = self.query_one("#api-key-input", Input).value
             if provider and api_key and isinstance(provider, RatingProviderType):
-                self.dismiss(SetupConfig(provider=provider, api_key=api_key))
+                secret_key = TypeAdapter(SecretStr).validate_python(api_key)
+                self.dismiss(SetupConfig(provider=provider, api_key=secret_key))
         elif event.button.id == "cancel-btn":
             self.dismiss(None)
 
@@ -150,11 +151,11 @@ class NetflixNarcApp(App[None]):
             self.settings.active_rating_provider = provider
             match provider:
                 case RatingProviderType.CSM:
-                    self.settings.csm_api_key = SecretStr(api_key)
+                    self.settings.csm_api_key = api_key
                 case RatingProviderType.OMDB:
-                    self.settings.omdb_api_key = SecretStr(api_key)
+                    self.settings.omdb_api_key = api_key
                 case RatingProviderType.TMDB:
-                    self.settings.tmdb_api_key = SecretStr(api_key)
+                    self.settings.tmdb_api_key = api_key
 
             try:
                 self.rating_provider = get_rating_provider(settings=self.settings)
@@ -163,10 +164,10 @@ class NetflixNarcApp(App[None]):
                 env_path = Path(".env")
                 with env_path.open("a") as f:
                     f.write(f"\nACTIVE_RATING_PROVIDER={provider}\n")
-                    if provider == "csm":
-                        f.write(f"CSM_API_KEY={api_key}\n")
-                    elif provider == "omdb":
-                        f.write(f"OMDB_API_KEY={api_key}\n")
+                    if provider == RatingProviderType.CSM:
+                        f.write(f"CSM_API_KEY={api_key.get_secret_value()}\n")
+                    elif provider == RatingProviderType.OMDB:
+                        f.write(f"OMDB_API_KEY={api_key.get_secret_value()}\n")
                 self.notify(f"Settings saved for {provider.upper()}.")
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Initialization error: {e}", severity="error")
