@@ -140,3 +140,55 @@ This is personal viewing history and should not be in the git history.
 | ⚙️ CI | 3 | CI pipeline, release workflow, remove CSV from repo |
 
 **Minimum viable pre-alpha** (to be usable with OMDb): blockers #2, #3, #5; UX issues #7, #9; code fix #10; CI item #25.
+
+---
+
+## ✅ Task Checklist by Agent Complexity
+
+Complexity levels are assigned by the scope of reasoning required:
+- **🟢 Low** — Mechanical, well-defined, single file or config change. Safe for basic/dumb agents with minimal context.
+- **🟡 Medium** — Requires reading 2–4 source files and following established patterns. Suitable for mid-tier agents given clear specs.
+- **🔴 High** — Requires architectural understanding, multiple interacting files, or Textual/async internals. Requires a smart agent or human review.
+
+---
+
+### 🟢 Low Complexity
+> Single-file or config-only changes. Fully mechanical. Provide the file path and the fix — agent needs no broader context.
+
+- [ ] **#5** — Fix `pyproject.toml` description placeholder → set `description = "A terminal UI that narcs on inappropriate Netflix viewing history."`
+- [ ] **#13** — Bump version in `pyproject.toml` from `0.1.0.dev0` → `0.1.0a1`
+- [ ] **#20** — Create `CHANGELOG.md` with an `[Unreleased]` section and an initial `[0.1.0-alpha]` block *(template-based, no code reading required)*
+- [ ] **#21** — Move `implementation_plan.md` and `api_evaluation.md` from repo root into `.agent/`; add both to `.gitignore`
+- [ ] **#25** — Add `NetflixViewingHistory.csv` to `.gitignore` and run `git rm --cached NetflixViewingHistory.csv`
+- [ ] **#11** — Add `on_unmount` → `self.rating_provider.close()` to `NetflixNarcApp` in `main.py` *(2-line change, clear spec)*
+
+---
+
+### 🟡 Medium Complexity
+> Requires reading a few source files and understanding existing patterns. Agent needs the relevant module(s) as context.
+
+- [ ] **#3** — Fix `.env` persistence in `handle_setup_complete` (`main.py`): read existing `.env`, replace matching key lines in-place, rewrite atomically using `pathlib`
+- [ ] **#10** — Add MPAA/TV rating → age integer mapping to `evaluator.py` so the age-rating check fires for OMDb results (e.g. `{"PG-13": 13, "R": 17, "TV-MA": 18, ...}`)
+- [ ] **#16** — Add parametrized tests for `factory.py` in a new `tests/test_factory.py`: assert correct provider class per `RatingProviderType`, assert `ValueError` on missing key
+- [ ] **#17** — Add test for `.env` write/deduplication logic using `tmp_path` (depends on #3 being implemented first)
+- [ ] **#22** — Create `CONTRIBUTING.md` covering: `uv sync`, `uv run pytest`, `uv run ruff check`, `pre-commit install`, and branch/PR conventions
+- [ ] **#23** — Add `.github/workflows/ci.yml` running `ruff check`, `mypy`, and `pytest` on push/PR with `uv run` *(standard GHA pattern, no app knowledge needed)*
+- [ ] **#24** — Add `.github/workflows/release.yml` triggered on `v*` tags, running `uv build` and uploading artifacts to a GitHub Release
+- [ ] **#6** — Remove the `DetailsSidebar` widget and its placeholder `Static` items from `main.py` and `narc.tcss` for the pre-alpha; leave a `# TODO: v0.2` comment
+
+---
+
+### 🔴 High Complexity
+> Requires deep understanding of Textual's async/worker model, hishel internals, or cross-file architectural changes. Use a smart agent with full project context, or do it yourself.
+
+- [ ] **#1** — Implement real CSM JSON response parsing in `csm_api.py`: map `data[0].age` → `content_rating`, `data[0].rating * 2` → `user_rating`, `data[0].categories` → `category_scores`; update `test_csm_search_happy_path` to assert parsed fields
+- [ ] **#2** — Fix hardcoded CSV path: add `--csv` CLI argument to `main()` via `argparse` *and/or* integrate Textual's `FileOpen` dialog into `action_load_csv`. Touches `main.py`, `main()` entrypoint, and `README.md`.
+- [ ] **#4** — Prevent OMDb API key appearing in hishel's SQLite cache: move the key into a request header via an `httpx.Auth` subclass or post-process cached URLs to strip query params
+- [ ] **#7** — Move title evaluation off the main thread using Textual's `@work` decorator / `run_worker`; update rows progressively as workers complete; coordinate state with `self.evaluated_flags` safely
+- [ ] **#8** — Add a `LoadingIndicator` or `ProgressBar` to the TUI that is visible during evaluation and hidden when all workers finish *(depends on #7)*
+- [ ] **#9** — Auto-present `SetupScreen` on mount when `rating_provider` is `None` after initial settings load; ensure the app doesn't proceed to an unusable state silently
+- [ ] **#12** — Optimize expand/collapse in `on_data_table_row_selected`: instead of calling `rebuild_table()`, surgically insert/remove child rows adjacent to the toggled parent row using the DataTable API
+- [ ] **#14** — Add async TUI smoke tests in `tests/test_main.py` using Textual's `App.run_test()` context manager: assert app mounts, table is visible, and `SetupScreen` is reachable via `action_settings`
+- [ ] **#15** — Once #1 is complete, update `test_csm_search_happy_path` to use `csm_response_payload` fixture and assert all `NormalizedMetadata` fields are correctly mapped
+- [ ] **#18** — Add `uv tool install git+https://github.com/Kilo59/netflix-narc` install path to `README.md`; audit `pyproject.toml` for any packaging gaps (`classifiers`, `license`, `urls`) needed for PyPI-readiness
+- [ ] **#19** — Capture a terminal screenshot of the running TUI (using `vhs`, `asciinema`, or a manual screenshot), add to `assets/screenshot.png`, and embed in `README.md`
