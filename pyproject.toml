@@ -4,12 +4,26 @@ version = "0.1.0a1"
 description = "A terminal UI that narcs on inappropriate Netflix viewing history."
 readme = "README.md"
 requires-python = ">=3.13"
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Terminals",
+]
 dependencies = [
     "hishel>=1.1.9",
     "httpx[http2]>=0.28.1",
     "pydantic-settings>=2.13.1",
     "textual>=8.1.1",
 ]
+
+[project.urls]
+"Homepage" = "https://github.com/Kilo59/netflix-narc"
+"Bug Tracker" = "https://github.com/Kilo59/netflix-narc/issues"
 
 [project.scripts]
 netflix-narc = "netflix_narc.main:main"
@@ -22,11 +36,15 @@ dev = [
     "invoke>=2.2.1",
     "mypy>=1.19.1",
     "pytest>=9.0.2",
+    "pytest-asyncio>=0.24",
     "pytest-cov>=7.0.0",
     "respx>=0.22.0",
     "ruff>=0.15.8",
     "ruff-sync>=0.1.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [tool.ruff-sync]
 exclude = [

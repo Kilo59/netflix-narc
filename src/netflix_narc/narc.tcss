@@ -68,3 +68,9 @@ Input {
 Select {
     margin-bottom: 1;
 }
+
+/* Loading indicator shown during background evaluation */
+#loading-indicator {
+    dock: bottom;
+    height: 1;
+}

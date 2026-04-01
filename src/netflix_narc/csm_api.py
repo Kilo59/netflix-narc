@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 
 HTTP_TOO_MANY_REQUESTS = 429
 
+# CSM quality ratings are 1-5 stars; we normalise to 0-10 by doubling.
+_CSM_RATING_SCALE_FACTOR = 2
+
 
 class CSMRatingCategory(StrEnum):
     """Specific categories evaluated by Common Sense Media."""
@@ -28,6 +31,78 @@ class CSMRatingCategory(StrEnum):
     SEXY_STUFF = "Sexy Stuff"
     LANGUAGE = "Language"
     DRINKING_DRUGS = "Drinking, Drugs & Smoking"
+
+
+# Map snake_case keys returned by the CSM API to canonical display names.
+_CSM_CATEGORY_KEY_MAP: dict[str, str] = {
+    "educational_value": CSMRatingCategory.EDUCATIONAL_VALUE,
+    "positive_messages": CSMRatingCategory.POSITIVE_MESSAGES,
+    "positive_role_models": CSMRatingCategory.POSITIVE_ROLE_MODELS,
+    "violence": CSMRatingCategory.VIOLENCE,
+    "sexy_stuff": CSMRatingCategory.SEXY_STUFF,
+    "language": CSMRatingCategory.LANGUAGE,
+    "drinking_drugs": CSMRatingCategory.DRINKING_DRUGS,
+}
+
+
+def _parse_csm_response(title: str, data: list[dict[str, Any]]) -> NormalizedMetadata | None:
+    """Parse the CSM API ``data`` array into a ``NormalizedMetadata`` instance.
+
+    Returns ``None`` when the data list is empty (title not found).
+
+    Expected shape of each entry in ``data``::
+
+        {
+            "id": "123",
+            "title": "The Matrix",
+            "age": 14,  # minimum recommended age (int)
+            "rating": 4,  # 1-5 star quality rating (int)
+            "categories": {  # granular scores, snake_case keys
+                "violence": 3,
+                "language": 2,
+                "sexy_stuff": 1,
+            },
+        }
+
+    Args:
+        title: The original query title (used as fallback when API omits it).
+        data: The ``data`` array from the CSM JSON response body.
+
+    Returns:
+        A ``NormalizedMetadata`` instance, or ``None`` if ``data`` is empty.
+    """
+    if not data:
+        return None
+
+    entry = data[0]
+
+    # Age rating: CSM returns an integer minimum age.
+    age_val = entry.get("age")
+    content_rating = str(age_val) if isinstance(age_val, int) else None
+
+    # Quality rating: CSM 1-5 stars -> normalised 0-10 scale by doubling.
+    raw_rating = entry.get("rating")
+    user_rating = (
+        float(raw_rating * _CSM_RATING_SCALE_FACTOR)
+        if isinstance(raw_rating, (int, float))
+        else None
+    )
+
+    # Category scores: map snake_case API keys → canonical display-name keys.
+    raw_categories: dict[str, Any] = entry.get("categories") or {}
+    category_scores: dict[str, int | float] = {}
+    for api_key, score in raw_categories.items():
+        canonical = _CSM_CATEGORY_KEY_MAP.get(api_key)
+        if canonical and isinstance(score, (int, float)):
+            category_scores[canonical] = score
+
+    return NormalizedMetadata(
+        title=str(entry.get("title", title)),
+        content_rating=content_rating,
+        user_rating=user_rating,
+        provider_name="csm",
+        category_scores=category_scores,
+    )
 
 
 class CSMClient(RatingProvider):
@@ -75,8 +150,6 @@ class CSMClient(RatingProvider):
         if cache_only:
             headers["Cache-Control"] = "only-if-cached"
 
-        # Note: This is a mocked implementation outline since we don't have the exact API schema.
-        # In a real scenario, this would format the query params per the CSM API docs.
         try:
             response = self.client.get(
                 f"{self.BASE_URL}/reviews", params={"query": title}, headers=headers
@@ -88,22 +161,9 @@ class CSMClient(RatingProvider):
 
             response.raise_for_status()
 
-            response.json()
-            # For this MVP, we return a mock object if we get a 200 OK.
-            # Real implementation would parse `data` into `CSMMetadata`.
-
-            # Normalize CSM metadata to NormalizedMetadata
-            # CSM age rating matches content rating (conceptually)
-            # CSM quality rating is 1-5, so we normalize to 0-10 (double it)
-            return NormalizedMetadata(
-                title=title,
-                content_rating=str(8),  # Mocked
-                user_rating=8.0,  # 4/5 * 2 = 8/10
-                provider_name=self.provider_name,
-                category_scores={
-                    CSMRatingCategory.VIOLENCE.value: 1,
-                },
-            )
+            body = response.json()
+            data: list[dict[str, Any]] = body.get("data", [])
+            return _parse_csm_response(title, data)
 
         except httpx.HTTPError:
             # Handle standard HTTP errors

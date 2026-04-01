@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
+import contextlib
+import functools
 import pathlib
 from typing import TYPE_CHECKING, ClassVar, NamedTuple, override
 
@@ -9,7 +12,17 @@ from pydantic import SecretStr, TypeAdapter
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal
 from textual.screen import Screen
-from textual.widgets import Button, DataTable, Footer, Header, Input, Select, Static
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    LoadingIndicator,
+    Select,
+    Static,
+)
+from textual.worker import Worker, WorkerState
 
 from netflix_narc.evaluator import evaluate_title
 from netflix_narc.factory import get_rating_provider
@@ -102,6 +115,7 @@ class NetflixNarcApp(App[None]):
     def __init__(
         self,
         settings: Settings,
+        csv_path: pathlib.Path | None = None,
         cache_dir: pathlib.Path | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
@@ -109,11 +123,13 @@ class NetflixNarcApp(App[None]):
 
         Args:
             settings: Configuration settings for the application.
+            csv_path: Optional path to the Netflix viewing history CSV.
             cache_dir: Optional directory for HTTP caching.
             **kwargs: Additional keyword arguments for the Textual App.
         """
         super().__init__(**kwargs)
         self.settings = settings
+        self.csv_path = csv_path
         self.cache_dir = cache_dir
         self.rating_provider: RatingProvider | None = None
 
@@ -130,6 +146,10 @@ class NetflixNarcApp(App[None]):
         with Horizontal():
             yield DataTable(id="history-table")
 
+        indicator = LoadingIndicator(id="loading-indicator")
+        indicator.display = False
+        yield indicator
+
         yield Footer()
 
     def on_unmount(self) -> None:
@@ -145,18 +165,27 @@ class NetflixNarcApp(App[None]):
         table.add_column("Title", width=45)
         table.add_column("Flags")
 
-        # Auto-load if the default file exists
-        default_csv = pathlib.Path("NetflixViewingHistory.csv")
-        if default_csv.exists():
-            self.load_data(str(default_csv))
+        # Load CSV: prefer explicit path, then fall back to default filename
+        csv_to_load = self.csv_path or pathlib.Path("NetflixViewingHistory.csv")
+        if csv_to_load.exists():
+            self.load_data(str(csv_to_load))
 
-        if self.settings.csm_api_key or self.settings.omdb_api_key or self.settings.tmdb_api_key:
+        has_any_key = bool(
+            self.settings.csm_api_key.get_secret_value()
+            or self.settings.omdb_api_key.get_secret_value()
+            or self.settings.tmdb_api_key.get_secret_value()
+        )
+
+        if has_any_key:
             try:
                 self.rating_provider = get_rating_provider(settings=self.settings)
                 # Auto-evaluate on startup but ONLY from cache (don't hit network)
                 self.rebuild_table(evaluate=True, cache_only=True)
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Error initializing provider: {e}", severity="error")
+        else:
+            # No API keys configured — guide the user through setup automatically
+            self.call_after_refresh(self.action_settings)
 
     def action_settings(self) -> None:
         """Push the setup screen to configure API keys."""
@@ -240,8 +269,9 @@ class NetflixNarcApp(App[None]):
 
     def action_load_csv(self) -> None:
         """Load the Netflix history from a CSV file."""
-        # Hardcoding the local path for this iteration based on user context
-        self.load_data("NetflixViewingHistory.csv")
+        # Use the configured path, or fall back to the default filename
+        csv_to_load = self.csv_path or pathlib.Path("NetflixViewingHistory.csv")
+        self.load_data(str(csv_to_load))
 
     def action_evaluate(self) -> None:
         """Evaluate the loaded history against the active rating provider."""
@@ -251,7 +281,60 @@ class NetflixNarcApp(App[None]):
             return
 
         self.notify("Evaluating displayed titles...")
-        self.rebuild_table(evaluate=True, cache_only=False)
+        self.run_worker(
+            functools.partial(self._evaluate_titles_worker, cache_only=False),
+            exclusive=True,
+            thread=True,
+        )
+
+    def _evaluate_titles_worker(self, *, cache_only: bool) -> None:
+        """Worker: evaluate all ungrouped titles off the main thread.
+
+        Runs in a background thread. Calls back to the main thread via
+        `call_from_thread` after each title so the table updates progressively.
+
+        Args:
+            cache_only: If True, only use responses already in the hishel cache.
+        """
+        provider = self.rating_provider
+        if provider is None:
+            return
+
+        self.call_from_thread(self._set_loading, state=True)
+
+        titles = list(self.grouped_records.keys())
+        for base_title in titles:
+            if base_title in self.evaluated_flags:
+                continue
+
+            metadata = provider.search_title(base_title, cache_only=cache_only)
+            if metadata:
+                flags = evaluate_title(metadata, self.settings)
+                flags_str = f"[red]{', '.join(flags)}[/red]" if flags else "[green]Passed[/green]"
+            else:
+                flags_str = "[yellow]Not Found[/yellow]"
+
+            self.evaluated_flags[base_title] = flags_str
+            self.call_from_thread(self._update_row_flags, base_title, flags_str)
+
+        self.call_from_thread(self._set_loading, state=False)
+
+    def _set_loading(self, *, state: bool) -> None:
+        """Show or hide the loading indicator (must be called from main thread)."""
+        self.query_one(LoadingIndicator).display = state
+
+    def _update_row_flags(self, base_title: str, flags_str: str) -> None:
+        """Update the Flags cell for a specific row (must be called from main thread)."""
+        table = self.query_one(DataTable)
+        with contextlib.suppress(Exception):
+            # Row key is the base_title string -- update column index 2 (Flags)
+            # Row may not exist if table was rebuilt; safe to ignore.
+            table.update_cell(base_title, "flags", flags_str, update_width=False)
+
+    def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
+        """Ensure loading indicator is hidden if a worker fails or is cancelled."""
+        if event.state in (WorkerState.ERROR, WorkerState.CANCELLED):
+            self._set_loading(state=False)
 
     def load_data(self, filepath: str) -> None:
         """Load and parse Netflix viewing history from the given path."""
@@ -273,7 +356,13 @@ class NetflixNarcApp(App[None]):
             self.notify(f"Error parsing CSV: {e}", severity="error")
 
     def rebuild_table(self, *, evaluate: bool = False, cache_only: bool = False) -> None:
-        """Rebuild the data table with current grouped records."""
+        """Rebuild the data table with current grouped records.
+
+        For non-evaluate rebuilds (e.g. expand/collapse), previously fetched
+        flags are re-used from `self.evaluated_flags` without hitting the network.
+        For full evaluation calls, use `action_evaluate` which delegates to the
+        background worker.
+        """
         table = self.query_one(DataTable)
         table.clear()
 
@@ -284,17 +373,19 @@ class NetflixNarcApp(App[None]):
                 metadata = self.rating_provider.search_title(base_title, cache_only=cache_only)
                 if metadata:
                     flags = evaluate_title(metadata, self.settings)
-                    if flags:
-                        flags_str = f"[red]{', '.join(flags)}[/red]"
-                    else:
-                        flags_str = "[green]Passed[/green]"
+                    flags_str = (
+                        f"[red]{', '.join(flags)}[/red]" if flags else "[green]Passed[/green]"
+                    )
                 else:
                     flags_str = "[yellow]Not Found[/yellow]"
                 self.evaluated_flags[base_title] = flags_str
 
             indicator = "▼" if base_title in self.expanded_titles else "▶"
             table.add_row(
-                f"{len(records)} views", f"{indicator} {base_title}", flags_str, key=base_title
+                f"{len(records)} views",
+                f"{indicator} {base_title}",
+                flags_str,
+                key=base_title,
             )
 
             if base_title in self.expanded_titles:
@@ -321,8 +412,22 @@ class NetflixNarcApp(App[None]):
 
 def main() -> None:
     """CLI Entrypoint to start the Netflix Narc application."""
+    parser = argparse.ArgumentParser(
+        prog="netflix-narc",
+        description="A terminal UI that narcs on inappropriate Netflix viewing history.",
+    )
+    parser.add_argument(
+        "--csv",
+        dest="csv_path",
+        type=pathlib.Path,
+        default=None,
+        metavar="PATH",
+        help="Path to your NetflixViewingHistory.csv file.",
+    )
+    args = parser.parse_args()
+
     settings = Settings()
-    app = NetflixNarcApp(settings=settings)
+    app = NetflixNarcApp(settings=settings, csv_path=args.csv_path)
     app.run()
 
 

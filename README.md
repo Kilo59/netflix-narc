@@ -20,21 +20,36 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 
 Netflix Narc requires `uv` to run.
 
+### Quick Install (recommended)
+
+```bash
+uv tool install git+https://github.com/Kilo59/netflix-narc
+netflix-narc --help
+```
+
+### Development Install
+
+1. Clone the repository and navigate into the `netflix-narc` directory.
+2. Install dependencies with `uv sync`.
+3. Run via `uv run netflix-narc`.
+
 ### Prerequisites
 - Python 3.13+
-- A Common Sense Media API Key
+- An **OMDb API Key** (recommended) — grab a free key at [omdbapi.com](https://www.omdbapi.com/apikey.aspx)
 - Your exported `NetflixViewingHistory.csv`
+   *(Netflix Account Settings → Profile & Parental Controls → Viewing activity → Download all)*
 
 ### Installation & Usage
-1. Clone the repository and navigate into the `netflix-narc` directory.
-2. Ensure you have your `NetflixViewingHistory.csv` file available in the root.
-   *(You can download this from your Netflix Account Settings under Profile & Parental Controls -> Viewing activity -> Download all).*
-3. Run the application using `uv`:
+
 ```bash
+# Point to your history file explicitly (recommended)
+uv run netflix-narc --csv /path/to/NetflixViewingHistory.csv
+
+# Or drop the file in the current directory and run without arguments
 uv run netflix-narc
 ```
 
-4. The first time you launch, you will be prompted for your Common Sense Media API key. You can also press `s` at any time to update your key or settings.
+On first launch, press `s` to open Settings and enter your API key.
 
 ### ⌨️ Keybindings
 
