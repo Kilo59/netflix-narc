@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import pathlib
+from typing import TYPE_CHECKING
 
-from invoke import Context, task  # type: ignore[attr-defined]
+from invoke.tasks import task
+
+if TYPE_CHECKING:
+    from invoke.context import Context
 
 # Project constants
 PROJECT_NAME = "netflix-narc"
@@ -41,7 +45,7 @@ def lint(ctx: Context, *, check: bool = False, unsafe_fixes: bool = False) -> No
 )
 def type_check(ctx: Context, *, install_types: bool = False, check: bool = False) -> None:
     """Type check code with mypy."""
-    cmds = ["mypy", "."]
+    cmds = ["mypy"]
     if install_types:
         cmds.append("--install-types")
     if check:
