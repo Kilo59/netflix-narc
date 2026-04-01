@@ -4,6 +4,34 @@ from netflix_narc.rating_api import NormalizedMetadata
 from netflix_narc.settings import Settings
 
 
+def _get_age_limit(content_rating: str | None) -> int | None:
+    """Map a content rating string to a numeric age limit."""
+    if not content_rating:
+        return None
+
+    # Try direct integer conversion first (CSM style)
+    try:
+        return int(content_rating)
+    except (ValueError, TypeError):
+        pass
+
+    # Mapping for MPAA and TV ratings back to minimum age.
+    rating_map = {
+        "G": 0,
+        "TV-Y": 0,
+        "TV-G": 0,
+        "PG": 8,
+        "TV-Y7": 7,
+        "TV-PG": 8,
+        "PG-13": 13,
+        "TV-14": 14,
+        "R": 17,
+        "NC-17": 18,
+        "TV-MA": 18,
+    }
+    return rating_map.get(content_rating.upper())
+
+
 def evaluate_title(metadata: NormalizedMetadata, criteria: Settings) -> list[str]:
     """Evaluate a title's metadata against user-defined criteria.
 
@@ -18,17 +46,12 @@ def evaluate_title(metadata: NormalizedMetadata, criteria: Settings) -> list[str
     flags: list[str] = []
 
     # 1. Check strict age limit
-    # We assume 'content_rating' can be parsed as an integer if it's a CSM-style age rating.
-    # For MPAA ratings (PG-13, etc.), this logic would need to be more sophisticated.
-    try:
-        age_val = int(metadata.content_rating) if metadata.content_rating else None
-        if age_val and age_val > criteria.max_age_rating:
-            flags.append(
-                f"Age rating ({age_val}+) exceeds maximum allowed ({criteria.max_age_rating}+)."
-            )
-    except (ValueError, TypeError):
-        # Specific handling for MPAA/TV-MA string ratings could go here
-        pass
+    age_val = _get_age_limit(metadata.content_rating)
+    if age_val is not None and age_val > criteria.max_age_rating:
+        flags.append(
+            f"Age rating ({metadata.content_rating}) "
+            f"exceeds maximum allowed ({criteria.max_age_rating}+)."
+        )
 
     # 2. Check general quality threshold (out of 10)
     # The CSMClient now returns a 0-10 user_rating.

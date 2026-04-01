@@ -16,7 +16,7 @@ def test_evaluate_title_flags_age():
     )
 
     flags = evaluate_title(metadata, settings)
-    assert any("Age rating (12+)" in f for f in flags)
+    assert any("Age rating (12)" in f for f in flags)
 
 
 def test_evaluate_title_flags_quality():
@@ -65,9 +65,13 @@ def test_evaluate_title_passes_appropriate():
 @pytest.mark.parametrize(
     ("content_rating", "max_age", "should_flag"),
     [
-        pytest.param("8", 10, False, id="within-limit"),
-        pytest.param("12", 10, True, id="exceeds-limit"),
-        pytest.param("PG-13", 10, False, id="non-numeric-rating-skipped"),
+        pytest.param("8", 10, False, id="within-limit-numeric"),
+        pytest.param("12", 10, True, id="exceeds-limit-numeric"),
+        pytest.param("PG", 10, False, id="PG-lower-than-10-pass"),
+        pytest.param("PG-13", 10, True, id="PG-13-higher-than-10-flag"),
+        pytest.param("TV-MA", 17, True, id="TV-MA-higher-than-17-flag"),
+        pytest.param("R", 18, False, id="R-lower-than-18-pass"),
+        pytest.param("unknown", 10, False, id="unknown-rating-skipped"),
         pytest.param(None, 10, False, id="none-rating-skipped"),
     ],
 )

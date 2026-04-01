@@ -155,12 +155,12 @@ Complexity levels are assigned by the scope of reasoning required:
 ### 🟢 Low Complexity
 > Single-file or config-only changes. Fully mechanical. Provide the file path and the fix — agent needs no broader context.
 
-- [ ] **#5** — Fix `pyproject.toml` description placeholder → set `description = "A terminal UI that narcs on inappropriate Netflix viewing history."`
-- [ ] **#13** — Bump version in `pyproject.toml` from `0.1.0.dev0` → `0.1.0a1`
-- [ ] **#20** — Create `CHANGELOG.md` with an `[Unreleased]` section and an initial `[0.1.0-alpha]` block *(template-based, no code reading required)*
-- [ ] **#21** — Move `implementation_plan.md` and `api_evaluation.md` from repo root into `.agent/`; add both to `.gitignore`
-- [ ] **#25** — Add `NetflixViewingHistory.csv` to `.gitignore` and run `git rm --cached NetflixViewingHistory.csv`
-- [ ] **#11** — Add `on_unmount` → `self.rating_provider.close()` to `NetflixNarcApp` in `main.py` *(2-line change, clear spec)*
+- [x] **#5** — Fix `pyproject.toml` description placeholder → set `description = "A terminal UI that narcs on inappropriate Netflix viewing history."`
+- [x] **#13** — Bump version in `pyproject.toml` from `0.1.0.dev0` → `0.1.0a1`
+- [x] **#20** — Create `CHANGELOG.md` with an `[Unreleased]` section and an initial `[0.1.0-alpha]` block *(template-based, no code reading required)*
+- [x] **#21** — Move `implementation_plan.md` and `api_evaluation.md` from repo root into `.agent/`; add both to `.gitignore`
+- [x] **#25** — Add `NetflixViewingHistory.csv` to `.gitignore` and run `git rm --cached NetflixViewingHistory.csv`
+- [x] **#11** — Add `on_unmount` → `self.rating_provider.close()` to `NetflixNarcApp` in `main.py` *(2-line change, clear spec)*
 
 ---
 

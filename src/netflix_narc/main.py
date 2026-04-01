@@ -139,6 +139,11 @@ class NetflixNarcApp(App[None]):
 
         yield Footer()
 
+    def on_unmount(self) -> None:
+        """Close the rating provider when the app exits."""
+        if self.rating_provider:
+            self.rating_provider.close()
+
     def on_mount(self) -> None:
         """Configure the data table on mount."""
         table = self.query_one(DataTable)
