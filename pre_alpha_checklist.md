@@ -14,14 +14,14 @@ These are bugs or gaps that would confuse or break the experience for a first-ti
 The JSON body from the API is fetched but never parsed (`response.json()` result is discarded).
 **Fix**: Parse the real CSM JSON shape into `NormalizedMetadata`, or clearly gate the provider behind a feature flag and hide it from the `SetupScreen` until it's real.
 
-### 2. CSV path is hardcoded
+### 2. [x] CSV path is hardcoded
 `action_load_csv` (line 202) and `main()` (line 282) both hardcode `"NetflixViewingHistory.csv"`.
 A user whose file is elsewhere gets an opaque `FileNotFoundError` notification.
-**Fix**: Either open a native file-picker dialog (Textual's `DirectoryTree` / `FileOpen` widget) or accept the path as a CLI argument via `argparse`/`typer`.
+**Fix**: Either open a native file-picker dialog (Textual's `DirectoryTree` / `FileOpen` widget) or accept the path as a CLI argument via `argparse`/`typer`. (Completed "in slightly different way")
 
-### 3. `.env` persistence is append-only and fragile
+### 3. [x] `.env` persistence is append-only and fragile
 `handle_setup_complete` appends new keys to `.env` every time the user presses "Save & Continue", with no deduplication. Keys accumulate silently.
-**Fix**: Read the existing `.env`, replace the relevant line(s) in-place, and rewrite atomically.
+**Fix**: Read the existing `.env`, replace the relevant line(s) in-place, and rewrite atomically. (Completed)
 
 ### 4. API key leaked in URL query params (OMDb)
 `omdb_api.py` sends the API key as a `params={"apikey": ...}` query parameter. This key ends up in the hishel SQLite cache URL column in plaintext.
@@ -169,12 +169,12 @@ Complexity levels are assigned by the scope of reasoning required:
 
 - [x] **#3** — Fix `.env` persistence in `handle_setup_complete` (`main.py`): read existing `.env`, replace matching key lines in-place, rewrite atomically using `pathlib`
 - [x] **#16** — Add parametrized tests for `factory.py` in a new `tests/test_factory.py`: assert correct provider class per `RatingProviderType`, assert `ValueError` on missing key
-- [ ] **#10** — Add MPAA/TV rating → age integer mapping to `evaluator.py` so the age-rating check fires for OMDb results (e.g. `{"PG-13": 13, "R": 17, "TV-MA": 18, ...}`)
-- [ ] **#17** — Add test for `.env` write/deduplication logic using `tmp_path` (depends on #3 being implemented first) <!-- TODO: Implement this test next -->
-- [ ] **#22** — Create `CONTRIBUTING.md` covering: `uv sync`, `uv run pytest`, `uv run ruff check`, `pre-commit install`, and branch/PR conventions
-- [ ] **#23** — Add `.github/workflows/ci.yml` running `ruff check`, `mypy`, and `pytest` on push/PR with `uv run` *(standard GHA pattern, no app knowledge needed)*
-- [ ] **#24** — Add `.github/workflows/release.yml` triggered on `v*` tags, running `uv build` and uploading artifacts to a GitHub Release
-- [ ] **#6** — Remove the `DetailsSidebar` widget and its placeholder `Static` items from `main.py` and `narc.tcss` for the pre-alpha; leave a `# TODO: v0.2` comment
+- [x] **#10** — Add MPAA/TV rating → age integer mapping to `evaluator.py` so the age-rating check fires for OMDb results (e.g. `{"PG-13": 13, "R": 17, "TV-MA": 18, ...}`)
+- [x] **#17** — Add test for `.env` write/deduplication logic using `tmp_path` (verified in `tests/test_env_persistence.py`)
+- [x] **#22** — Create `CONTRIBUTING.md` covering: `uv sync`, `uv run pytest`, `uv run ruff check`, `pre-commit install`, and branch/PR conventions
+- [x] **#23** — Add `.github/workflows/ci.yml` running `ruff check`, `mypy`, and `pytest` on push/PR with `uv run` *(standard GHA pattern, no app knowledge needed)*
+- [x] **#24** — Add `.github/workflows/release.yml` triggered on `v*` tags, running `uv build` and uploading artifacts to a GitHub Release
+- [x] **#6** — Remove the `DetailsSidebar` widget and its placeholder `Static` items from `main.py` and `narc.tcss` for the pre-alpha; leave a `# TODO: v0.2` comment
 
 ---
 
