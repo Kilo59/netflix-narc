@@ -30,9 +30,10 @@ Screen {
 #setup-container {
     align: center middle;
     width: 60;
-    height: 20;
+    height: auto;
+    min-height: 20;
     background: $panel;
-    border: solid $primary;
+    border: double $primary;
     padding: 2;
 }
 
@@ -52,6 +53,16 @@ Input {
     margin-bottom: 2;
 }
 
-Button {
-    width: 100%;
+#setup-container Horizontal {
+    height: 3;
+    margin-top: 1;
+}
+
+#setup-container Button {
+    width: 1fr;
+    margin: 0 1;
+}
+
+Select {
+    margin-bottom: 1;
 }

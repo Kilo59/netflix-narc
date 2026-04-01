@@ -29,6 +29,10 @@ class SetupConfig(NamedTuple):
 class SetupScreen(Screen[SetupConfig | None]):
     """A screen prompting for initial configuration (Provider, API Key)."""
 
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        ("escape", "cancel", "Cancel"),
+    ]
+
     @override
     def compose(self) -> ComposeResult:
         """Compose the setup screen widgets."""
@@ -51,16 +55,30 @@ class SetupScreen(Screen[SetupConfig | None]):
             id="setup-container",
         )
 
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Save settings when Enter is pressed on the Input widget."""
+        self._save_settings()
+
+    def action_cancel(self) -> None:
+        """Handle escape key to cancel."""
+        self.dismiss(None)
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press events in the setup screen."""
         if event.button.id == "save-btn":
-            provider = self.query_one("#provider-select", Select).value
-            api_key = self.query_one("#api-key-input", Input).value
-            if provider and api_key and isinstance(provider, RatingProviderType):
-                secret_key = TypeAdapter(SecretStr).validate_python(api_key)
-                self.dismiss(SetupConfig(provider=provider, api_key=secret_key))
+            self._save_settings()
         elif event.button.id == "cancel-btn":
             self.dismiss(None)
+
+    def _save_settings(self) -> None:
+        """Validate and save settings, then dismiss the screen."""
+        provider = self.query_one("#provider-select", Select).value
+        api_key = self.query_one("#api-key-input", Input).value
+        if provider and api_key and isinstance(provider, RatingProviderType):
+            secret_key = TypeAdapter(SecretStr).validate_python(api_key)
+            self.dismiss(SetupConfig(provider=provider, api_key=secret_key))
+        else:
+            self.notify("Provider and API Key required", severity="warning")
 
 
 class DetailsSidebar(Vertical):
@@ -84,6 +102,8 @@ class NetflixNarcApp(App[None]):
     CSS_PATH = "narc.tcss"
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         ("q", "quit", "Quit"),
+        ("ctrl+c", "quit", "Quit"),
+        ("f10", "quit", "Quit"),
         ("l", "load_csv", "Load CSV"),
         ("s", "settings", "Settings"),
         ("e", "evaluate", "Evaluate Titles"),
