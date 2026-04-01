@@ -22,7 +22,7 @@ class CategoryWeights(BaseSettings):
 class Settings(BaseSettings):
     """Core application configuration."""
 
-    active_rating_provider: str = "csm"
+    active_rating_provider: str = "omdb"
     csm_api_key: str = ""
     omdb_api_key: str = ""
     tmdb_api_key: str = ""

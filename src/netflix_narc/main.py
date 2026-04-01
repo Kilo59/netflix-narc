@@ -7,7 +7,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import Button, DataTable, Footer, Header, Input, Static
+from textual.widgets import Button, DataTable, Footer, Header, Input, Select, Static
 
 from netflix_narc.evaluator import evaluate_title
 from netflix_narc.factory import get_rating_provider
@@ -18,8 +18,8 @@ if TYPE_CHECKING:
     from netflix_narc.rating_api import RatingProvider
 
 
-class SetupScreen(Screen[str | None]):
-    """A screen prompting for initial configuration (API Key, etc.)."""
+class SetupScreen(Screen[dict[str, str] | None]):
+    """A screen prompting for initial configuration (Provider, API Key)."""
 
     @override
     def compose(self) -> ComposeResult:
@@ -27,10 +27,15 @@ class SetupScreen(Screen[str | None]):
         yield Container(
             Static("Welcome to Netflix Narc!", classes="title"),
             Static(
-                "Please configure your Common Sense Media API key.",
+                "Choose your rating provider and enter your API key.",
                 classes="instructions",
             ),
-            Input(placeholder="Enter CSM API Key...", id="api-key-input", password=True),
+            Select(
+                [("Common Sense Media", "csm"), ("OMDb API", "omdb")],
+                value="omdb",
+                id="provider-select",
+            ),
+            Input(placeholder="Enter API Key...", id="api-key-input", password=True),
             Horizontal(
                 Button("Cancel", variant="error", id="cancel-btn"),
                 Button("Save & Continue", variant="primary", id="save-btn"),
@@ -41,9 +46,11 @@ class SetupScreen(Screen[str | None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press events in the setup screen."""
         if event.button.id == "save-btn":
-            api_input = self.query_one("#api-key-input", Input).value
-            if api_input:
-                self.dismiss(api_input)
+            provider = self.query_one("#provider-select", Select).value
+            api_key = self.query_one("#api-key-input", Input).value
+            if provider and api_key:
+                # Select.value is technically str | None or Select.BLANK
+                self.dismiss({"provider": str(provider), "api_key": api_key})
         elif event.button.id == "cancel-btn":
             self.dismiss(None)
 
@@ -123,21 +130,36 @@ class NetflixNarcApp(App[None]):
         """Push the setup screen to configure API keys."""
         self.push_screen(SetupScreen(), self.handle_setup_complete)
 
-    def handle_setup_complete(self, api_key: str | None) -> None:
+    def handle_setup_complete(self, config: dict[str, str] | None) -> None:
         """Handle the completion of the setup screen.
 
         Args:
-            api_key: The configured API key, if any.
+            config: The configured provider and API key, if any.
         """
-        if api_key:
-            # For now, we assume setup sets the CSM key as primary
-            self.settings.csm_api_key = api_key
-            self.rating_provider = get_rating_provider(settings=self.settings)
+        if config:
+            provider = config["provider"]
+            api_key = config["api_key"]
 
-            # Save to .env for persistence
-            with Path(".env").open("a") as f:
-                f.write(f"\nCSM_API_KEY={api_key}\n")
-            self.notify("API Key saved.")
+            self.settings.active_rating_provider = provider
+            if provider == "csm":
+                self.settings.csm_api_key = api_key
+            elif provider == "omdb":
+                self.settings.omdb_api_key = api_key
+
+            try:
+                self.rating_provider = get_rating_provider(settings=self.settings)
+
+                # Save to .env for persistence
+                env_path = Path(".env")
+                with env_path.open("a") as f:
+                    f.write(f"\nACTIVE_RATING_PROVIDER={provider}\n")
+                    if provider == "csm":
+                        f.write(f"CSM_API_KEY={api_key}\n")
+                    elif provider == "omdb":
+                        f.write(f"OMDB_API_KEY={api_key}\n")
+                self.notify(f"Settings saved for {provider.upper()}.")
+            except (ValueError, NotImplementedError) as e:
+                self.notify(f"Initialization error: {e}", severity="error")
 
     def action_load_csv(self) -> None:
         """Load the Netflix history from a CSV file."""
