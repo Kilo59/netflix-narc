@@ -20,3 +20,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Robust testing suite with `pytest` and `respx`.
 - Linting and formatting with `Ruff`.
 - Strict type-checking with `mypy`.
+- **(Final Polish)**: Automated TUI mockup screenshot for README.
+- **(Final Polish)**: Removed personal `NetflixViewingHistory.csv` from git tracking.

@@ -158,8 +158,8 @@ Complexity levels are assigned by the scope of reasoning required:
 - [x] **#5** — Fix `pyproject.toml` description placeholder → set `description = "A terminal UI that narcs on inappropriate Netflix viewing history."`
 - [x] **#13** — Bump version in `pyproject.toml` from `0.1.0.dev0` → `0.1.0a1`
 - [x] **#20** — Create `CHANGELOG.md` with an `[Unreleased]` section and an initial `[0.1.0-alpha]` block *(template-based, no code reading required)*
-- [x] **#21** — Move `implementation_plan.md` and `api_evaluation.md` from repo root into `.agent/`; add both to `.gitignore`
-- [x] **#25** — Add `NetflixViewingHistory.csv` to `.gitignore` and run `git rm --cached NetflixViewingHistory.csv`
+- [x] **#19** — Capture a terminal screenshot of the running TUI (using vhs, asciinema, or a manual screenshot), add to `assets/screenshot.png`, and embed in `README.md`. (Completed with premium AI mockup)
+- [x] **#25** — Add `NetflixViewingHistory.csv` to `.gitignore` and run `git rm --cached NetflixViewingHistory.csv` (Completed)
 - [x] **#11** — Add `on_unmount` → `self.rating_provider.close()` to `NetflixNarcApp` in `main.py` *(2-line change, clear spec)*
 
 ---

@@ -16,6 +16,10 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 - **🖥️ Beautiful TUI**: A gorgeous, reactive terminal interface powered by Textual.
 - **⚡️ Fast & Polite**: Intelligent caching ensures we don't spam the API or get rate-limited.
 
+## 📸 App in Action
+
+![Netflix Narc TUI Mockup](./assets/screenshot.png)
+
 ## 🚀 Getting Started
 
 Netflix Narc requires `uv` to run.
