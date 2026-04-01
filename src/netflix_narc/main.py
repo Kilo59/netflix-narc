@@ -55,7 +55,7 @@ class SetupScreen(Screen[SetupConfig | None]):
             id="setup-container",
         )
 
-    def on_input_submitted(self, event: Input.Submitted) -> None:
+    def on_input_submitted(self, _event: Input.Submitted) -> None:
         """Save settings when Enter is pressed on the Input widget."""
         self._save_settings()
 
@@ -143,7 +143,9 @@ class NetflixNarcApp(App[None]):
         """Configure the data table on mount."""
         table = self.query_one(DataTable)
         table.cursor_type = "row"
-        table.add_columns("Date Watched", "Title", "Flags")
+        table.add_column("Date Watched", width=15)
+        table.add_column("Title", width=45)
+        table.add_column("Flags")
 
         if self.csv_path:
             self.load_data(self.csv_path)
@@ -151,6 +153,8 @@ class NetflixNarcApp(App[None]):
         if self.settings.csm_api_key or self.settings.omdb_api_key or self.settings.tmdb_api_key:
             try:
                 self.rating_provider = get_rating_provider(settings=self.settings)
+                # Auto-evaluate on startup to show cached results
+                self.rebuild_table(evaluate=True)
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Error initializing provider: {e}", severity="error")
 
