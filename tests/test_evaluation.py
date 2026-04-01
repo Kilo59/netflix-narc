@@ -1,3 +1,9 @@
+"""Unit tests for the evaluator module."""
+
+from __future__ import annotations
+
+import pytest
+
 from netflix_narc.evaluator import evaluate_title
 from netflix_narc.rating_api import NormalizedMetadata
 from netflix_narc.settings import Settings
@@ -54,3 +60,35 @@ def test_evaluate_title_passes_appropriate():
 
     flags = evaluate_title(metadata, settings)
     assert len(flags) == 0
+
+
+@pytest.mark.parametrize(
+    ("content_rating", "max_age", "should_flag"),
+    [
+        pytest.param("8", 10, False, id="within-limit"),
+        pytest.param("12", 10, True, id="exceeds-limit"),
+        pytest.param("PG-13", 10, False, id="non-numeric-rating-skipped"),
+        pytest.param(None, 10, False, id="none-rating-skipped"),
+    ],
+)
+def test_evaluate_age_rating_parametrized(
+    content_rating: str | None,
+    max_age: int,
+    *,
+    should_flag: bool,
+) -> None:
+    """Parametrized sweep of age-rating checks."""
+    settings = Settings(max_age_rating=max_age)
+    metadata = NormalizedMetadata(
+        title="Test Title",
+        content_rating=content_rating,
+        user_rating=8.0,
+        provider_name="test",
+    )
+    flags = evaluate_title(metadata, settings)
+    age_flags = [f for f in flags if "Age rating" in f]
+    assert bool(age_flags) == should_flag
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-vv"])

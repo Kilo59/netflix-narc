@@ -1,12 +1,16 @@
-from datetime import UTC, datetime
-from pathlib import Path
+"""Unit tests for the parser module."""
+
+from __future__ import annotations
+
+import datetime as dt
+import pathlib
 
 import pytest
 
 from netflix_narc.parser import parse_netflix_history
 
 
-def test_parse_netflix_history_valid_data(tmp_path: Path):
+def test_parse_netflix_history_valid_data(tmp_path: pathlib.Path):
     """Test parsing a valid Netflix history CSV file."""
     csv_file = tmp_path / "ViewingHistory.csv"
     csv_file.write_text(
@@ -21,13 +25,13 @@ def test_parse_netflix_history_valid_data(tmp_path: Path):
     expected_records_count = 2
     assert len(records) == expected_records_count
     assert records[0].title == "Peppa Pig: Season 3: The Camping Holiday"
-    assert records[0].date_watched == datetime(2026, 1, 3, tzinfo=UTC)
+    assert records[0].date_watched == dt.datetime(2026, 1, 3, tzinfo=dt.UTC)
 
     assert records[1].title == "Spider-Man: Into the Spider-Verse"
-    assert records[1].date_watched == datetime(2025, 12, 31, tzinfo=UTC)
+    assert records[1].date_watched == dt.datetime(2025, 12, 31, tzinfo=dt.UTC)
 
 
-def test_parse_netflix_history_missing_fields(tmp_path: Path):
+def test_parse_netflix_history_missing_fields(tmp_path: pathlib.Path):
     """Test parsing a CSV with missing fields in some rows."""
     csv_file = tmp_path / "ViewingHistory.csv"
     csv_file.write_text(
@@ -41,7 +45,7 @@ def test_parse_netflix_history_missing_fields(tmp_path: Path):
     assert records[0].title == "Peppa Pig: Season 3"
 
 
-def test_parse_netflix_history_invalid_date_format(tmp_path: Path):
+def test_parse_netflix_history_invalid_date_format(tmp_path: pathlib.Path):
     """Test parsing a CSV with an invalid date formatRaises ValueError."""
     csv_file = tmp_path / "ViewingHistory.csv"
     csv_file.write_text('Title,Date\n"Bad Date Format","2026-01-03"\n', encoding="utf-8")
@@ -50,7 +54,11 @@ def test_parse_netflix_history_invalid_date_format(tmp_path: Path):
         parse_netflix_history(csv_file)
 
 
-def test_parse_netflix_history_file_not_found():
+def test_parse_netflix_history_file_not_found() -> None:
     """Test parsing a non-existent file."""
     with pytest.raises(FileNotFoundError):
-        parse_netflix_history(Path("does_not_exist.csv"))
+        parse_netflix_history(pathlib.Path("does_not_exist.csv"))
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-vv"])

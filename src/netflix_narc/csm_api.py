@@ -47,7 +47,9 @@ class CSMClient(RatingProvider):
         self._cache_dir = cache_dir or Path(".csm_cache")
 
         # We use hishel's SyncCacheClient and SyncSqliteStorage.
-        self._storage = hishel.SyncSqliteStorage(database_path=str(self._cache_dir))
+        # Pass a file path (not a directory) for the sqlite DB.
+        cache_path = str(self._cache_dir / "cache.sqlite")
+        self._storage = hishel.SyncSqliteStorage(database_path=cache_path)
 
         self.client = SyncCacheClient(
             storage=self._storage,

@@ -23,7 +23,7 @@ dev = [
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "respx>=0.22.0",
-    "ruff>=0.15.5",
+    "ruff>=0.15.8",
     "ruff-sync>=0.1.0",
 ]
 
