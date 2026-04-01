@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, ClassVar, NamedTuple, override
 from pydantic import SecretStr, TypeAdapter
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal
+from textual.coordinate import Coordinate
 from textual.screen import Screen
 from textual.widgets import (
     Button,
@@ -165,27 +166,69 @@ class NetflixNarcApp(App[None]):
         table.add_column("Title", width=45)
         table.add_column("Flags")
 
-        # Load CSV: prefer explicit path, then fall back to default filename
-        csv_to_load = self.csv_path or pathlib.Path("NetflixViewingHistory.csv")
-        if csv_to_load.exists():
-            self.load_data(str(csv_to_load))
-
+        # Show loading indicator while background worker initializes
         has_any_key = bool(
             self.settings.csm_api_key.get_secret_value()
             or self.settings.omdb_api_key.get_secret_value()
             or self.settings.tmdb_api_key.get_secret_value()
         )
-
         if has_any_key:
             try:
                 self.rating_provider = get_rating_provider(settings=self.settings)
-                # Auto-evaluate on startup but ONLY from cache (don't hit network)
-                self.rebuild_table(evaluate=True, cache_only=True)
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Error initializing provider: {e}", severity="error")
-        else:
-            # No API keys configured — guide the user through setup automatically
-            self.call_after_refresh(self.action_settings)
+
+        self._set_loading(state=True)
+        # Yield to the event loop so the loading indicator renders before blocking work
+        self.call_after_refresh(self._startup_sync_sequence)
+
+    def _load_startup_csv(self) -> None:
+        """Helper to load and group the CSV data synchronously on startup."""
+        csv_to_load = self.csv_path or pathlib.Path("NetflixViewingHistory.csv")
+        if not csv_to_load.exists():
+            return
+        try:
+            records = parse_netflix_history(csv_to_load)
+            grouped: dict[str, list[ViewingRecord]] = {}
+            for record in records[:200]:  # loading more for context
+                base_title = record.title.split(":")[0].strip()
+                if base_title not in grouped:
+                    grouped[base_title] = []
+                grouped[base_title].append(record)
+
+            self.grouped_records.clear()
+            self.grouped_records.update(grouped)
+        except (OSError, ValueError) as e:
+            self.notify(f"Error parsing CSV: {e}", severity="error")
+
+    def _startup_sync_sequence(self) -> None:
+        """Load CSV and perform initial cache-based evaluation on the main thread."""
+        self._load_startup_csv()
+
+        needs_settings = not self.rating_provider
+
+        if self.rating_provider:
+            for base_title in self.grouped_records:
+                if base_title not in self.evaluated_flags:
+                    metadata = self.rating_provider.search_title(base_title, cache_only=True)
+                    if metadata:
+                        flags = evaluate_title(metadata, self.settings)
+                        flags_str = (
+                            f"[red]{', '.join(flags)}[/red]" if flags else "[green]Passed[/green]"
+                        )
+                    else:
+                        flags_str = "[yellow]Not Found[/yellow]"
+                    self.evaluated_flags[base_title] = flags_str
+
+        self._finish_startup(needs_settings=needs_settings)
+
+    def _finish_startup(self, *, needs_settings: bool) -> None:
+        """Called from the main thread after the startup worker completes."""
+        self.rebuild_table(evaluate=False, cache_only=True)
+        self._set_loading(state=False)
+        if needs_settings:
+            # We don't need call_after_refresh here because it's already on the main thread
+            self.action_settings()
 
     def action_settings(self) -> None:
         """Push the setup screen to configure API keys."""
@@ -405,7 +448,7 @@ class NetflixNarcApp(App[None]):
 
         if cursor_to_key:
             with contextlib.suppress(Exception):
-                table.cursor_coordinate = (table.get_row_index(cursor_to_key), 0)
+                table.cursor_coordinate = Coordinate(table.get_row_index(cursor_to_key), 0)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle row selection in the data table."""
