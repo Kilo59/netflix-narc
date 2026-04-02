@@ -28,7 +28,7 @@ from textual.worker import Worker, WorkerState
 from netflix_narc.evaluator import evaluate_title
 from netflix_narc.factory import get_rating_provider
 from netflix_narc.persistence import load_and_group_history, update_env_file
-from netflix_narc.settings import RatingProviderType, Settings
+from netflix_narc.settings import DEFAULT_CSV_FILENAME, RatingProviderType, Settings
 
 if TYPE_CHECKING:
     from typing import Any
@@ -186,7 +186,7 @@ class NetflixNarcApp(App[None]):
 
     def _load_startup_csv(self) -> None:
         """Helper to load and group the CSV data synchronously on startup."""
-        csv_to_load = self.csv_path or pathlib.Path("NetflixViewingHistory.csv")
+        csv_to_load = self.csv_path or DEFAULT_CSV_FILENAME
         if not csv_to_load.exists():
             return
         try:
@@ -256,7 +256,7 @@ class NetflixNarcApp(App[None]):
     def action_load_csv(self) -> None:
         """Load the Netflix history from a CSV file."""
         # Use the configured path, or fall back to the default filename
-        csv_to_load = self.csv_path or pathlib.Path("NetflixViewingHistory.csv")
+        csv_to_load = self.csv_path or DEFAULT_CSV_FILENAME
         self.load_data(str(csv_to_load))
 
     def action_evaluate(self) -> None:
@@ -424,7 +424,7 @@ def main() -> None:
         type=pathlib.Path,
         default=None,
         metavar="PATH",
-        help="Path to your NetflixViewingHistory.csv file.",
+        help=f"Path to your {DEFAULT_CSV_FILENAME} file.",
     )
     args = parser.parse_args()
 

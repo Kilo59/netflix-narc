@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import pathlib
 from enum import StrEnum
-from typing import ClassVar
+from typing import ClassVar, Final
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_CSV_FILENAME: Final[pathlib.Path] = pathlib.Path("NetflixViewingHistory.csv")
 
 
 class RatingProviderType(StrEnum):
