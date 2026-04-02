@@ -144,12 +144,11 @@ class NetflixNarcApp(App[None]):
         """Create child widgets for the app."""
         yield Header()
 
-        with Horizontal():
+        with Container(id="main-container"):
             yield DataTable(id="history-table")
-
-        indicator = LoadingIndicator(id="loading-indicator")
-        indicator.display = False
-        yield indicator
+            with Container(id="loading-overlay"):
+                yield LoadingIndicator()
+                yield Static("Narcing on your Netflix viewing history...", id="loading-message")
 
         yield Footer()
 
@@ -363,8 +362,12 @@ class NetflixNarcApp(App[None]):
         self.call_from_thread(self._set_loading, state=False)
 
     def _set_loading(self, *, state: bool) -> None:
-        """Show or hide the loading indicator (must be called from main thread)."""
-        self.query_one(LoadingIndicator).display = state
+        """Show or hide the loading overlay and toggle table visibility."""
+        overlay = self.query_one("#loading-overlay", Container)
+        table = self.query_one("#history-table", DataTable)
+
+        overlay.display = state
+        table.display = not state
 
     def _update_row_flags(self, base_title: str, flags_str: str) -> None:
         """Update the Flags cell for a specific row (must be called from main thread)."""

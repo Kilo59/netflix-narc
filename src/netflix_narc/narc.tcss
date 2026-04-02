@@ -125,10 +125,29 @@ Select {
     color: #FFFFFF;
 }
 
-/* Loading indicator shown during background evaluation */
-#loading-indicator {
-    dock: bottom;
-    height: 1;
+/* Main layout container */
+#main-container {
+    height: 1fr;
+    width: 100%;
+}
+
+/* Loading screen overlay */
+#loading-overlay {
+    width: 100%;
+    height: 100%;
+    align: center middle;
+    background: #141414;
+    display: none;
+}
+
+#loading-overlay LoadingIndicator {
     color: #E50914;
-    background: #000000;
+    height: 3;
+}
+
+#loading-message {
+    margin-top: 1;
+    color: #808080;
+    text-style: italic;
+    content-align: center middle;
 }
