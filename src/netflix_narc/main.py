@@ -401,6 +401,14 @@ class NetflixNarcApp(App[None]):
         except ValueError as e:
             self.notify(f"Error parsing CSV: {e}", severity="error")
 
+    def _get_display_title(self, full_title: str, base_title: str) -> str:
+        """Strip the redundant show name prefix from a nested title for cleaner display."""
+        if full_title.startswith(base_title):
+            pruned = full_title[len(base_title) :].lstrip(": ").strip()
+            if pruned:
+                return pruned
+        return full_title
+
     def rebuild_table(
         self,
         *,
@@ -442,9 +450,10 @@ class NetflixNarcApp(App[None]):
 
             if base_title in self.expanded_titles:
                 for rec in records:
+                    display_title = self._get_display_title(rec.title, base_title)
                     table.add_row(
                         rec.date_watched.strftime("%Y-%m-%d"),
-                        f"  └─ {rec.title}",
+                        f"  └─ {display_title}",
                         "",
                         key=f"{base_title}_{rec.title}_{rec.date_watched.isoformat()}",
                     )
