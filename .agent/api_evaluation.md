@@ -12,7 +12,7 @@ We evaluated three potential APIs for retrieving viewing history metadata, focus
 
 ## 2. TMDB API (The Movie Database)
 - **Overview**: A popular, community-built movie and TV database.
-- **Title**: Returns standard [title](src/netflix_narc/csm_api.py#70-102) or `name` (for TV).
+- **Title**: Returns standard `title` (for movies) or `name` (for TV).
 - **Content Rating**: Can be retrieved, but usually requires appending `release_dates` (movies) or `content_ratings` (TV) to the query, as content ratings vary by country.
 - **User Rating**: Returns `vote_average` (a 0-10 score) and `vote_count` based on TMDB user votes.
 - **Pros**: Very comprehensive, free usage tier is generous, extremely large catalog.
@@ -20,7 +20,7 @@ We evaluated three potential APIs for retrieving viewing history metadata, focus
 
 ## 3. TMS API (Gracenote OnConnect)
 - **Overview**: Enterprise-grade entertainment data API (Gracenote).
-- **Title**: Returns [title](src/netflix_narc/csm_api.py#70-102).
+- **Title**: Returns `title`.
 - **Content Rating**: Returns a `ratings` array containing the rating body (e.g., "MPAA" or "TVPG") and the code (e.g., "PG-13").
 - **User Rating**: Can provide `qualityRating` (e.g., 1-4 stars) and other rich metadata.
 - **Pros**: Highly structured, enterprise-grade data quality, very accurate mapping for TV schedules and streaming availability.

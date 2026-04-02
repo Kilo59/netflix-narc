@@ -9,16 +9,20 @@ from netflix_narc.omdb_api import OMDBClient
 from netflix_narc.settings import RatingProviderType, Settings
 
 if TYPE_CHECKING:
+    import pathlib
+
     from netflix_narc.rating_api import RatingProvider
 
 
-def get_rating_provider(settings: Settings) -> RatingProvider:
+def get_rating_provider(
+    settings: Settings, cache_dir: pathlib.Path | None = None
+) -> RatingProvider:
     """Instantiate the active rating provider."""
     match settings.active_rating_provider:
         case RatingProviderType.CSM:
-            return CSMClient(settings)
+            return CSMClient(settings, cache_dir=cache_dir)
         case RatingProviderType.OMDB:
-            return OMDBClient(settings)
+            return OMDBClient(settings, cache_dir=cache_dir)
         case RatingProviderType.TMDB:
             msg = "TMDB provider implementation coming soon."
             raise NotImplementedError(msg)

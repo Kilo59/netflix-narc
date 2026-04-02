@@ -48,6 +48,40 @@ def test_evaluate_title_flags_violence():
     assert any("High 'Violence & Scariness' score (3/5)" in f for f in flags)
 
 
+def test_evaluate_title_flags_low_educational_value_with_high_weight():
+    settings = Settings()
+    # High importance on a positive category
+    settings.weights.educational_value = 3
+    # low_score_threshold branch: low raw score with high weight
+    metadata = NormalizedMetadata(
+        title="Not Very Educational Show",
+        content_rating="7",
+        user_rating=7.5,
+        provider_name="test",
+        category_scores={"Educational Value": 1},
+    )
+
+    flags = evaluate_title(metadata, settings)
+    assert any("Low 'Educational Value' score (1/5)" in f for f in flags)
+
+
+def test_evaluate_title_does_not_flag_violence_when_weight_is_low():
+    settings = Settings()
+    # Low importance on a negative category, so weighted_score stays below flag_threshold
+    settings.weights.violence = 1
+    # Somewhat high raw score, but low weight should prevent flagging
+    metadata = NormalizedMetadata(
+        title="Somewhat Violent Show",
+        content_rating="7",
+        user_rating=8.0,
+        provider_name="test",
+        category_scores={"Violence & Scariness": 4},
+    )
+
+    flags = evaluate_title(metadata, settings)
+    assert all("High 'Violence & Scariness' score" not in f for f in flags)
+
+
 def test_evaluate_title_passes_appropriate():
     settings = Settings(max_age_rating=12, min_quality_rating=3)
     metadata = NormalizedMetadata(

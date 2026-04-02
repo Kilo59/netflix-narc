@@ -27,7 +27,7 @@ from textual.worker import Worker, WorkerState
 
 from netflix_narc.evaluator import evaluate_title
 from netflix_narc.factory import get_rating_provider
-from netflix_narc.parser import ViewingRecord, parse_netflix_history
+from netflix_narc.persistence import load_and_group_history, update_env_file
 from netflix_narc.settings import RatingProviderType, Settings
 
 if TYPE_CHECKING:
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 
     from textual.binding import Binding
 
+    from netflix_narc.parser import ViewingRecord
     from netflix_narc.rating_api import RatingProvider
 
 
@@ -163,7 +164,7 @@ class NetflixNarcApp(App[None]):
         table.cursor_type = "row"
         table.add_column("Date Watched", width=15)
         table.add_column("Title", width=45)
-        table.add_column("Flags")
+        table.add_column("Flags", key="flags")
 
         # Show loading indicator while background worker initializes
         has_any_key = bool(
@@ -173,7 +174,9 @@ class NetflixNarcApp(App[None]):
         )
         if has_any_key:
             try:
-                self.rating_provider = get_rating_provider(settings=self.settings)
+                self.rating_provider = get_rating_provider(
+                    settings=self.settings, cache_dir=self.cache_dir
+                )
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Error initializing provider: {e}", severity="error")
 
@@ -183,18 +186,11 @@ class NetflixNarcApp(App[None]):
 
     def _load_startup_csv(self) -> None:
         """Helper to load and group the CSV data synchronously on startup."""
-        csv_to_load = self.csv_path or pathlib.Path("NetflixViewingHistory.csv")
+        csv_to_load = self.csv_path or pathlib.Path("ViewingActivity.csv")
         if not csv_to_load.exists():
             return
         try:
-            records = parse_netflix_history(csv_to_load)
-            grouped: dict[str, list[ViewingRecord]] = {}
-            for record in records[:200]:  # loading more for context
-                base_title = record.title.split(":")[0].strip()
-                if base_title not in grouped:
-                    grouped[base_title] = []
-                grouped[base_title].append(record)
-
+            grouped = load_and_group_history(csv_to_load, self.settings.max_records)
             self.grouped_records.clear()
             self.grouped_records.update(grouped)
         except (OSError, ValueError) as e:
@@ -233,62 +229,8 @@ class NetflixNarcApp(App[None]):
         """Push the setup screen to configure API keys."""
         self.push_screen(SetupScreen(), self.handle_setup_complete)
 
-    def _parse_env_line(
-        self, raw_line: str, new_values: dict[str, str], seen_keys: set[str]
-    ) -> str | None:
-        """Parse a single .env line and return the updated version, or None if skipped."""
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            return line
-
-        if "=" in line:
-            k, _ = line.split("=", 1)
-            if k in new_values:
-                seen_keys.add(k)
-                return f"{k}={new_values[k]}"
-            return line
-        return line
-
-    def _update_env_file(self, provider: RatingProviderType, api_key: SecretStr) -> None:
-        """Update the .env file with new provider settings, deduplicating keys."""
-        env_path = pathlib.Path(".env")
-        env_lines = []
-        if env_path.exists():
-            env_lines = env_path.read_text().splitlines()
-
-        # Map prefix to new value
-        new_values = {
-            "ACTIVE_RATING_PROVIDER": str(provider),
-        }
-        if provider == RatingProviderType.CSM:
-            new_values["CSM_API_KEY"] = api_key.get_secret_value()
-        elif provider == RatingProviderType.OMDB:
-            new_values["OMDB_API_KEY"] = api_key.get_secret_value()
-
-        # Process existing lines, updating matches
-        updated_lines = []
-        seen_keys: set[str] = set()
-        for raw_line in env_lines:
-            updated_line = self._parse_env_line(raw_line, new_values, seen_keys)
-            if updated_line is not None:
-                updated_lines.append(updated_line)
-
-        # Add new keys that weren't in the file
-        for k, v in new_values.items():
-            if k not in seen_keys:
-                updated_lines.append(f"{k}={v}")
-
-        # Write atomically
-        temp_env = env_path.with_suffix(".tmp")
-        temp_env.write_text("\n".join(updated_lines) + "\n")
-        temp_env.replace(env_path)
-
     def handle_setup_complete(self, config: SetupConfig | None) -> None:
-        """Handle the completion of the setup screen.
-
-        Args:
-            config: The configured provider and API key, if any.
-        """
+        """Handle the completion of the setup screen."""
         if config:
             provider = config.provider
             api_key = config.api_key
@@ -303,8 +245,10 @@ class NetflixNarcApp(App[None]):
                     self.settings.tmdb_api_key = api_key
 
             try:
-                self.rating_provider = get_rating_provider(settings=self.settings)
-                self._update_env_file(provider, api_key)
+                self.rating_provider = get_rating_provider(
+                    settings=self.settings, cache_dir=self.cache_dir
+                )
+                update_env_file(provider, api_key, pathlib.Path(".env"))
                 self.notify(f"Settings saved for {provider.upper()}.")
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Initialization error: {e}", severity="error")
@@ -312,7 +256,7 @@ class NetflixNarcApp(App[None]):
     def action_load_csv(self) -> None:
         """Load the Netflix history from a CSV file."""
         # Use the configured path, or fall back to the default filename
-        csv_to_load = self.csv_path or pathlib.Path("NetflixViewingHistory.csv")
+        csv_to_load = self.csv_path or pathlib.Path("ViewingActivity.csv")
         self.load_data(str(csv_to_load))
 
     def action_evaluate(self) -> None:
@@ -385,16 +329,9 @@ class NetflixNarcApp(App[None]):
     def load_data(self, filepath: str) -> None:
         """Load and parse Netflix viewing history from the given path."""
         try:
-            records: list[ViewingRecord] = parse_netflix_history(pathlib.Path(filepath))
-
-            # Group records by base title
+            grouped = load_and_group_history(pathlib.Path(filepath), self.settings.max_records)
             self.grouped_records.clear()
-            for record in records[:200]:  # loading more for context
-                base_title = record.title.split(":")[0].strip()
-                if base_title not in self.grouped_records:
-                    self.grouped_records[base_title] = []
-                self.grouped_records[base_title].append(record)
-
+            self.grouped_records.update(grouped)
             self.rebuild_table()
         except FileNotFoundError as e:
             self.notify(f"History file not found: {e}", severity="error")
@@ -487,7 +424,7 @@ def main() -> None:
         type=pathlib.Path,
         default=None,
         metavar="PATH",
-        help="Path to your NetflixViewingHistory.csv file.",
+        help="Path to your ViewingActivity.csv file.",
     )
     args = parser.parse_args()
 

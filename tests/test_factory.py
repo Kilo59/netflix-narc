@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pathlib
+
 import pytest
 from pydantic import SecretStr
 
@@ -19,6 +24,7 @@ from netflix_narc.settings import RatingProviderType, Settings
     ],
 )
 def test_get_rating_provider_success(
+    tmp_path: pathlib.Path,
     fake_settings: Settings,
     provider_type: RatingProviderType,
     expected_class: type,
@@ -26,7 +32,7 @@ def test_get_rating_provider_success(
     """Assert the factory returns the correct client for supported types."""
     fake_settings.active_rating_provider = provider_type
     # We pass tmp_path to ensure hishel doesn't write to the real .csm_cache/.omdb_cache
-    provider = get_rating_provider(fake_settings)
+    provider = get_rating_provider(fake_settings, cache_dir=tmp_path)
     assert isinstance(provider, expected_class)
     provider.close()
 

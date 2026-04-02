@@ -48,5 +48,6 @@ class Settings(BaseSettings):
     tmdb_api_key: SecretStr = SecretStr("")
     max_age_rating: int = 12
     min_quality_rating: int = 3
+    max_records: int = 200
 
     weights: CategoryWeights = CategoryWeights()
