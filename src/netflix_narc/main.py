@@ -186,7 +186,7 @@ class NetflixNarcApp(App[None]):
 
     def _load_startup_csv(self) -> None:
         """Helper to load and group the CSV data synchronously on startup."""
-        csv_to_load = self.csv_path or pathlib.Path("ViewingActivity.csv")
+        csv_to_load = self.csv_path or pathlib.Path("NetflixViewingHistory.csv")
         if not csv_to_load.exists():
             return
         try:
@@ -256,7 +256,7 @@ class NetflixNarcApp(App[None]):
     def action_load_csv(self) -> None:
         """Load the Netflix history from a CSV file."""
         # Use the configured path, or fall back to the default filename
-        csv_to_load = self.csv_path or pathlib.Path("ViewingActivity.csv")
+        csv_to_load = self.csv_path or pathlib.Path("NetflixViewingHistory.csv")
         self.load_data(str(csv_to_load))
 
     def action_evaluate(self) -> None:
@@ -424,7 +424,7 @@ def main() -> None:
         type=pathlib.Path,
         default=None,
         metavar="PATH",
-        help="Path to your ViewingActivity.csv file.",
+        help="Path to your NetflixViewingHistory.csv file.",
     )
     args = parser.parse_args()
 

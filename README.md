@@ -10,7 +10,7 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 
 ## ✨ Features
 
-- **🍿 Netflix Integration**: Easily ingest your profile's `ViewingActivity.csv`.
+- **🍿 Netflix Integration**: Easily ingest your profile's `NetflixViewingHistory.csv`.
 - **🧠 Common Sense Intel**: Automatically fetches age ratings, quality scores, and granular category breakdowns (Violence, Language, Educational Value, etc.) from Common Sense Media.
 - **⚖️ Weighted Justice**: Customize how strictly you want to judge different content categories.
 - **🖥️ Beautiful TUI**: A gorgeous, reactive terminal interface powered by Textual.
@@ -40,14 +40,14 @@ netflix-narc --help
 ### Prerequisites
 - Python 3.13+
 - An **OMDb API Key** (recommended) — grab a free key at [omdbapi.com](https://www.omdbapi.com/apikey.aspx)
-- Your exported `ViewingActivity.csv`
+- Your exported `NetflixViewingHistory.csv`
    *(Netflix Account Settings → Profile & Parental Controls → Viewing activity → Download all)*
 
 ### Installation & Usage
 
 ```bash
 # Point to your history file explicitly (recommended)
-uv run netflix-narc --csv /path/to/ViewingActivity.csv
+uv run netflix-narc --csv /path/to/NetflixViewingHistory.csv
 
 # Or drop the file in the current directory and run without arguments
 uv run netflix-narc
