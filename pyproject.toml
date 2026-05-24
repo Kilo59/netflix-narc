@@ -15,6 +15,7 @@ classifiers = [
     "Topic :: Terminals",
 ]
 dependencies = [
+    "aiosqlite>=0.22.1",
     "hishel>=1.1.9",
     "httpx[http2]>=0.28.1",
     "pydantic-settings>=2.13.1",
