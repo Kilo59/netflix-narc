@@ -151,3 +151,141 @@ Select {
     text-style: italic;
     content-align: center middle;
 }
+
+/* Lineup Screen */
+#lineup-container {
+    align: center middle;
+    width: 100%;
+    height: 100%;
+}
+
+#lineup-card {
+    width: 60;
+    height: auto;
+    min-height: 20;
+    background: #181818;
+    border: tall #333333;
+    padding: 2;
+    align: center middle;
+}
+
+#lineup-counter {
+    color: #808080;
+    margin-bottom: 1;
+    text-align: right;
+}
+
+.title-text {
+    text-style: bold;
+    color: #E50914;
+    padding-bottom: 1;
+    content-align: center middle;
+}
+
+.meta-text {
+    color: #E5E5E5;
+    padding-bottom: 1;
+    content-align: center middle;
+}
+
+#lineup-actions {
+    height: 3;
+    margin-top: 2;
+    align: center middle;
+}
+
+#lineup-actions Button {
+    margin: 0 1;
+    width: auto;
+    min-width: 15;
+}
+
+#btn-interrogate {
+    background: #E50914;
+    color: #FFFFFF;
+    text-style: bold;
+}
+
+#btn-ignore {
+    background: #555555;
+    color: #FFFFFF;
+}
+
+#btn-skip {
+    background: #333333;
+    color: #808080;
+}
+
+/* Interrogation Room Screen */
+#interrogation-container {
+    align: center middle;
+    width: 100%;
+    height: 100%;
+    padding: 1 2;
+}
+
+#interrogation-card {
+    width: 60;
+    height: auto;
+    background: #181818;
+    border: tall #333333;
+    padding: 1 2;
+}
+
+.form-row {
+    height: 3;
+    margin-bottom: 1;
+    align: left middle;
+}
+
+.form-row Static {
+    margin-right: 1;
+    content-align: left middle;
+}
+
+.form-row Input {
+    width: 10;
+    margin-right: 2;
+}
+
+.section-header {
+    color: #E50914;
+    text-style: bold;
+    margin-top: 1;
+    margin-bottom: 1;
+}
+
+#csm-scores {
+    height: auto;
+    border-left: solid #333333;
+    padding-left: 1;
+}
+
+.csm-row {
+    height: 3;
+    align: left middle;
+}
+
+.csm-label {
+    width: 30;
+    content-align: left middle;
+}
+
+.csm-row Input {
+    width: 8;
+}
+
+#input-flag {
+    margin-top: 1;
+    margin-bottom: 1;
+}
+
+#interrogation-actions {
+    height: 3;
+    margin-top: 1;
+    align: right middle;
+}
+
+#interrogation-actions Button {
+    margin-left: 1;
+}

@@ -28,6 +28,7 @@ from textual.worker import Worker, WorkerState
 
 from netflix_narc.evaluator import evaluate_title
 from netflix_narc.factory import get_rating_provider
+from netflix_narc.lineup import LineupScreen
 from netflix_narc.manual_db import EvidenceLocker
 from netflix_narc.persistence import load_and_group_history, update_env_file
 from netflix_narc.settings import DEFAULT_CSV_FILENAME, RatingProviderType, Settings
@@ -111,7 +112,7 @@ class NetflixNarcApp(App[None]):
         ("q", "quit", "Quit"),
         ("ctrl+c", "quit", "Quit"),
         ("f10", "quit", "Quit"),
-        ("l", "load_csv", "Load CSV"),
+        ("l", "start_lineup", "The Lineup"),
         ("s", "settings", "Settings"),
         ("e", "evaluate", "Evaluate Titles"),
     ]
@@ -275,9 +276,15 @@ class NetflixNarcApp(App[None]):
             exclusive=True,
         )
 
+    async def action_start_lineup(self) -> None:
+        """Start the Lineup Screen with the sorted queue."""
+        await self._sort_queue()
+        queue = list(self.grouped_records.keys())
+        self.push_screen(LineupScreen(queue=queue))
+
     async def _evaluate_titles_worker(self, *, cache_only: bool) -> None:
         """Worker: evaluate all ungrouped titles.
-        
+
         Runs as an async worker on the main event loop.
         """
         provider = self.rating_provider
@@ -401,7 +408,7 @@ class NetflixNarcApp(App[None]):
     async def _fetch_and_evaluate(self, base_title: str, *, cache_only: bool) -> str:  # noqa: C901
         """Fetch metadata, merge manual data, and evaluate."""
         manual_record = await self.evidence_locker.get_record(base_title)
-        
+
         if manual_record and manual_record.ignored:
             return "[dim]Ignored[/dim]"
 
@@ -449,7 +456,7 @@ class NetflixNarcApp(App[None]):
 
         def sort_key(item: tuple[str, list[ViewingRecord]]) -> tuple[int, int, float]:
             base_title, records = item
-            
+
             # 1. Flagged for follow up
             manual_record = manual_records.get(base_title)
             is_flagged = 1 if manual_record and manual_record.flagged_for_followup else 0
@@ -473,6 +480,7 @@ class NetflixNarcApp(App[None]):
         sorted_items = sorted(self.grouped_records.items(), key=sort_key)
         self.grouped_records.clear()
         self.grouped_records.update(sorted_items)
+
 
 def main() -> None:
     """CLI Entrypoint to start the Netflix Narc application."""
