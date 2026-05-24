@@ -52,5 +52,6 @@ class Settings(BaseSettings):
     max_age_rating: int = 12
     min_quality_rating: int = 3
     max_records: int = 200
+    merge_manual_data: bool = True
 
     weights: CategoryWeights = CategoryWeights()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import contextlib
 import functools
 import pathlib
@@ -27,6 +28,7 @@ from textual.worker import Worker, WorkerState
 
 from netflix_narc.evaluator import evaluate_title
 from netflix_narc.factory import get_rating_provider
+from netflix_narc.manual_db import EvidenceLocker
 from netflix_narc.persistence import load_and_group_history, update_env_file
 from netflix_narc.settings import DEFAULT_CSV_FILENAME, RatingProviderType, Settings
 
@@ -135,6 +137,13 @@ class NetflixNarcApp(App[None]):
         self.cache_dir = cache_dir
         self.rating_provider: RatingProvider | None = None
 
+        db_path = (
+            (self.cache_dir / "evidence_locker.sqlite")
+            if self.cache_dir
+            else "evidence_locker.sqlite"
+        )
+        self.evidence_locker = EvidenceLocker(db_path)
+
         # State for grouping history
         self.grouped_records: dict[str, list[ViewingRecord]] = {}
         self.expanded_titles: set[str] = set()
@@ -196,7 +205,7 @@ class NetflixNarcApp(App[None]):
         except (OSError, ValueError) as e:
             self.notify(f"Error parsing CSV: {e}", severity="error")
 
-    def _startup_sync_sequence(self) -> None:
+    async def _startup_sync_sequence(self) -> None:
         """Load CSV and perform initial cache-based evaluation on the main thread."""
         self._load_startup_csv()
 
@@ -205,21 +214,15 @@ class NetflixNarcApp(App[None]):
         if self.rating_provider:
             for base_title in self.grouped_records:
                 if base_title not in self.evaluated_flags:
-                    metadata = self.rating_provider.search_title(base_title, cache_only=True)
-                    if metadata:
-                        flags = evaluate_title(metadata, self.settings)
-                        flags_str = (
-                            f"[red]{', '.join(flags)}[/red]" if flags else "[green]Passed[/green]"
-                        )
-                    else:
-                        flags_str = "[yellow]Not Found[/yellow]"
+                    flags_str = await self._fetch_and_evaluate(base_title, cache_only=True)
                     self.evaluated_flags[base_title] = flags_str
 
-        self._finish_startup(needs_settings=needs_settings)
+        await self._finish_startup(needs_settings=needs_settings)
 
-    def _finish_startup(self, *, needs_settings: bool) -> None:
+    async def _finish_startup(self, *, needs_settings: bool) -> None:
         """Called from the main thread after the startup worker completes."""
-        self.rebuild_table(evaluate=False, cache_only=True)
+        await self.evidence_locker.init()
+        await self.rebuild_table(evaluate=False, cache_only=True)
         self._set_loading(state=False)
         if needs_settings:
             # We don't need call_after_refresh here because it's already on the main thread
@@ -253,11 +256,11 @@ class NetflixNarcApp(App[None]):
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Initialization error: {e}", severity="error")
 
-    def action_load_csv(self) -> None:
+    async def action_load_csv(self) -> None:
         """Load the Netflix history from a CSV file."""
         # Use the configured path, or fall back to the default filename
         csv_to_load = self.csv_path or DEFAULT_CSV_FILENAME
-        self.load_data(str(csv_to_load))
+        await self.load_data(str(csv_to_load))
 
     def action_evaluate(self) -> None:
         """Evaluate the loaded history against the active rating provider."""
@@ -270,40 +273,30 @@ class NetflixNarcApp(App[None]):
         self.run_worker(
             functools.partial(self._evaluate_titles_worker, cache_only=False),
             exclusive=True,
-            thread=True,
         )
 
-    def _evaluate_titles_worker(self, *, cache_only: bool) -> None:
-        """Worker: evaluate all ungrouped titles off the main thread.
-
-        Runs in a background thread. Calls back to the main thread via
-        `call_from_thread` after each title so the table updates progressively.
-
-        Args:
-            cache_only: If True, only use responses already in the hishel cache.
+    async def _evaluate_titles_worker(self, *, cache_only: bool) -> None:
+        """Worker: evaluate all ungrouped titles.
+        
+        Runs as an async worker on the main event loop.
         """
         provider = self.rating_provider
         if provider is None:
             return
 
-        self.call_from_thread(self._set_loading, state=True)
+        self._set_loading(state=True)
 
         titles = list(self.grouped_records.keys())
         for base_title in titles:
             if base_title in self.evaluated_flags:
                 continue
 
-            metadata = provider.search_title(base_title, cache_only=cache_only)
-            if metadata:
-                flags = evaluate_title(metadata, self.settings)
-                flags_str = f"[red]{', '.join(flags)}[/red]" if flags else "[green]Passed[/green]"
-            else:
-                flags_str = "[yellow]Not Found[/yellow]"
+            flags_str = await self._fetch_and_evaluate(base_title, cache_only=cache_only)
 
             self.evaluated_flags[base_title] = flags_str
-            self.call_from_thread(self._update_row_flags, base_title, flags_str)
+            self._update_row_flags(base_title, flags_str)
 
-        self.call_from_thread(self._set_loading, state=False)
+        self._set_loading(state=False)
 
     def _set_loading(self, *, state: bool) -> None:
         """Show or hide the loading overlay and toggle table visibility."""
@@ -326,13 +319,13 @@ class NetflixNarcApp(App[None]):
         if event.state in (WorkerState.ERROR, WorkerState.CANCELLED):
             self._set_loading(state=False)
 
-    def load_data(self, filepath: str) -> None:
+    async def load_data(self, filepath: str) -> None:
         """Load and parse Netflix viewing history from the given path."""
         try:
             grouped = load_and_group_history(pathlib.Path(filepath), self.settings.max_records)
             self.grouped_records.clear()
             self.grouped_records.update(grouped)
-            self.rebuild_table()
+            await self.rebuild_table()
         except FileNotFoundError as e:
             self.notify(f"History file not found: {e}", severity="error")
         except ValueError as e:
@@ -346,7 +339,7 @@ class NetflixNarcApp(App[None]):
                 return pruned
         return full_title
 
-    def rebuild_table(
+    async def rebuild_table(
         self,
         *,
         evaluate: bool = False,
@@ -360,6 +353,7 @@ class NetflixNarcApp(App[None]):
         For full evaluation calls, use `action_evaluate` which delegates to the
         background worker.
         """
+        await self._sort_queue()
         table = self.query_one(DataTable)
         table.clear()
 
@@ -367,14 +361,7 @@ class NetflixNarcApp(App[None]):
             flags_str = self.evaluated_flags.get(base_title, "None")
 
             if evaluate and self.rating_provider and base_title not in self.evaluated_flags:
-                metadata = self.rating_provider.search_title(base_title, cache_only=cache_only)
-                if metadata:
-                    flags = evaluate_title(metadata, self.settings)
-                    flags_str = (
-                        f"[red]{', '.join(flags)}[/red]" if flags else "[green]Passed[/green]"
-                    )
-                else:
-                    flags_str = "[yellow]Not Found[/yellow]"
+                flags_str = await self._fetch_and_evaluate(base_title, cache_only=cache_only)
                 self.evaluated_flags[base_title] = flags_str
 
             indicator = "▼" if base_title in self.expanded_titles else "▶"
@@ -399,7 +386,7 @@ class NetflixNarcApp(App[None]):
             with contextlib.suppress(Exception):
                 table.cursor_coordinate = Coordinate(table.get_row_index(cursor_to_key), 0)
 
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+    async def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle row selection in the data table."""
         row_key = event.row_key.value
 
@@ -409,8 +396,83 @@ class NetflixNarcApp(App[None]):
                 self.expanded_titles.remove(row_key)
             else:
                 self.expanded_titles.add(row_key)
-            self.rebuild_table(evaluate=False, cursor_to_key=row_key)
+            await self.rebuild_table(evaluate=False, cursor_to_key=row_key)
 
+    async def _fetch_and_evaluate(self, base_title: str, *, cache_only: bool) -> str:  # noqa: C901
+        """Fetch metadata, merge manual data, and evaluate."""
+        manual_record = await self.evidence_locker.get_record(base_title)
+        
+        if manual_record and manual_record.ignored:
+            return "[dim]Ignored[/dim]"
+
+        api_metadata = None
+        if self.rating_provider:
+            api_metadata = await asyncio.to_thread(
+                self.rating_provider.search_title, base_title, cache_only=cache_only
+            )
+
+        # Merge strategy
+        if self.settings.merge_manual_data and manual_record:
+            if api_metadata is None:
+                api_metadata = manual_record.to_normalized_metadata()
+            else:
+                if manual_record.content_rating is not None:
+                    api_metadata.content_rating = manual_record.content_rating
+                if manual_record.user_rating is not None:
+                    api_metadata.user_rating = manual_record.user_rating
+                for cat, val in manual_record.category_scores.items():
+                    api_metadata.category_scores[cat] = val
+        elif manual_record and not self.settings.merge_manual_data:
+            api_metadata = manual_record.to_normalized_metadata()
+
+        if api_metadata:
+            flags = evaluate_title(api_metadata, self.settings)
+
+            # Surface if flagged manually
+            followup_tag = (
+                "[cyan](Flagged)[/cyan] "
+                if manual_record and manual_record.flagged_for_followup
+                else ""
+            )
+
+            if flags:
+                return f"{followup_tag}[red]{', '.join(flags)}[/red]"
+            return f"{followup_tag}[green]Passed[/green]"
+
+        return "[yellow]Not Found[/yellow]"
+
+    async def _sort_queue(self) -> None:
+        """Sort grouped records based on priority queue rules."""
+        manual_records = {}
+        for base_title in self.grouped_records:
+            manual_records[base_title] = await self.evidence_locker.get_record(base_title)
+
+        def sort_key(item: tuple[str, list[ViewingRecord]]) -> tuple[int, int, float]:
+            base_title, records = item
+            
+            # 1. Flagged for follow up
+            manual_record = manual_records.get(base_title)
+            is_flagged = 1 if manual_record and manual_record.flagged_for_followup else 0
+
+            # 2. Low Quality API flags
+            flags_str = self.evaluated_flags.get(base_title, "")
+            is_low_quality = 1 if "Low Quality" in flags_str else 0
+
+            # 3. Recency (max date watched)
+            # date_watched is a datetime.date or datetime.datetime
+            # We can just use the latest date's ordinal or timestamp
+            max_date = max(r.date_watched for r in records)
+            try:
+                date_val = max_date.timestamp()
+            except AttributeError:
+                # If it's just a date, convert to ordinal
+                date_val = float(max_date.toordinal())
+
+            return (-is_flagged, -is_low_quality, -date_val)
+
+        sorted_items = sorted(self.grouped_records.items(), key=sort_key)
+        self.grouped_records.clear()
+        self.grouped_records.update(sorted_items)
 
 def main() -> None:
     """CLI Entrypoint to start the Netflix Narc application."""
