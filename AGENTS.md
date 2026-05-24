@@ -29,6 +29,7 @@ gh pr checks <number>              # See CI status for a PR
 - **HTTP Client**: [httpx](https://www.python-httpx.org/) (sync, via hishel)
 - **HTTP Caching**: [hishel](https://hishel.com/) — CRITICAL for API rate limits. See `.agents/skills/hishel/SKILL.md`.
 - **Configuration**: [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
+- **Database**: [aiosqlite](https://aiosqlite.omnilib.dev/) (Async SQLite for local storage)
 - **Data Models**: pydantic (`BaseModel`, `SecretStr`)
 - **Linter / Formatter**: [Ruff](https://docs.astral.sh/ruff/) (`>=0.15.5`)
 - **Type Checker**: [mypy](https://mypy-lang.org/) (strict mode)
@@ -56,6 +57,9 @@ src/netflix_narc/
   evaluator.py                  # Applies user weights to NormalizedMetadata
   rating_api.py                 # RatingProvider Protocol + NormalizedMetadata model
   settings.py                   # pydantic-settings config (API keys, thresholds)
+  manual_db.py                  # The Evidence Locker (async SQLite for manual data)
+  lineup.py                     # The Lineup Screen (Discovery Queue UI)
+  interrogation_room.py         # The Interrogation Room Screen (Manual Data Entry UI)
   main.py                       # Textual TUI entrypoint
 tests/
   conftest.py                   # Shared fixtures (fake_settings, response payloads)
@@ -118,6 +122,7 @@ uv run pytest -vv
 2. **Onboarding First**: If `Settings` cannot find the API key for the active provider, the TUI MUST intercept and present an onboarding view.
 3. **Dependency restraint**: Do not add heavy parsing libraries (e.g., `pandas`). Use standard library + pydantic.
 4. **Strict Typing**: Use Python 3.13 features. Always prefer typed pydantic models or `TypedDict` over raw dicts.
+5. **Async DB Operations**: Use `aiosqlite` for database calls in `manual_db.py` to ensure the Textual event loop is not blocked during manual data persistence.
 
 ## Testing
 
