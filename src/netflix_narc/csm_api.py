@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+import sqlite3
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, override
 
@@ -134,7 +135,8 @@ class CSMClient(RatingProvider):
         # We use hishel's SyncCacheClient and SyncSqliteStorage.
         # Pass a file path (not a directory) for the sqlite DB.
         cache_path = str(self._cache_dir / "cache.sqlite")
-        self._storage = hishel.SyncSqliteStorage(database_path=cache_path)
+        conn = sqlite3.connect(cache_path, check_same_thread=False)
+        self._storage = hishel.SyncSqliteStorage(connection=conn)
 
         self.client = SyncCacheClient(
             storage=self._storage,

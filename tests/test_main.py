@@ -17,14 +17,16 @@ import pytest
 from pydantic import SecretStr
 from textual.widgets import DataTable
 
-from netflix_narc.main import NetflixNarcApp, SetupScreen
+from netflix_narc.main import NetflixNarcApp
+from netflix_narc.onboarding import OnboardingScreen
+from netflix_narc.preferences import PreferencesScreen
 from netflix_narc.settings import Settings
 
 
 async def test_app_mounts_without_crashing() -> None:
     """App should mount cleanly with no CSV path and no API keys configured.
 
-    When no API key is present, on_mount pushes SetupScreen automatically.
+    When child_age_range is None, on_mount pushes OnboardingScreen automatically.
     We verify the app doesn't crash and retains a DataTable in the DOM.
     """
     no_key_settings = Settings(
@@ -46,42 +48,48 @@ async def test_app_table_is_visible(fake_settings: Settings) -> None:
         assert table is not None
 
 
-async def test_action_settings_pushes_setup_screen(fake_settings: Settings) -> None:
-    """Pressing 's' should push a SetupScreen onto the screen stack."""
+async def test_action_settings_pushes_preferences_screen(fake_settings: Settings) -> None:
+    """Pressing 's' should push a PreferencesScreen onto the screen stack."""
+    # Provide a child_age_range so onboarding is skipped
+    fake_settings.child_age_range = (8, 12)
     app = NetflixNarcApp(settings=fake_settings, csv_path=None)
     async with app.run_test() as pilot:
-        # Allow call_after_refresh callbacks to execute
+        await pilot.pause()
+        await pilot.press("s")
         await pilot.pause()
 
-        # If SetupScreen is already visible (auto-pushed on no-key), verify.
-        # Otherwise push it manually via the 's' binding.
-        screens = pilot.app.screen_stack
-        if not any(isinstance(s, SetupScreen) for s in screens):
-            await pilot.press("s")
-            await pilot.pause()
-
         screens_after = pilot.app.screen_stack
-        assert any(isinstance(s, SetupScreen) for s in screens_after)
+        assert any(isinstance(s, PreferencesScreen) for s in screens_after)
 
 
-async def test_setup_screen_cancel_pops_screen(fake_settings: Settings) -> None:
-    """Pressing Escape on SetupScreen should dismiss it and return to main app."""
+async def test_preferences_screen_escape_pops_screen(fake_settings: Settings) -> None:
+    """Pressing Escape on PreferencesScreen should dismiss it and return to main app."""
+    fake_settings.child_age_range = (8, 12)
     app = NetflixNarcApp(settings=fake_settings, csv_path=None)
     async with app.run_test() as pilot:
-        await pilot.pause()  # let call_after_refresh settle
-
-        # Ensure SetupScreen is on the stack
-        screens = pilot.app.screen_stack
-        if not any(isinstance(s, SetupScreen) for s in screens):
-            await pilot.press("s")
-            await pilot.pause()
+        await pilot.pause()
+        await pilot.press("s")
+        await pilot.pause()
 
         # Escape should dismiss it
         await pilot.press("escape")
         await pilot.pause()
 
         screens_after = pilot.app.screen_stack
-        assert not any(isinstance(s, SetupScreen) for s in screens_after)
+        assert not any(isinstance(s, PreferencesScreen) for s in screens_after)
+
+
+async def test_onboarding_pushed_when_age_missing() -> None:
+    """OnboardingScreen should appear when child_age_range is None."""
+    no_age_settings = Settings(
+        _env_file=None,  # type: ignore[call-arg]
+    )
+    app = NetflixNarcApp(settings=no_age_settings, csv_path=None)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.pause()  # let call_after_refresh + async _push_onboarding run
+        screens = pilot.app.screen_stack
+        assert any(isinstance(s, OnboardingScreen) for s in screens)
 
 
 if __name__ == "__main__":

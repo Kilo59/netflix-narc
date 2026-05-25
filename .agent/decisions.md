@@ -54,3 +54,125 @@ This document tracks significant technical decisions, trade-offs, and design pat
 **Decision**:
 - Reverted to using `self.run_worker(functools.partial(func, *args), ...)` in `main.py`.
 **Rationale**: Minimizes risk of breakage on minor framework updates.
+
+## 7. XDG Config Dir for `.env` Persistence
+**Date**: 2026-05-25
+**Context**: `update_env_file` wrote to a CWD-relative `.env`. This fails silently when the app
+is installed via `pipx` (CWD is unpredictable) and caused age range / weight settings to not
+persist across sessions.
+**Decision**:
+- All settings are written to `~/.config/netflix-narc/.env` via `platformdirs.user_config_dir("netflix-narc")`.
+- `platformdirs` is already a transitive dependency (via Textual) — no new dep required.
+- On first run after this change, an existing CWD `.env` is migrated to the config dir.
+- `Settings.model_config["env_file"]` is updated to point at the config dir path.
+**Rationale**: XDG-compliant, works with `pipx install`, survives CWD changes.
+
+## 8. Onboarding → `OnboardingScreen` + `PreferencesScreen` (SetupScreen retired)
+**Date**: 2026-05-25
+**Context**: `SetupScreen` served double duty as first-run wizard and always-accessible settings.
+It led with API key entry (optional feature), hid category weights entirely, and didn't reliably
+persist settings.
+**Decision**:
+- `SetupScreen` is removed.
+- `OnboardingScreen` (new, `onboarding.py`) — multi-step `ContentSwitcher` wizard, first-run only.
+  Steps: Welcome → Age (required) → Weights (skippable) → API Keys (skippable) → Summary.
+- `PreferencesScreen` (new, `preferences.py`) — always-accessible full settings panel, bound to `s`.
+  Sections: Profile / Content Weights / API & Provider / Advanced.
+- **`AdvancedScreen` is kept** (bound to `a`) for progressive disclosure. It surfaces `Load History
+  File` and `Evaluate via API` for users who haven't discovered the hidden `c`/`e` key bindings.
+  Only its description text is updated to remove the stale reference to "configured an API key in Setup".
+**See**: `.agent/onboarding_overhaul.md` for full design, `.agent/onboarding_overhaul_plan.md` for implementation plan.
+
+
+## 9. Weight Controls: Three-Button Toggle (1–3) [SUPERSEDED by ADR 11]
+**Date**: 2026-05-25
+**Context**: `CategoryWeights` fields are integers 1–3 with no UI exposure. The range was kept at
+1–3 (Low / Med / High) for simplicity rather than expanding to 1–5.
+**Decision**:
+- `WeightRow` widget — three `Button` toggles (Low=1, Med=2, High=3). Active button uses `variant="primary"`.
+- `↺` per-row reset button + "Reset All Weights" section button.
+- `DEFAULT_WEIGHTS: ClassVar[dict[str, int]]` added to `CategoryWeights` as the canonical reference
+  for the reset action.
+- All seven `WEIGHTS__*` keys are written to `.env` on every save using pydantic-settings'
+  existing `env_nested_delimiter = "__"` — no model changes needed.
+
+## 10. Weight Impact Preview Panel (Live Before/After Score Preview)
+**Date**: 2026-05-25
+**Context**: Category weight adjustments are non-intuitive without concrete feedback. Users
+have no way to know whether changing "Violence" from Med to High will affect 1 title or 20.
+**Decision**:
+- A `WeightImpactPreview` widget is shown beside the weight controls in both `PreferencesScreen`
+  and `OnboardingScreen` Step 3.
+- **Title selection**: filter `ManualMetadata` records with `completeness_score >= 70` and
+  `ignored == False`, sort ascending by suitability score, then pick up to 6 titles using
+  evenly-spaced index sampling (always includes the lowest and highest scoring title).
+- **Reactivity**: `WeightRow` posts a `WeightRow.Changed` message on every button press; the
+  preview panel recomputes all "After" scores in-memory without touching disk.
+- **Baseline**: "Before" scores use the last-saved `CategoryWeights`. On `OnboardingScreen`
+  (no prior save), `CategoryWeights()` defaults are used as the baseline.
+- **Graceful hide**: if fewer than 2 eligible titles exist the panel is hidden entirely and
+  replaced with a dim hint: "Complete more title dossiers (≥70%) to unlock the impact preview."
+  This is the expected state on first run — no special-casing needed.
+**See**: `.agent/weight_impact_preview.md` for full algorithm, rendering spec, and mockup.
+
+## 11. Continuous Proportional Deduction Model & Proportional Weight Scale Expansion (1–5)
+**Date**: 2026-05-25
+**Context**:
+- Coarse step-based thresholds (`8` and `12` weighted deficit/score levels) caused sudden and extreme jumps in suitability deductions, making minor weight adjustments feel completely ineffective or unpredictable. For instance, a small change in weight did not adjust the suitability score at all, until it suddenly crossed a step boundary and deducted a massive 1.5 or 3.0 points.
+- The 1-3 weight scale was too narrow to capture granular user safety preferences.
+**Decision**:
+- Replaced the coarse step-based deduction model with a **continuous proportional deduction model**. The suitability score deduction scales smoothly as:
+  - For negative categories: `Deduction = min(3.0, Raw Score * Weight * 0.12)`
+  - For positive categories: `Deduction = min(3.0, Deficit * Weight * 0.12)` where `Deficit = 5.0 - Raw Score`.
+- Expanded the category weight scale from `1–3` (Low, Med, High) to `1–5` (`V.Low`, `Low`, `Med`, `High`, `V.High`), shifting default category weights accordingly (`Low` maps to `2`, `Med` to `3`, `High` to `4`) to preserve baseline relative behaviors.
+- Adjusted `high_weight_threshold` from `3` to `4` for category evaluation checks.
+**Alternatives Considered**:
+- **Keeping Step-Based Deductions with More Steps**: We could have added more steps (e.g., 0.5, 1.0, 1.5, 2.0, 2.5, 3.0). However, this would still exhibit abrupt, non-linear score jumps and would not resolve the fundamental issue of lack of predictability during minor slider/weight adjustments.
+- **Pure Linear Deductions Without Cap**: Having a linear deduction without a maximum cap could completely tank a title's suitability score to negative values or overwhelm other categories based on a single extremely bad category score. Capping individual category deductions at `3.0` ensures balanced multi-dimensional evaluation.
+- **Logarithmic or Exponential Deduction Scaling**: Using a non-linear continuous curve. While mathematically sophisticated, it is much harder for a user to reason about or compute manually compared to the simple proportional formula (`deficit * weight * 0.12`).
+
+## 12. Weighted Average-of-Components Scoring Model
+**Date**: 2026-05-25
+**Context**:
+- `calculate_suitability()` used an additive deduction model anchored to `user_rating`. `calculate_sub_suitabilities()` computed five per-component 0–10 sub-bar scores using completely different multipliers. The two systems were independent — their values were not guaranteed to be consistent with each other.
+- This caused nonsensical UI output: a title could display sub-bars of 6–9/10 while the headline score showed 1.6/10.
+- Category weights only affected the deduction magnitude within their sub-bar. Because the headline was calculated separately from the sub-bars, changing a weight had unpredictable and sometimes zero visible effect on the overall score.
+- Base Quality and Age Suitability were hardcoded fixed values in the weighted average, making them implicitly more or less important than intended and not configurable by the user.
+
+**Decision**:
+- `calculate_sub_suitabilities()` becomes the **single source of truth**. All five component scores are computed here. `calculate_suitability()` is a thin wrapper that returns the **weighted mean** of those component scores.
+- This guarantees the invariant: `overall score = weighted mean of sub-bar scores`. Sub-bars always explain the headline.
+- Category weights serve a **dual role**:
+  1. They control how aggressively the sub-bar score is pulled down (via the deduction formula).
+  2. They control how much that sub-bar counts in the final weighted average.
+  - Example: Violence at V.High (5) means the Content Safety bar is both pulled down harder *and* carries more weight in the headline. Both effects compound, making weight choices feel impactful.
+- **All five components are user-configurable**, including Base Quality (`base_quality`) and Age Suitability (`age_suitability`). These are added to `CategoryWeights` with a default of **High (4)** since they are foundational signals most users care about. Component weights in the average are:
+  - `base_quality`: `settings.weights.base_quality`
+  - `age_rating`: `settings.weights.age_suitability`
+  - `educational_value`: `settings.weights.educational_value`
+  - `positive_content`: `mean(positive_messages, positive_role_models)`
+  - `content_safety`: `mean(violence, sexy_stuff, language, drinking_drugs)`
+- **Missing data is excluded from the average**. If a title has no Educational Value score (e.g., from OMDb), that component is omitted entirely from the weighted average rather than defaulting to 10/10 and artificially inflating the score.
+
+**Alternatives Considered**:
+- **Keep additive deduction as primary, derive sub-bars from it**: Sub-bar scores would require complex reverse-mapping of local deductions back onto a 0–10 scale per-component. Error-prone and hard to reason about.
+- **Simple equal-weight average of components**: Weights would only affect the sub-bar score magnitude, not its contribution to the headline. A user setting Violence to V.High would see the Content Safety bar move, but the headline effect would be diluted to 1/5 of that change. Weights would feel ineffective at the headline level.
+- **Fixed weights for Base Quality and Age Suitability**: Removing user control over foundational signals forces an implicit priority judgement on the user's behalf. A user who cares primarily about content safety should be able to reduce the influence of overall quality ratings on the headline score.
+
+## 13. Configurable Scoring Modes & Interrogation Room Rating Scale Defenses
+**Date**: 2026-05-25
+**Context**:
+- Users have different scoring philosophies regarding how "gate" components (Age Rating and Content Safety) should impact suitability:
+  - **Option A (Quality Focus)**: Gate factors should only subtract from a quality-driven base score; perfect gate scores should never inflate a title's overall suitability score.
+  - **Option B (Balanced)**: Gate factors should contribute to a unified weighted average, but should be capped at `GATE_NEUTRAL_CAP = 7.0` to prevent safe but low-quality/boring titles from being artificially inflated.
+- Additionally, a severe usability bug was identified in the Interrogation Room screen: manual ratings and scores were getting corrupted, leading to values exceeding the maximum scale (e.g. 12, 20 etc. instead of 0–5). This was caused by a combination of lacking input validation/capping, scaling bugs, and visual confusion between raw category scores and weighted suitability sub-bars.
+
+**Decision**:
+- Add a new `scoring_mode` setting to `Settings`, supporting:
+  - `ScoringMode.QUALITY_FOCUS`: `overall = max(0.0, weighted_avg(Quality) - weighted_avg(Gate deficits))`.
+  - `ScoringMode.BALANCED`: Unified weighted average where Gate scores are capped at `GATE_NEUTRAL_CAP = 7.0`.
+- Implement a `ScoringMode` dropdown selector with a live mode-sensitive description on both the onboarding weights step and preferences panel.
+- Implement strict validation in the Interrogation Room:
+  - Validate and clamp manually entered category scores strictly between `0.0` and `5.0`.
+  - Enforce raw `1.0–5.0` scale in the SQLite database for quality ratings. Store the exact raw value entered by the user (no doubling in the DB), and perform the `0.0–10.0` normalization (doubling) strictly at the application layer inside `ManualMetadata.to_normalized_metadata()` when converting database entries for the evaluation engine.
+  - Rename the interrogation room sub-bars from raw category names to explicit suitability terms (e.g. "Educational Suitability") to prevent users from mistaking suitability output for raw database values.

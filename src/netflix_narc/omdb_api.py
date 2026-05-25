@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+import sqlite3
 from typing import TYPE_CHECKING, override
 
 import hishel
@@ -37,7 +38,8 @@ class OMDBClient(RatingProvider):
 
         # Persistent storage for hishel
         cache_path = str(self._cache_dir / "cache.sqlite")
-        self._storage = hishel.SyncSqliteStorage(database_path=cache_path)
+        conn = sqlite3.connect(cache_path, check_same_thread=False)
+        self._storage = hishel.SyncSqliteStorage(connection=conn)
 
         self.client = SyncCacheClient(
             storage=self._storage,
