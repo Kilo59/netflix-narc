@@ -451,27 +451,9 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
                             classes="onb-body",
                         )
                         yield Static("Overall signals", classes="onb-weight-group-label")
-                        for label, field in _WEIGHT_ROWS_OVERALL:
-                            initial_weight = None
-                            if self._baseline_settings:
-                                initial_weight = getattr(self._baseline_settings.weights, field)
-                            yield WeightRow(
-                                label,
-                                field,
-                                default=CategoryWeights.DEFAULT_WEIGHTS[field],
-                                initial=initial_weight,
-                            )
+                        yield from self._compose_weight_rows(_WEIGHT_ROWS_OVERALL)
                         yield Static("Content categories", classes="onb-weight-group-label")
-                        for label, field in _WEIGHT_ROWS:
-                            initial_weight = None
-                            if self._baseline_settings:
-                                initial_weight = getattr(self._baseline_settings.weights, field)
-                            yield WeightRow(
-                                label,
-                                field,
-                                default=CategoryWeights.DEFAULT_WEIGHTS[field],
-                                initial=initial_weight,
-                            )
+                        yield from self._compose_weight_rows(_WEIGHT_ROWS)
                         yield Button(
                             "↺ Reset All to Defaults",
                             id="btn-reset-all-weights",
@@ -529,6 +511,19 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
                 yield Button("Skip →", id="btn-skip", variant="default", classes="hidden")
                 yield Button("Next →", id="btn-next", variant="primary")
         yield Footer()
+
+    def _compose_weight_rows(self, rows: list[tuple[str, str]]) -> ComposeResult:
+        """Yield WeightRow widgets for a list of (label, field) pairs."""
+        for label, field in rows:
+            initial_weight = None
+            if self._baseline_settings:
+                initial_weight = getattr(self._baseline_settings.weights, field)
+            yield WeightRow(
+                label,
+                field,
+                default=CategoryWeights.DEFAULT_WEIGHTS[field],
+                initial=initial_weight,
+            )
 
     def on_mount(self) -> None:
         """Initialise the wizard on the first step."""

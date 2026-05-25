@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from netflix_narc.evaluator import (
+    SuitabilityComponent,
     _component_weights,
     calculate_sub_suitabilities,
     calculate_suitability,
@@ -15,6 +16,10 @@ from netflix_narc.evaluator import (
 )
 from netflix_narc.rating_api import NormalizedMetadata
 from netflix_narc.settings import Settings
+
+_MAX_SCORE: float = 10.0
+_LOW_SCORE_THRESHOLD: float = 6.0
+_FLOAT_EPSILON: float = 1e-9
 
 
 def test_evaluate_title_flags_age():
@@ -230,7 +235,7 @@ def test_calculate_suitability_with_deductions():
     a single exact value (that would re-couple the test to specific multiplier
     constants).  Instead we verify that:
       - The score is strictly lower than a clean title with the same settings.
-      - The score is in the valid 0–10 range.
+      - The score is in the valid 0-10 range.
       - The score is low enough to signal genuine problems.
     """
     settings = Settings(max_age_rating=10, min_quality_rating=4, _env_file=None)  # type: ignore[call-arg]
@@ -251,9 +256,11 @@ def test_calculate_suitability_with_deductions():
     score_flawed = calculate_suitability(metadata_flawed, settings)
     score_clean = calculate_suitability(metadata_clean, settings)
 
-    assert 0.0 <= score_flawed <= 10.0
+    assert 0.0 <= score_flawed <= _MAX_SCORE
     assert score_flawed < score_clean
-    assert score_flawed < 6.0, f"Expected low score for flawed title, got {score_flawed}"
+    assert score_flawed < _LOW_SCORE_THRESHOLD, (
+        f"Expected low score for flawed title, got {score_flawed}"
+    )
 
 
 def test_get_suitability_bar():
@@ -328,8 +335,8 @@ def test_age_distance_suitability_symmetric():
     sub_ok = calculate_sub_suitabilities(metadata_ok, settings)
     sub_mature = calculate_sub_suitabilities(metadata_mature, settings)
     sub_young = calculate_sub_suitabilities(metadata_young, settings)
-    assert sub_ok["age_rating"] > sub_mature["age_rating"]  # type: ignore[literal-required]
-    assert sub_ok["age_rating"] > sub_young["age_rating"]  # type: ignore[literal-required]
+    assert sub_ok[SuitabilityComponent.AGE_RATING] > sub_mature[SuitabilityComponent.AGE_RATING]
+    assert sub_ok[SuitabilityComponent.AGE_RATING] > sub_young[SuitabilityComponent.AGE_RATING]
 
 
 def test_suitability_equals_weighted_average_of_sub_bars():
@@ -354,11 +361,13 @@ def test_suitability_equals_weighted_average_of_sub_bars():
     sub = calculate_sub_suitabilities(metadata, settings)
     weights = _component_weights(settings)
 
-    total = sum(sub[k] * weights[k] for k in weights if k in sub)  # type: ignore[literal-required]
+    total = sum(sub[k] * weights[k] for k in weights if k in sub)
     total_w = sum(weights[k] for k in weights if k in sub)
     expected = total / total_w
 
-    assert abs(overall - expected) < 1e-9, f"overall={overall:.6f} != weighted_mean={expected:.6f}"
+    assert abs(overall - expected) < _FLOAT_EPSILON, (
+        f"overall={overall:.6f} != weighted_mean={expected:.6f}"
+    )
 
 
 if __name__ == "__main__":

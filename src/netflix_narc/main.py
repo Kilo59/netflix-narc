@@ -631,19 +631,16 @@ class NetflixNarcApp(App[None]):
                 # Add Suitability sub-bars if metadata is available
                 metadata = await self._get_merged_metadata(base_title)
                 if metadata:
-                    sub_scores = cast(
-                        "dict[str, float]",
-                        calculate_sub_suitabilities(metadata, self.settings),
-                    )
-                    for label, key_name, _ in SUB_BAR_DEFINITIONS:
-                        sub_score = sub_scores[key_name]
+                    sub_scores = calculate_sub_suitabilities(metadata, self.settings)
+                    for label, component, _ in SUB_BAR_DEFINITIONS:
+                        sub_score = sub_scores.get(component, 0.0)
                         bar_str = get_suitability_bar(sub_score, width=15)
                         table.add_row(
                             "",
                             f"  ├─ {label}",
                             bar_str,
                             "",
-                            key=f"{base_title}_sub_{key_name}",
+                            key=f"{base_title}_sub_{component.value}",
                         )
 
                 # Now add viewing records

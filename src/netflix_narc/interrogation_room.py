@@ -270,15 +270,12 @@ class InterrogationRoomScreen(Screen[bool]):
             f"Overall Suitability:  {overall_bar}"
         )
 
-        sub_scores = cast(
-            "dict[str, float]",
-            calculate_sub_suitabilities(metadata, self.narc_app.settings),
-        )
+        sub_scores = calculate_sub_suitabilities(metadata, self.narc_app.settings)
 
         # Render all sub-suitability bars dynamically based on single source of truth
         max_label_len = max(len(label) for label, _, _ in SUB_BAR_DEFINITIONS)
-        for label, key_name, widget_id in SUB_BAR_DEFINITIONS:
-            sub_score = sub_scores[key_name]
+        for label, component, widget_id in SUB_BAR_DEFINITIONS:
+            sub_score = sub_scores.get(component, 0.0)
             bar_str = get_suitability_bar(sub_score, width=15)
             padded_label = f"{label}:".ljust(max_label_len + 1)
             self.query_one(f"#{widget_id}", Static).update(f"  └─ {padded_label} {bar_str}")

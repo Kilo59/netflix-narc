@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final, TypedDict
+from enum import StrEnum
+from typing import TYPE_CHECKING, Final
 
 if TYPE_CHECKING:
     from netflix_narc.rating_api import NormalizedMetadata
@@ -12,26 +13,32 @@ PERFECT_QUALITY_RATING: Final = 10.0
 MIN_EXPLAIN_DEDUCTION: Final = 0.05
 
 
-class SubSuitabilityScores(TypedDict, total=False):
-    """Sub-suitability scores out of 10.0 for each component.
+class SuitabilityComponent(StrEnum):
+    """Enum of the five suitability sub-score components.
 
-    A missing key means insufficient data to compute that component;
-    it is excluded from the weighted average rather than defaulting to 10.0.
+    Used as keys in SubSuitabilityScores to guarantee strong typing
+    across evaluator, TUI, and tests without casts or TypedDict literals.
     """
 
-    base_quality: float
-    age_rating: float
-    educational_value: float
-    positive_content: float
-    content_safety: float
+    BASE_QUALITY = "base_quality"
+    AGE_RATING = "age_rating"
+    EDUCATIONAL_VALUE = "educational_value"
+    POSITIVE_CONTENT = "positive_content"
+    CONTENT_SAFETY = "content_safety"
 
 
-SUB_BAR_DEFINITIONS: Final[list[tuple[str, str, str]]] = [
-    ("Base Quality", "base_quality", "base-quality-bar"),
-    ("Age Rating", "age_rating", "age-suitability-bar"),
-    ("Educational Value", "educational_value", "edu-suitability-bar"),
-    ("Positive Content", "positive_content", "pos-suitability-bar"),
-    ("Content Safety", "content_safety", "content-suitability-bar"),
+# SubSuitabilityScores is a plain dict keyed by SuitabilityComponent.
+# An absent key means insufficient data; the component is excluded from
+# the weighted average rather than defaulting to 10.0 (see ADR 12).
+SubSuitabilityScores = dict[SuitabilityComponent, float]
+
+
+SUB_BAR_DEFINITIONS: Final[list[tuple[str, SuitabilityComponent, str]]] = [
+    ("Base Quality", SuitabilityComponent.BASE_QUALITY, "base-quality-bar"),
+    ("Age Rating", SuitabilityComponent.AGE_RATING, "age-suitability-bar"),
+    ("Educational Value", SuitabilityComponent.EDUCATIONAL_VALUE, "edu-suitability-bar"),
+    ("Positive Content", SuitabilityComponent.POSITIVE_CONTENT, "pos-suitability-bar"),
+    ("Content Safety", SuitabilityComponent.CONTENT_SAFETY, "content-suitability-bar"),
 ]
 
 
@@ -280,21 +287,24 @@ def get_categories_suitability_deduction(
     return deduction
 
 
-def _component_weights(criteria: Settings) -> dict[str, float]:
-    """Return the per-component weights used in the weighted average (see ADR 12).
+def _component_weights(criteria: Settings) -> dict[SuitabilityComponent, float]:
+    """Return per-component weights for the weighted average (see ADR 12).
 
     base_quality and age_suitability are first-class configurable weights.
-    educational_value is its own weight directly.
+    educational_value maps directly from its own weight.
     positive_content is the mean of positive_messages and positive_role_models.
     content_safety is the mean of the four negative-category weights.
     """
     w = criteria.weights
     return {
-        "base_quality": float(w.base_quality),
-        "age_rating": float(w.age_suitability),
-        "educational_value": float(w.educational_value),
-        "positive_content": (w.positive_messages + w.positive_role_models) / 2.0,
-        "content_safety": (w.violence + w.sexy_stuff + w.language + w.drinking_drugs) / 4.0,
+        SuitabilityComponent.BASE_QUALITY: float(w.base_quality),
+        SuitabilityComponent.AGE_RATING: float(w.age_suitability),
+        SuitabilityComponent.EDUCATIONAL_VALUE: float(w.educational_value),
+        SuitabilityComponent.POSITIVE_CONTENT: (w.positive_messages + w.positive_role_models) / 2.0,
+        SuitabilityComponent.CONTENT_SAFETY: (
+            w.violence + w.sexy_stuff + w.language + w.drinking_drugs
+        )
+        / 4.0,
     }
 
 
@@ -312,15 +322,55 @@ def calculate_suitability(metadata: NormalizedMetadata, criteria: Settings) -> f
 
     total = 0.0
     total_w = 0.0
-    for key, w in weights.items():
-        val = sub.get(key)
-        if val is not None:
-            total += val * w
+    for component, w in weights.items():
+        if component in sub:
+            total += sub[component] * w
             total_w += w
 
     if total_w == 0.0:
         return 0.0
     return max(0.0, min(10.0, total / total_w))
+
+
+def _calculate_positive_content_score(
+    scores: dict[str, int | float],
+    criteria: Settings,
+) -> float | None:
+    """Return a 0-10 positive-content score, or None if no data is present."""
+    msg_score = scores.get("Positive Messages")
+    role_score = scores.get("Positive Role Models")
+    if msg_score is None and role_score is None:
+        return None
+    deductions: list[float] = []
+    if msg_score is not None:
+        deficit = 5.0 - msg_score
+        deductions.append(min(3.0, deficit * criteria.weights.positive_messages * 0.12))
+    if role_score is not None:
+        deficit = 5.0 - role_score
+        deductions.append(min(3.0, deficit * criteria.weights.positive_role_models * 0.12))
+    avg_ded = sum(deductions) / len(deductions)
+    return max(0.0, 10.0 - avg_ded * 3.33)
+
+
+def _calculate_content_safety_score(
+    scores: dict[str, int | float],
+    criteria: Settings,
+) -> float | None:
+    """Return a 0-10 content-safety score, or None if no negative-category data is present."""
+    negative_mapping = {
+        "Violence & Scariness": criteria.weights.violence,
+        "Sexy Stuff": criteria.weights.sexy_stuff,
+        "Language": criteria.weights.language,
+        "Drinking, Drugs & Smoking": criteria.weights.drinking_drugs,
+    }
+    safety_deductions: list[float] = [
+        min(3.0, raw * weight * 0.12)
+        for category, weight in negative_mapping.items()
+        if (raw := scores.get(category)) is not None
+    ]
+    if not safety_deductions:
+        return None
+    return max(0.0, 10.0 - sum(safety_deductions) * 1.66)
 
 
 def calculate_sub_suitabilities(
@@ -335,52 +385,33 @@ def calculate_sub_suitabilities(
     """
     result: SubSuitabilityScores = {}
 
-    # 1. Base Quality — always present (defaults to 5.0 if no rating)
-    base_val = metadata.user_rating if metadata.user_rating is not None else 5.0
-    result["base_quality"] = base_val
-
-    # 2. Age Rating Suitability — absent when content_rating is unknown
-    age_ded = get_age_suitability_deduction(
-        metadata.content_rating, criteria.child_age_range, criteria.max_age_rating
+    # 1. Base Quality - always present (defaults to 5.0 if no rating)
+    result[SuitabilityComponent.BASE_QUALITY] = (
+        metadata.user_rating if metadata.user_rating is not None else 5.0
     )
-    if metadata.content_rating is not None:
-        result["age_rating"] = max(0.0, 10.0 - age_ded * 2.0)
 
-    # 3. Educational Value Suitability — absent when category score not present
+    # 2. Age Rating Suitability - absent when content_rating is unknown
+    if metadata.content_rating is not None:
+        age_ded = get_age_suitability_deduction(
+            metadata.content_rating, criteria.child_age_range, criteria.max_age_rating
+        )
+        result[SuitabilityComponent.AGE_RATING] = max(0.0, 10.0 - age_ded * 2.0)
+
+    # 3. Educational Value Suitability - absent when category score not present
     edu_score = metadata.category_scores.get("Educational Value")
     if edu_score is not None:
         edu_ded = get_edu_suitability_deduction(edu_score, criteria.weights.educational_value)
-        result["educational_value"] = max(0.0, 10.0 - edu_ded * 3.33)
+        result[SuitabilityComponent.EDUCATIONAL_VALUE] = max(0.0, 10.0 - edu_ded * 3.33)
 
-    # 4. Positive Content — absent only when *both* scores are missing
-    msg_score = metadata.category_scores.get("Positive Messages")
-    role_score = metadata.category_scores.get("Positive Role Models")
-    if msg_score is not None or role_score is not None:
-        deductions: list[float] = []
-        if msg_score is not None:
-            deficit = 5.0 - msg_score
-            deductions.append(min(3.0, deficit * criteria.weights.positive_messages * 0.12))
-        if role_score is not None:
-            deficit = 5.0 - role_score
-            deductions.append(min(3.0, deficit * criteria.weights.positive_role_models * 0.12))
-        avg_pos_ded = sum(deductions) / len(deductions)
-        result["positive_content"] = max(0.0, 10.0 - avg_pos_ded * 3.33)
+    # 4. Positive Content - absent only when *both* scores are missing
+    pos_val = _calculate_positive_content_score(metadata.category_scores, criteria)
+    if pos_val is not None:
+        result[SuitabilityComponent.POSITIVE_CONTENT] = pos_val
 
-    # 5. Content Safety — absent only when *all* negative scores are missing
-    negative_mapping = {
-        "Violence & Scariness": criteria.weights.violence,
-        "Sexy Stuff": criteria.weights.sexy_stuff,
-        "Language": criteria.weights.language,
-        "Drinking, Drugs & Smoking": criteria.weights.drinking_drugs,
-    }
-    safety_deductions: list[float] = []
-    for category, weight in negative_mapping.items():
-        raw_score = metadata.category_scores.get(category)
-        if raw_score is not None:
-            safety_deductions.append(min(3.0, raw_score * weight * 0.12))
-    if safety_deductions:
-        total_safety_ded = sum(safety_deductions)
-        result["content_safety"] = max(0.0, 10.0 - total_safety_ded * 1.66)
+    # 5. Content Safety - absent only when *all* negative scores are missing
+    safety_val = _calculate_content_safety_score(metadata.category_scores, criteria)
+    if safety_val is not None:
+        result[SuitabilityComponent.CONTENT_SAFETY] = safety_val
 
     return result
 
