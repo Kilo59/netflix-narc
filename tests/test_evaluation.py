@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from netflix_narc.evaluator import (
+    GATE_NEUTRAL_CAP,
     SuitabilityComponent,
     _component_weights,
     calculate_sub_suitabilities,
@@ -15,7 +16,7 @@ from netflix_narc.evaluator import (
     get_suitability_bar,
 )
 from netflix_narc.rating_api import NormalizedMetadata
-from netflix_narc.settings import Settings
+from netflix_narc.settings import ScoringMode, Settings
 
 _MAX_SCORE: float = 10.0
 _LOW_SCORE_THRESHOLD: float = 6.0
@@ -215,7 +216,7 @@ def test_evaluate_title_does_not_flag_medium_educational_value_with_high_quality
 
 
 def test_calculate_suitability_excellent():
-    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    settings = Settings(scoring_mode=ScoringMode.QUALITY_FOCUS, _env_file=None)  # type: ignore[call-arg]
     metadata = NormalizedMetadata(
         title="Excellent Title",
         content_rating="PG",
@@ -361,13 +362,119 @@ def test_suitability_equals_weighted_average_of_sub_bars():
     sub = calculate_sub_suitabilities(metadata, settings)
     weights = _component_weights(settings)
 
-    total = sum(sub[k] * weights[k] for k in weights if k in sub)
+    # In Option B (Balanced), gate components (AGE_RATING and CONTENT_SAFETY)
+    # are capped at GATE_NEUTRAL_CAP (7.0) before averaging.
+    gate_components = {
+        SuitabilityComponent.AGE_RATING,
+        SuitabilityComponent.CONTENT_SAFETY,
+    }
+
+    total = 0.0
+    for k in weights:
+        if k in sub:
+            val = sub[k]
+            if k in gate_components:
+                val = min(GATE_NEUTRAL_CAP, val)
+            total += val * weights[k]
     total_w = sum(weights[k] for k in weights if k in sub)
     expected = total / total_w
 
     assert abs(overall - expected) < _FLOAT_EPSILON, (
         f"overall={overall:.6f} != weighted_mean={expected:.6f}"
     )
+
+
+def test_calculate_suitability_quality_focus() -> None:
+    """Verify that Option A (Quality Focus) computes a weighted average of quality signals.
+
+    This scoring mode should also subtract gate penalties.
+    """
+    settings = Settings(
+        child_age_range=(8, 12),
+        scoring_mode=ScoringMode.QUALITY_FOCUS,
+        _env_file=None,  # type: ignore[call-arg]
+    )
+    # Ensure all weights are default (3)
+    settings.weights.base_quality = 3
+    settings.weights.age_suitability = 3
+    settings.weights.educational_value = 3
+    settings.weights.positive_messages = 3
+    settings.weights.positive_role_models = 3
+    settings.weights.violence = 3
+    settings.weights.sexy_stuff = 3
+    settings.weights.language = 3
+    settings.weights.drinking_drugs = 3
+
+    # Metadata that will have a base quality of 9.0, perfect edu/positive content (10.0),
+    # age rating 14 (exceeds max age 12 by 2 -> age sub-score = 8.0, deficit = 2.0),
+    # and perfect safety (10.0, deficit = 0.0)
+    metadata = NormalizedMetadata(
+        title="Quality Focus Title",
+        content_rating="14",
+        user_rating=9.0,
+        provider_name="test",
+        category_scores={
+            "Educational Value": 5.0,
+            "Positive Messages": 5.0,
+            "Positive Role Models": 5.0,
+            "Violence & Scariness": 0.0,
+            "Sexy Stuff": 0.0,
+            "Language": 0.0,
+            "Drinking, Drugs & Smoking": 0.0,
+        },
+    )
+
+    score = calculate_suitability(metadata, settings)
+    # Quality Base: (9.0 * 3 + 10.0 * 3 + 10.0 * 3) / 9 = 29 / 3 = 9.666666...
+    # Gate Penalty: (4.0 * 3 + 0.0 * 3) / 6 = 2.0 (Age deficit is 4.0 normalized)
+    # Expected: 9.666666... - 2.0 = 7.666666...
+    assert abs(score - (29.0 / 3.0 - 2.0)) < _FLOAT_EPSILON
+
+
+def test_calculate_suitability_balanced() -> None:
+    """Verify that Option B (Balanced) averages all 5 components but caps gate components at 7.0."""
+    settings = Settings(
+        child_age_range=(8, 12),
+        scoring_mode=ScoringMode.BALANCED,
+        _env_file=None,  # type: ignore[call-arg]
+    )
+    # Ensure all weights are default (3)
+    settings.weights.base_quality = 3
+    settings.weights.age_suitability = 3
+    settings.weights.educational_value = 3
+    settings.weights.positive_messages = 3
+    settings.weights.positive_role_models = 3
+    settings.weights.violence = 3
+    settings.weights.sexy_stuff = 3
+    settings.weights.language = 3
+    settings.weights.drinking_drugs = 3
+
+    # Metadata that will have:
+    # Base Quality sub-score = 9.0 (uncapped)
+    # Age Rating sub-score = 8.0 (capped to 7.0)
+    # Educational Value sub-score = 10.0 (uncapped)
+    # Positive Content sub-score = 10.0 (uncapped)
+    # Content Safety sub-score = 10.0 (capped to 7.0)
+    metadata = NormalizedMetadata(
+        title="Balanced Title",
+        content_rating="14",
+        user_rating=9.0,
+        provider_name="test",
+        category_scores={
+            "Educational Value": 5.0,
+            "Positive Messages": 5.0,
+            "Positive Role Models": 5.0,
+            "Violence & Scariness": 0.0,
+            "Sexy Stuff": 0.0,
+            "Language": 0.0,
+            "Drinking, Drugs & Smoking": 0.0,
+        },
+    )
+
+    score = calculate_suitability(metadata, settings)
+    # Expected: (9.0 * 3 + 6.0 * 3 + 10.0 * 3 + 10.0 * 3 + 7.0 * 3) / 15 = 126 / 15 = 8.4
+    # (Age Rating sub-score is 6.0 uncapped, Safety is capped at 7.0)
+    assert abs(score - 8.4) < _FLOAT_EPSILON
 
 
 if __name__ == "__main__":

@@ -5,12 +5,15 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import TYPE_CHECKING, Final
 
+from netflix_narc.settings import ScoringMode
+
 if TYPE_CHECKING:
     from netflix_narc.rating_api import NormalizedMetadata
     from netflix_narc.settings import Settings
 
 PERFECT_QUALITY_RATING: Final = 10.0
 MIN_EXPLAIN_DEDUCTION: Final = 0.05
+GATE_NEUTRAL_CAP: Final = 7.0
 
 
 class SuitabilityComponent(StrEnum):
@@ -35,10 +38,10 @@ SubSuitabilityScores = dict[SuitabilityComponent, float]
 
 SUB_BAR_DEFINITIONS: Final[list[tuple[str, SuitabilityComponent, str]]] = [
     ("Base Quality", SuitabilityComponent.BASE_QUALITY, "base-quality-bar"),
-    ("Age Rating", SuitabilityComponent.AGE_RATING, "age-suitability-bar"),
-    ("Educational Value", SuitabilityComponent.EDUCATIONAL_VALUE, "edu-suitability-bar"),
-    ("Positive Content", SuitabilityComponent.POSITIVE_CONTENT, "pos-suitability-bar"),
-    ("Content Safety", SuitabilityComponent.CONTENT_SAFETY, "content-suitability-bar"),
+    ("Age Suitability", SuitabilityComponent.AGE_RATING, "age-suitability-bar"),
+    ("Educational Suitability", SuitabilityComponent.EDUCATIONAL_VALUE, "edu-suitability-bar"),
+    ("Positive Suitability", SuitabilityComponent.POSITIVE_CONTENT, "pos-suitability-bar"),
+    ("Safety Suitability", SuitabilityComponent.CONTENT_SAFETY, "content-suitability-bar"),
 ]
 
 
@@ -308,28 +311,92 @@ def _component_weights(criteria: Settings) -> dict[SuitabilityComponent, float]:
     }
 
 
-def calculate_suitability(metadata: NormalizedMetadata, criteria: Settings) -> float:
-    """Calculate a suitability score from 0.0 to 10.0.
+def _calculate_suitability_quality_focus(
+    sub: SubSuitabilityScores,
+    weights: dict[SuitabilityComponent, float],
+) -> float:
+    """Option A: Quality Focus scoring logic."""
+    # Quality components: BASE_QUALITY, EDUCATIONAL_VALUE, POSITIVE_CONTENT
+    quality_components = {
+        SuitabilityComponent.BASE_QUALITY,
+        SuitabilityComponent.EDUCATIONAL_VALUE,
+        SuitabilityComponent.POSITIVE_CONTENT,
+    }
+    # Gate components: AGE_RATING, CONTENT_SAFETY
+    gate_components = {
+        SuitabilityComponent.AGE_RATING,
+        SuitabilityComponent.CONTENT_SAFETY,
+    }
 
-    The score is the weighted mean of the five sub-suitability components
-    (see ADR 12).  Components with missing source data are excluded from the
-    average entirely — they do not default to 10.0 and inflate the result.
+    # 1. Compute Quality Base Score (weighted average of quality components)
+    quality_total = 0.0
+    quality_w = 0.0
+    for comp in quality_components:
+        if comp in sub:
+            w = weights[comp]
+            quality_total += sub[comp] * w
+            quality_w += w
 
-    Invariant: this value equals the weighted mean of calculate_sub_suitabilities().
-    """
-    sub = calculate_sub_suitabilities(metadata, criteria)
-    weights = _component_weights(criteria)
+    base_score = (quality_total / quality_w) if quality_w > 0.0 else 0.0
+
+    # 2. Compute Gate Penalty (weighted average of gate deficits, only below 10.0)
+    gate_penalty_total = 0.0
+    gate_w = 0.0
+    for comp in gate_components:
+        if comp in sub:
+            w = weights[comp]
+            deficit = max(0.0, 10.0 - sub[comp])
+            gate_penalty_total += deficit * w
+            gate_w += w
+
+    penalty = (gate_penalty_total / gate_w) if gate_w > 0.0 else 0.0
+
+    return max(0.0, min(10.0, base_score - penalty))
+
+
+def _calculate_suitability_balanced(
+    sub: SubSuitabilityScores,
+    weights: dict[SuitabilityComponent, float],
+) -> float:
+    """Option B: Balanced scoring logic."""
+    # All five components contribute to the weighted average, but gate components
+    # (AGE_RATING and CONTENT_SAFETY) are capped at GATE_NEUTRAL_CAP (7.0) before averaging.
+    gate_components = {
+        SuitabilityComponent.AGE_RATING,
+        SuitabilityComponent.CONTENT_SAFETY,
+    }
 
     total = 0.0
     total_w = 0.0
     for component, w in weights.items():
         if component in sub:
-            total += sub[component] * w
+            val = sub[component]
+            if component in gate_components:
+                val = min(GATE_NEUTRAL_CAP, val)
+            total += val * w
             total_w += w
 
     if total_w == 0.0:
         return 0.0
     return max(0.0, min(10.0, total / total_w))
+
+
+def calculate_suitability(metadata: NormalizedMetadata, criteria: Settings) -> float:
+    """Calculate a suitability score from 0.0 to 10.0.
+
+    Supports two scoring modes (see ADR 13):
+    - Option A (Quality Focus): Quality components drive the base score, and
+      gates are penalty-only deductions.
+    - Option B (Balanced): All components are averaged, but gates are capped
+      at GATE_NEUTRAL_CAP (7.0).
+    """
+    sub = calculate_sub_suitabilities(metadata, criteria)
+    weights = _component_weights(criteria)
+
+    if criteria.scoring_mode == ScoringMode.QUALITY_FOCUS:
+        return _calculate_suitability_quality_focus(sub, weights)
+
+    return _calculate_suitability_balanced(sub, weights)
 
 
 def _calculate_positive_content_score(

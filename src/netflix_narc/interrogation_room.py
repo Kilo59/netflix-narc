@@ -110,8 +110,8 @@ class InterrogationRoomScreen(Screen[bool]):
                     self.existing_record.content_rating
                 )
             if self.existing_record.user_rating is not None:
-                # DB stores normalized 0-10 scale; UI expects 1-5
-                display_val = self.existing_record.user_rating / 2
+                # DB stores raw 1.0-5.0 scale directly
+                display_val = self.existing_record.user_rating
                 # If it's a whole number like 4.0, format it as "4" for aesthetics
                 display_str = f"{display_val:g}"
                 self.query_one("#input-quality-rating", Input).value = display_str
@@ -164,8 +164,11 @@ class InterrogationRoomScreen(Screen[bool]):
                 self.notify("Failed to download image.", severity="error")
 
         age_rating = str(age_val) if age_val else None
-        # Convert UI 1-5 rating into normalized 0-10 DB rating
-        user_rating = (float(quality_val) * 2) if quality_val else None
+        # Store raw 1.0-5.0 rating directly in DB, clamping strictly to [1.0, 5.0]
+        user_rating = None
+        if quality_val:
+            with contextlib.suppress(ValueError):
+                user_rating = max(1.0, min(5.0, float(quality_val)))
         final_image_url = str(image_url_val) if image_url_val else None
 
         scores: dict[str, float] = {}
@@ -173,7 +176,7 @@ class InterrogationRoomScreen(Screen[bool]):
             val = self.query_one(f"#csm-{cat.name}", Input).value
             if val:
                 with contextlib.suppress(ValueError):
-                    scores[cat.value] = float(val)
+                    scores[cat.value] = max(0.0, min(5.0, float(val)))
 
         record = ManualMetadata(
             title=self.base_title,
@@ -241,18 +244,18 @@ class InterrogationRoomScreen(Screen[bool]):
         age_str = self.query_one("#input-age-rating", Input).value.strip()
         quality_str = self.query_one("#input-quality-rating", Input).value.strip()
 
-        # Quality converts UI 1-5 to normalized 0-10 scale (double it)
+        # Quality converts UI 1-5 to normalized 0-10 scale (clamp to [1.0, 5.0] then double it)
         user_rating = None
         if quality_str:
             with contextlib.suppress(ValueError):
-                user_rating = float(quality_str) * 2
+                user_rating = max(1.0, min(5.0, float(quality_str))) * 2.0
 
         scores: dict[str, int | float] = {}
         for cat in CSMCategory:
             val = self.query_one(f"#csm-{cat.name}", Input).value.strip()
             if val:
                 with contextlib.suppress(ValueError):
-                    scores[cat.value] = float(val)
+                    scores[cat.value] = max(0.0, min(5.0, float(val)))
 
         # Build temporary metadata object
         metadata = NormalizedMetadata(

@@ -361,6 +361,7 @@ class NetflixNarcApp(App[None]):
 
         self.settings.child_age_range = result.child_age_range
         self.settings.weights = result.weights
+        self.settings.scoring_mode = result.scoring_mode
 
         provider = result.provider or self.settings.active_rating_provider
         api_key = result.api_key
@@ -388,6 +389,7 @@ class NetflixNarcApp(App[None]):
                 api_key=persist_key,
                 child_age_range=result.child_age_range,
                 weights=result.weights,
+                scoring_mode=result.scoring_mode,
             )
         except OSError as e:
             self.notify(f"Could not save settings: {e}", severity="warning")
@@ -420,6 +422,7 @@ class NetflixNarcApp(App[None]):
 
         self.settings.child_age_range = result.child_age_range
         self.settings.weights = result.weights
+        self.settings.scoring_mode = result.scoring_mode
 
         provider = result.provider or self.settings.active_rating_provider
         api_key = result.api_key
@@ -448,6 +451,7 @@ class NetflixNarcApp(App[None]):
                 api_key=persist_key,
                 child_age_range=result.child_age_range,
                 weights=result.weights,
+                scoring_mode=result.scoring_mode,
             )
         except OSError as e:
             self.notify(f"Could not save settings: {e}", severity="warning")

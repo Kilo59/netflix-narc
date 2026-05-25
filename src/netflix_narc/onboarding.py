@@ -16,8 +16,10 @@ from textual.widgets import Button, Footer, Header, Input, Select, Static
 
 from netflix_narc.evaluator import calculate_suitability, get_suitability_bar
 from netflix_narc.settings import (
+    SCORING_MODE_LABELS,
     CategoryWeights,
     RatingProviderType,
+    ScoringMode,
     parse_str_age_range,
 )
 
@@ -40,6 +42,7 @@ class OnboardingResult(NamedTuple):
     weights: CategoryWeights
     provider: RatingProviderType | None  # None = skipped
     api_key: SecretStr | None  # None = skipped
+    scoring_mode: ScoringMode
 
 
 # ──────────────────────────────────────────────
@@ -230,6 +233,10 @@ class WeightImpactPreview(Widget):
         self._pinned: ManualMetadata | None = None
         self._current_weights = copy.copy(baseline_settings.weights)
 
+    def update_scoring_mode(self, mode: ScoringMode) -> None:
+        """Update the baseline settings scoring mode."""
+        self._baseline_settings.scoring_mode = mode
+
     @override
     def compose(self) -> ComposeResult:
         """Compose the preview panel: title, optional pin-select, and body."""
@@ -360,6 +367,25 @@ class WeightImpactPreview(Widget):
 # OnboardingScreen
 # ──────────────────────────────────────────────
 
+SCORING_MODE_DESC_A: str = (
+    "Option A (Quality Focus): Gate factors (Age Suitability, Content Safety) act as "
+    "penalty-only deductions. Perfect gate scores won't inflate the rating, but low "
+    "gate scores will directly reduce the quality-driven score."
+)
+SCORING_MODE_DESC_B: str = (
+    "Option B (Balanced): Gate factors contribute to the weighted average but are "
+    "capped at 7.0/10. This prevents safe but low-quality titles from receiving "
+    "artificially inflated scores."
+)
+
+
+def get_scoring_mode_description(mode: ScoringMode) -> str:
+    """Return a descriptive text explaining the selected scoring mode."""
+    if mode == ScoringMode.QUALITY_FOCUS:
+        return SCORING_MODE_DESC_A
+    return SCORING_MODE_DESC_B
+
+
 _STEPS = ["step-welcome", "step-age", "step-weights", "step-api", "step-summary"]
 _STEP_LABELS = ["Welcome", "Age", "Weights", "Provider", "Ready"]
 
@@ -407,110 +433,141 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
 
     @override
     def compose(self) -> ComposeResult:
+        """Compose the onboarding screen elements."""
         yield Header()
         with Container(id="onboarding-container"), Vertical(id="onboarding-card"):
             yield Static("", id="step-indicator")
-            # Step 0: Welcome
-            with Container(id="step-welcome"):
-                yield Static("NETFLIX NARC", classes="onb-title")
-                yield Static(
-                    "Know what your family is actually watching.",
-                    classes="onb-subtitle",
-                )
-                yield Static(
-                    "This quick setup takes about a minute.\n"
-                    "You can change everything later via Preferences [S].",
-                    classes="onb-body",
-                )
-            # Step 1: Age
-            with Container(id="step-age", classes="hidden"):
-                yield Static("CHILD'S AGE", classes="onb-title")
-                yield Static(
-                    "Enter your child's age or range (e.g. 10 or 8-12).\n"
-                    "This sets the age-rating threshold used in all evaluations.",
-                    classes="onb-body",
-                )
-                age_str = ""
-                if self._baseline_settings and self._baseline_settings.child_age_range is not None:
-                    lo, hi = self._baseline_settings.child_age_range
-                    age_str = f"{lo}-{hi}" if lo != hi else str(lo)
-                yield Input(
-                    value=age_str,
-                    placeholder="e.g. 10  or  8-12",
-                    id="age-input",
-                )
-                yield Static("", id="age-error", classes="onb-error")
-            # Step 2: Weights
-            with Container(id="step-weights", classes="hidden"):  # noqa: SIM117
-                with Horizontal(id="weights-layout"):
-                    with Vertical(id="weights-left"):
-                        yield Static("CONTENT WEIGHTS", classes="onb-section-title")
-                        yield Static(
-                            "How strictly should each category be penalised?\n"
-                            "You can always adjust these later.",
-                            classes="onb-body",
-                        )
-                        yield Static("Overall signals", classes="onb-weight-group-label")
-                        yield from self._compose_weight_rows(_WEIGHT_ROWS_OVERALL)
-                        yield Static("Content categories", classes="onb-weight-group-label")
-                        yield from self._compose_weight_rows(_WEIGHT_ROWS)
-                        yield Button(
-                            "↺ Reset All to Defaults",
-                            id="btn-reset-all-weights",
-                            variant="default",
-                            classes="onb-reset-btn",
-                        )
-                    # Preview panel — only rendered if we have eligible records
-                    has_preview = (
-                        len(self._preview_records) >= _MIN_PREVIEW_TITLES
-                        and self._baseline_settings is not None
-                    )
-                    if has_preview and self._baseline_settings is not None:
-                        yield WeightImpactPreview(
-                            self._preview_records,
-                            self._baseline_settings,
-                            all_eligible=self._all_eligible,
-                        )
-            # Step 3: API
-            with Container(id="step-api", classes="hidden"):
-                yield Static("API PROVIDER  [optional]", classes="onb-title")
-                yield Static(
-                    "Add an API key to fetch ratings automatically.\n"
-                    "This is optional — you can skip and enter data manually.",
-                    classes="onb-body",
-                )
-                provider = (
-                    self._baseline_settings.active_rating_provider
-                    if self._baseline_settings
-                    else RatingProviderType.OMDB
-                )
-                api_key_str = ""
-                if self._baseline_settings:
-                    key = getattr(self._baseline_settings, f"{provider.name.lower()}_api_key", None)
-                    if key:
-                        api_key_str = key.get_secret_value()
-                yield Select(
-                    [(p.name.replace("_", " "), p) for p in RatingProviderType],
-                    value=provider,
-                    id="provider-select",
-                )
-                yield Input(
-                    value=api_key_str,
-                    placeholder="Paste API key here (optional)…",
-                    id="api-key-input",
-                    password=True,
-                )
-            # Step 4: Summary
-            with Container(id="step-summary", classes="hidden"):
-                yield Static("ALL SET!", classes="onb-title")
-                yield Static("", id="summary-body", classes="onb-body")
-
-            # Navigation footer
-            with Horizontal(id="onb-nav"):
-                yield Button("← Back", id="btn-back", variant="default")
-                yield Button("Skip →", id="btn-skip", variant="default", classes="hidden")
-                yield Button("Next →", id="btn-next", variant="primary")
+            yield from self._compose_welcome()
+            yield from self._compose_age()
+            yield from self._compose_weights()
+            yield from self._compose_api()
+            yield from self._compose_summary()
+            yield from self._compose_nav()
         yield Footer()
+
+    def _compose_welcome(self) -> ComposeResult:
+        """Compose step 0: Welcome."""
+        with Container(id="step-welcome"):
+            yield Static("NETFLIX NARC", classes="onb-title")
+            yield Static(
+                "Know what your family is actually watching.",
+                classes="onb-subtitle",
+            )
+            yield Static(
+                "This quick setup takes about a minute.\n"
+                "You can change everything later via Preferences [S].",
+                classes="onb-body",
+            )
+
+    def _compose_age(self) -> ComposeResult:
+        """Compose step 1: Age."""
+        with Container(id="step-age", classes="hidden"):
+            yield Static("CHILD'S AGE", classes="onb-title")
+            yield Static(
+                "Enter your child's age or range (e.g. 10 or 8-12).\n"
+                "This sets the age-rating threshold used in all evaluations.",
+                classes="onb-body",
+            )
+            age_str = ""
+            if self._baseline_settings and self._baseline_settings.child_age_range is not None:
+                lo, hi = self._baseline_settings.child_age_range
+                age_str = f"{lo}-{hi}" if lo != hi else str(lo)
+            yield Input(
+                value=age_str,
+                placeholder="e.g. 10  or  8-12",
+                id="age-input",
+            )
+            yield Static("", id="age-error", classes="onb-error")
+
+    def _compose_weights(self) -> ComposeResult:
+        """Compose step 2: Weights."""
+        with Container(id="step-weights", classes="hidden"):  # noqa: SIM117
+            with Horizontal(id="weights-layout"):
+                with Vertical(id="weights-left"):
+                    yield Static("CONTENT WEIGHTS", classes="onb-section-title")
+                    yield Static(
+                        "How strictly should each category be penalised?\n"
+                        "You can always adjust these later.",
+                        classes="onb-body",
+                    )
+                    yield Static("Overall signals", classes="onb-weight-group-label")
+                    yield from self._compose_weight_rows(_WEIGHT_ROWS_OVERALL)
+                    yield Static("Content categories", classes="onb-weight-group-label")
+                    yield from self._compose_weight_rows(_WEIGHT_ROWS)
+                    yield Button(
+                        "↺ Reset All to Defaults",
+                        id="btn-reset-all-weights",
+                        variant="default",
+                        classes="onb-reset-btn",
+                    )
+                    yield Static("Scoring Mode", classes="onb-weight-group-label")
+                    initial_mode = (
+                        self._baseline_settings.scoring_mode
+                        if self._baseline_settings
+                        else ScoringMode.BALANCED
+                    )
+                    yield Select(
+                        [(SCORING_MODE_LABELS[m], m) for m in ScoringMode],
+                        value=initial_mode,
+                        id="scoring-mode-select",
+                        allow_blank=False,
+                    )
+                    yield Static("", id="scoring-mode-description", classes="onb-body")
+                # Preview panel — only rendered if we have eligible records
+                has_preview = (
+                    len(self._preview_records) >= _MIN_PREVIEW_TITLES
+                    and self._baseline_settings is not None
+                )
+                if has_preview and self._baseline_settings is not None:
+                    yield WeightImpactPreview(
+                        self._preview_records,
+                        self._baseline_settings,
+                        all_eligible=self._all_eligible,
+                    )
+
+    def _compose_api(self) -> ComposeResult:
+        """Compose step 3: API."""
+        with Container(id="step-api", classes="hidden"):
+            yield Static("API PROVIDER  [optional]", classes="onb-title")
+            yield Static(
+                "Add an API key to fetch ratings automatically.\n"
+                "This is optional — you can skip and enter data manually.",
+                classes="onb-body",
+            )
+            provider = (
+                self._baseline_settings.active_rating_provider
+                if self._baseline_settings
+                else RatingProviderType.OMDB
+            )
+            api_key_str = ""
+            if self._baseline_settings:
+                key = getattr(self._baseline_settings, f"{provider.name.lower()}_api_key", None)
+                if key:
+                    api_key_str = key.get_secret_value()
+            yield Select(
+                [(p.name.replace("_", " "), p) for p in RatingProviderType],
+                value=provider,
+                id="provider-select",
+            )
+            yield Input(
+                value=api_key_str,
+                placeholder="Paste API key here (optional)…",
+                id="api-key-input",
+                password=True,
+            )
+
+    def _compose_summary(self) -> ComposeResult:
+        """Compose step 4: Summary."""
+        with Container(id="step-summary", classes="hidden"):
+            yield Static("ALL SET!", classes="onb-title")
+            yield Static("", id="summary-body", classes="onb-body")
+
+    def _compose_nav(self) -> ComposeResult:
+        """Compose navigation button footer."""
+        with Horizontal(id="onb-nav"):
+            yield Button("← Back", id="btn-back", variant="default")
+            yield Button("Skip →", id="btn-skip", variant="default", classes="hidden")
+            yield Button("Next →", id="btn-next", variant="primary")
 
     def _compose_weight_rows(self, rows: list[tuple[str, str]]) -> ComposeResult:
         """Yield WeightRow widgets for a list of (label, field) pairs."""
@@ -530,6 +587,13 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         if self._baseline_settings and self._baseline_settings.child_age_range is not None:
             self._child_age_range = self._baseline_settings.child_age_range
             self._age_valid = True
+
+        # Set initial scoring mode description
+        mode = self.query_one("#scoring-mode-select", Select).value
+        if isinstance(mode, ScoringMode):
+            desc = get_scoring_mode_description(mode)
+            self.query_one("#scoring-mode-description", Static).update(desc)
+
         self._go_to_step(0)
 
     # ── Navigation ────────────────────────────────────────────────────────
@@ -604,8 +668,18 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         w_lines = "\n".join(
             f"  {lbl}: {_WEIGHT_LABELS[getattr(weights, field)]}" for lbl, field in _WEIGHT_ROWS
         )
+        scoring_mode_select = cast(
+            "Select[ScoringMode]", self.query_one("#scoring-mode-select", Select)
+        )
+        scoring_mode_val = scoring_mode_select.value
+        scoring_mode = (
+            scoring_mode_val if isinstance(scoring_mode_val, ScoringMode) else ScoringMode.BALANCED
+        )
+        scoring_mode_str = SCORING_MODE_LABELS.get(scoring_mode, str(scoring_mode))
+
         body = (
             f"Child age range:  {age_str}\n"
+            f"Scoring mode:     {scoring_mode_str}\n"
             f"Provider:         {provider_str}\n\n"
             f"Overall weights:\n{w_lines_overall}\n\n"
             f"Content weights:\n{w_lines}"
@@ -645,6 +719,19 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         preview = self.query(WeightImpactPreview).first()
         if preview:
             preview.on_weight_row_changed(event)
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle Scoring Mode select changes to update description and impact preview."""
+        if event.select.id == "scoring-mode-select":
+            mode = event.value
+            if isinstance(mode, ScoringMode):
+                self.query_one("#scoring-mode-description", Static).update(
+                    get_scoring_mode_description(mode)
+                )
+                preview = self.query(WeightImpactPreview).first()
+                if preview:
+                    preview.update_scoring_mode(mode)
+                    preview.on_weight_row_changed(None)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Validate age input as the user types and enable/disable Next."""
@@ -708,12 +795,21 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         provider = provider_val if isinstance(provider_val, RatingProviderType) else None
         api_key = TypeAdapter(SecretStr).validate_python(api_key_str) if api_key_str else None
 
+        scoring_mode_select = cast(
+            "Select[ScoringMode]", self.query_one("#scoring-mode-select", Select)
+        )
+        scoring_mode_val = scoring_mode_select.value
+        scoring_mode = (
+            scoring_mode_val if isinstance(scoring_mode_val, ScoringMode) else ScoringMode.BALANCED
+        )
+
         self.dismiss(
             OnboardingResult(
                 child_age_range=self._child_age_range,
                 weights=weights,
                 provider=provider,
                 api_key=api_key,
+                scoring_mode=scoring_mode,
             )
         )
 

@@ -33,6 +33,19 @@ class RatingProviderType(StrEnum):
     TMDB = "tmdb"
 
 
+class ScoringMode(StrEnum):
+    """Available scoring modes for calculating suitability."""
+
+    QUALITY_FOCUS = "quality_focus"
+    BALANCED = "balanced"
+
+
+SCORING_MODE_LABELS: Final[dict[ScoringMode, str]] = {
+    ScoringMode.QUALITY_FOCUS: "Option A: Quality Focus",
+    ScoringMode.BALANCED: "Option B: Balanced",
+}
+
+
 class CategoryWeights(BaseSettings):
     """Configuration for how much weight to apply to each suitability component.
 
@@ -82,6 +95,7 @@ class Settings(BaseSettings):
     }
 
     active_rating_provider: RatingProviderType = RatingProviderType.OMDB
+    scoring_mode: ScoringMode = ScoringMode.BALANCED
     csm_api_key: SecretStr = SecretStr("")
     omdb_api_key: SecretStr = SecretStr("")
     tmdb_api_key: SecretStr = SecretStr("")

@@ -14,8 +14,15 @@ from netflix_narc.onboarding import (
     _WEIGHT_ROWS,
     _WEIGHT_ROWS_OVERALL,
     WeightRow,
+    get_scoring_mode_description,
 )
-from netflix_narc.settings import CategoryWeights, RatingProviderType, parse_str_age_range
+from netflix_narc.settings import (
+    SCORING_MODE_LABELS,
+    CategoryWeights,
+    RatingProviderType,
+    ScoringMode,
+    parse_str_age_range,
+)
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -43,6 +50,23 @@ class PreferencesScreen(Screen[None]):
         """Initialise with current settings."""
         super().__init__()
         self._settings = settings
+
+    def on_mount(self) -> None:
+        """Initialize scoring mode description on mount."""
+        mode = self.query_one("#pref-scoring-mode-select", Select).value
+        if isinstance(mode, ScoringMode):
+            self.query_one("#pref-scoring-mode-description", Static).update(
+                get_scoring_mode_description(mode)
+            )
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle Scoring Mode select changes."""
+        if event.select.id == "pref-scoring-mode-select":
+            mode = event.value
+            if isinstance(mode, ScoringMode):
+                self.query_one("#pref-scoring-mode-description", Static).update(
+                    get_scoring_mode_description(mode)
+                )
 
     @override
     def compose(self) -> ComposeResult:
@@ -89,6 +113,14 @@ class PreferencesScreen(Screen[None]):
                     variant="default",
                     classes="pref-reset-btn",
                 )
+                yield Static("Scoring Mode", classes="pref-weight-group-label")
+                yield Select(
+                    [(SCORING_MODE_LABELS[m], m) for m in ScoringMode],
+                    value=self._settings.scoring_mode,
+                    id="pref-scoring-mode-select",
+                    allow_blank=False,
+                )
+                yield Static("", id="pref-scoring-mode-description", classes="pref-label")
 
             # ── API / Provider ────────────────────────────────────────
             with Container(classes="pref-section"):
@@ -249,14 +281,24 @@ class PreferencesScreen(Screen[None]):
         new_provider, new_key = self._collect_provider_and_key()
         new_max_records, new_min_quality, new_max_age, new_merge = self._collect_advanced()
 
+        scoring_mode_select = cast(
+            "Select[ScoringMode]", self.query_one("#pref-scoring-mode-select", Select)
+        )
+        scoring_mode_val = scoring_mode_select.value
+        new_scoring_mode = (
+            scoring_mode_val if isinstance(scoring_mode_val, ScoringMode) else ScoringMode.BALANCED
+        )
+
         update_env_file(
             provider=new_provider,
             api_key=new_key,
             child_age_range=new_age,
             weights=new_weights,
+            scoring_mode=new_scoring_mode,
         )
 
         # Update in-memory settings
+        self._settings.scoring_mode = new_scoring_mode
         self._settings.active_rating_provider = new_provider
         self._settings.child_age_range = new_age
         self._settings.weights = new_weights

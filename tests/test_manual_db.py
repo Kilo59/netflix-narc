@@ -134,5 +134,22 @@ async def test_export_import_csv(temp_db: EvidenceLocker, tmp_path: pathlib.Path
     assert record.category_scores["Language"] == 1.0
 
 
+def test_manual_metadata_normalization_scaling() -> None:
+    """Verify that user_rating remains raw (1.0-5.0) in ManualMetadata.
+
+    It should be doubled strictly in to_normalized_metadata().
+    """
+    metadata = ManualMetadata(
+        title="Test Scaling",
+        user_rating=4.5,
+        category_scores={"Violence & Scariness": 3.0},
+    )
+    assert metadata.user_rating == 4.5  # noqa: PLR2004
+
+    normalized = metadata.to_normalized_metadata()
+    assert normalized.user_rating == 9.0  # noqa: PLR2004
+    assert normalized.category_scores == {"Violence & Scariness": 3.0}
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

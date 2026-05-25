@@ -54,7 +54,7 @@ class ManualMetadata(BaseModel):
         return NormalizedMetadata(
             title=self.title,
             content_rating=self.content_rating,
-            user_rating=self.user_rating,
+            user_rating=(self.user_rating * 2.0) if self.user_rating is not None else None,
             provider_name="manual",
             category_scores=self.category_scores,
         )
