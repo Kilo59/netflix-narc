@@ -63,7 +63,7 @@ Footer > .footer--key {
 /* Setup Screen Styling */
 #setup-container {
     align: center middle;
-    width: 60;
+    width: 75;
     height: auto;
     min-height: 20;
     background: #181818;
@@ -165,7 +165,7 @@ Select {
 }
 
 #lineup-card {
-    width: 60;
+    width: 75;
     height: auto;
     min-height: 20;
     background: #181818;
@@ -230,7 +230,7 @@ Select {
 }
 
 #interrogation-card {
-    width: 60;
+    width: 75;
     height: auto;
     background: #181818;
     border: tall #333333;
