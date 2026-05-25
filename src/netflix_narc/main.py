@@ -26,7 +26,7 @@ from textual.widgets import (
 )
 from textual.worker import Worker, WorkerState
 
-from netflix_narc.evaluator import evaluate_title
+from netflix_narc.evaluator import calculate_suitability, evaluate_title, get_suitability_bar
 from netflix_narc.factory import get_rating_provider
 from netflix_narc.interrogation_room import InterrogationRoomScreen
 from netflix_narc.lineup import LineupScreen
@@ -207,6 +207,7 @@ class NetflixNarcApp(App[None]):
         self.grouped_records: dict[str, list[ViewingRecord]] = {}
         self.expanded_titles: set[str] = set()
         self.evaluated_flags: dict[str, str] = {}
+        self.evaluated_suitability: dict[str, str] = {}
 
     @override
     def compose(self) -> ComposeResult:
@@ -232,6 +233,7 @@ class NetflixNarcApp(App[None]):
         table.cursor_type = "row"
         table.add_column("Date Watched", width=15)
         table.add_column("Title", width=45)
+        table.add_column("Suitability", key="suitability", width=18)
         table.add_column("Flags", key="flags")
 
         # Show loading indicator while background worker initializes
@@ -358,9 +360,10 @@ class NetflixNarcApp(App[None]):
                 continue
 
             flags_str = await self._fetch_and_evaluate(base_title, cache_only=cache_only)
+            suitability_str = self.evaluated_suitability.get(base_title, "[dim]N/A[/dim]")
 
             self.evaluated_flags[base_title] = flags_str
-            self._update_row_flags(base_title, flags_str)
+            self._update_row_cells(base_title, suitability_str, flags_str)
 
         self._set_loading(state=False)
 
@@ -372,19 +375,19 @@ class NetflixNarcApp(App[None]):
         overlay.display = state
         table.display = not state
 
-    def _update_row_flags(self, base_title: str, flags_str: str) -> None:
-        """Update the Flags cell for a specific row (must be called from main thread)."""
+    def _update_row_cells(self, base_title: str, suitability_str: str, flags_str: str) -> None:
+        """Update the cells for a specific row (must be called from main thread)."""
         table = self.query_one(DataTable)
         with contextlib.suppress(Exception):
-            # Row key is the base_title string -- update column index 2 (Flags)
-            # Row may not exist if table was rebuilt; safe to ignore.
+            table.update_cell(base_title, "suitability", suitability_str, update_width=False)
             table.update_cell(base_title, "flags", flags_str, update_width=False)
 
     async def refresh_title(self, base_title: str) -> None:
         """Re-evaluates a single title from cache/manual data and updates the DataTable."""
         flags_str = await self._fetch_and_evaluate(base_title, cache_only=True)
+        suitability_str = self.evaluated_suitability.get(base_title, "[dim]N/A[/dim]")
         self.evaluated_flags[base_title] = flags_str
-        self._update_row_flags(base_title, flags_str)
+        self._update_row_cells(base_title, suitability_str, flags_str)
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         """Ensure loading indicator is hidden if a worker fails or is cancelled."""
@@ -431,15 +434,18 @@ class NetflixNarcApp(App[None]):
 
         for base_title, records in self.grouped_records.items():
             flags_str = self.evaluated_flags.get(base_title, "None")
+            suitability_str = self.evaluated_suitability.get(base_title, "[dim]N/A[/dim]")
 
             if evaluate and self.rating_provider and base_title not in self.evaluated_flags:
                 flags_str = await self._fetch_and_evaluate(base_title, cache_only=cache_only)
                 self.evaluated_flags[base_title] = flags_str
+                suitability_str = self.evaluated_suitability.get(base_title, "[dim]N/A[/dim]")
 
             indicator = "▼" if base_title in self.expanded_titles else "▶"
             table.add_row(
                 f"{len(records)} views",
                 f"{indicator} {base_title}",
+                suitability_str,
                 flags_str,
                 key=base_title,
             )
@@ -450,6 +456,7 @@ class NetflixNarcApp(App[None]):
                     table.add_row(
                         rec.date_watched.strftime("%Y-%m-%d"),
                         f"  └─ {display_title}",
+                        "",
                         "",
                         key=f"{base_title}_{rec.title}_{rec.date_watched.isoformat()}",
                     )
@@ -499,6 +506,7 @@ class NetflixNarcApp(App[None]):
         manual_record = await self.evidence_locker.get_record(base_title)
 
         if manual_record and manual_record.ignored:
+            self.evaluated_suitability[base_title] = "[dim]N/A[/dim]"
             return "[dim]Ignored[/dim]"
 
         api_metadata = None
@@ -522,6 +530,9 @@ class NetflixNarcApp(App[None]):
             api_metadata = manual_record.to_normalized_metadata()
 
         if api_metadata:
+            score = calculate_suitability(api_metadata, self.settings)
+            self.evaluated_suitability[base_title] = get_suitability_bar(score)
+
             flags = evaluate_title(api_metadata, self.settings)
 
             # Surface if flagged manually
@@ -535,6 +546,7 @@ class NetflixNarcApp(App[None]):
                 return f"{followup_tag}[red]{', '.join(flags)}[/red]"
             return f"{followup_tag}[green]Passed[/green]"
 
+        self.evaluated_suitability[base_title] = "[dim]N/A[/dim]"
         return "[yellow]Not Found[/yellow]"
 
     async def _sort_queue(self) -> None:

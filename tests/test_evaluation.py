@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from netflix_narc.evaluator import evaluate_title
+from netflix_narc.evaluator import calculate_suitability, evaluate_title, get_suitability_bar
 from netflix_narc.rating_api import NormalizedMetadata
 from netflix_narc.settings import Settings
 
@@ -199,6 +199,49 @@ def test_evaluate_title_does_not_flag_medium_educational_value_with_high_quality
     flags = evaluate_title(metadata, settings)
     # Should not flag educational value
     assert not any("Educational Value" in f for f in flags)
+
+
+def test_calculate_suitability_excellent():
+    settings = Settings()
+    metadata = NormalizedMetadata(
+        title="Excellent Title",
+        content_rating="PG",
+        user_rating=9.5,
+        provider_name="test",
+        category_scores={"Educational Value": 5},
+    )
+    score = calculate_suitability(metadata, settings)
+    min_expected = 9.0
+    assert score >= min_expected
+
+
+def test_calculate_suitability_with_deductions():
+    settings = Settings(max_age_rating=10, min_quality_rating=4)  # min quality is 8.0
+    metadata = NormalizedMetadata(
+        title="Flawed Title",
+        content_rating="12",  # age rating exceeds
+        user_rating=6.0,  # below quality, is_low_quality is True
+        provider_name="test",
+        category_scores={"Educational Value": 2, "Violence & Scariness": 4},
+    )
+    score = calculate_suitability(metadata, settings)
+    # Deductions:
+    # Age excess: 12 - 10 = 2 -> min(5.0, 2 * 1.5) = 3.0
+    # Quality deficit: 8.0 - 6.0 = 2.0 -> 2.0 * 1.0 = 2.0
+    # Edu score is 2 under low quality -> 1.0 deduction
+    # Violence raw score 4 * weight 3 = 12 >= 12 -> 3.0 deduction
+    # Total deduction: 3.0 + 2.0 + 1.0 + 3.0 = 9.0
+    # Score: 6.0 - 9.0 = -3.0 -> bounded to 0.0
+    expected_score = 0.0
+    assert score == expected_score
+
+
+def test_get_suitability_bar():
+    test_score = 8.5
+    bar = get_suitability_bar(test_score, width=10)
+    assert "green" in bar
+    assert "█" in bar
+    assert "8.5/10" in bar
 
 
 if __name__ == "__main__":

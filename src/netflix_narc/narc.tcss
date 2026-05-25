@@ -335,3 +335,13 @@ Select {
 #interrogation-actions Button {
     margin-left: 1;
 }
+
+.suitability-widget {
+    background: #1f1f1f;
+    border: solid #333333;
+    padding: 0 2;
+    margin-bottom: 1;
+    content-align: center middle;
+    color: #ffffff;
+    height: 3;
+}

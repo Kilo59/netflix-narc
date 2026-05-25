@@ -15,8 +15,10 @@ from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Static
 
 from netflix_narc.csm_api import CSMRatingCategory as CSMCategory
+from netflix_narc.evaluator import calculate_suitability, get_suitability_bar
 from netflix_narc.image_utils import download_image_to_path, save_image_from_clipboard
 from netflix_narc.manual_db import ManualMetadata
+from netflix_narc.rating_api import NormalizedMetadata
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -55,6 +57,8 @@ class InterrogationRoomScreen(Screen[bool]):
                     f"Manual Data Entry for: [b]{self.base_title}[/b]", classes="title-text"
                 )
                 yield Button("Search Web [F2]", id="btn-search-web", variant="default")
+
+            yield Static("", id="interrogation-suitability-bar", classes="suitability-widget")
 
             with Horizontal(classes="form-row"):
                 yield Static("Min Age Rating:", classes="form-label")
@@ -116,6 +120,8 @@ class InterrogationRoomScreen(Screen[bool]):
                 score = self.existing_record.category_scores.get(cat.value)
                 if score is not None:
                     self.query_one(f"#csm-{cat.name}", Input).value = str(score)
+
+        self._update_realtime_suitability()
 
     def action_cancel(self) -> None:
         """Discard changes and close."""
@@ -220,3 +226,42 @@ class InterrogationRoomScreen(Screen[bool]):
                 preview.display = False
         else:
             preview.display = False
+
+    def _update_realtime_suitability(self) -> None:
+        """Read all inputs in real-time, compute suitability, and update the display bar."""
+        age_str = self.query_one("#input-age-rating", Input).value.strip()
+        quality_str = self.query_one("#input-quality-rating", Input).value.strip()
+
+        # Quality converts UI 1-5 to normalized 0-10 scale (double it)
+        user_rating = None
+        if quality_str:
+            with contextlib.suppress(ValueError):
+                user_rating = float(quality_str) * 2
+
+        scores: dict[str, int | float] = {}
+        for cat in CSMCategory:
+            val = self.query_one(f"#csm-{cat.name}", Input).value.strip()
+            if val:
+                with contextlib.suppress(ValueError):
+                    scores[cat.value] = float(val)
+
+        # Build temporary metadata object
+        metadata = NormalizedMetadata(
+            title=self.base_title,
+            content_rating=age_str or None,
+            user_rating=user_rating,
+            provider_name="manual",
+            category_scores=scores,
+        )
+
+        # Calculate score and update the bar widget
+        score = calculate_suitability(metadata, self.narc_app.settings)
+        bar_text = get_suitability_bar(score, width=20)
+
+        # Display nicely in the widget
+        widget = self.query_one("#interrogation-suitability-bar", Static)
+        widget.update(f"Real-time Suitability Index: {bar_text}")
+
+    def on_input_changed(self, _event: Input.Changed) -> None:
+        """Handle real-time updates of suitability score when inputs change."""
+        self._update_realtime_suitability()
