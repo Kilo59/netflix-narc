@@ -267,6 +267,21 @@ Select {
     width: 20;
 }
 
+.form-row-image {
+    height: 3;
+    margin-bottom: 1;
+    align: left middle;
+}
+
+.form-row-image Input {
+    width: 20;
+}
+
+.form-row-image Button {
+    margin-left: 1;
+    min-width: 10;
+}
+
 .section-header {
     color: #E50914;
     text-style: bold;

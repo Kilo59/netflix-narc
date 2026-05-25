@@ -338,7 +338,11 @@ class NetflixNarcApp(App[None]):
         """Start the Lineup Screen with the sorted queue."""
         await self._sort_queue()
         queue = list(self.grouped_records.keys())
-        self.push_screen(LineupScreen(queue=queue))
+
+        all_records = await self.evidence_locker.get_all_records()
+        completeness_map = {r.title: r.completeness_score for r in all_records}
+
+        self.push_screen(LineupScreen(queue=queue, completeness_map=completeness_map))
 
     async def _evaluate_titles_worker(self, *, cache_only: bool) -> None:
         """Worker: evaluate all ungrouped titles.
@@ -515,31 +519,28 @@ class NetflixNarcApp(App[None]):
     async def _sort_queue(self) -> None:
         """Sort grouped records based on priority queue rules."""
         manual_records = {}
-        for base_title in self.grouped_records:
-            manual_records[base_title] = await self.evidence_locker.get_record(base_title)
+        all_records = await self.evidence_locker.get_all_records()
+        for r in all_records:
+            manual_records[r.title] = r
 
-        def sort_key(item: tuple[str, list[ViewingRecord]]) -> tuple[int, int, float]:
+        def sort_key(item: tuple[str, list[ViewingRecord]]) -> tuple[int, int, int, int]:
             base_title, records = item
 
-            # 1. Flagged for follow up
+            # 1. Completeness Score (ascending, so 0% comes first)
             manual_record = manual_records.get(base_title)
+            completeness = manual_record.completeness_score if manual_record else 0
+
+            # 2. Flagged for follow up
             is_flagged = 1 if manual_record and manual_record.flagged_for_followup else 0
 
-            # 2. Low Quality API flags
+            # 3. Low Quality API flags
             flags_str = self.evaluated_flags.get(base_title, "")
             is_low_quality = 1 if "Low Quality" in flags_str else 0
 
-            # 3. Recency (max date watched)
-            # date_watched is a datetime.date or datetime.datetime
-            # We can just use the latest date's ordinal or timestamp
-            max_date = max(r.date_watched for r in records)
-            try:
-                date_val = max_date.timestamp()
-            except AttributeError:
-                # If it's just a date, convert to ordinal
-                date_val = float(max_date.toordinal())
+            # 4. View Count (descending)
+            views = len(records)
 
-            return (-is_flagged, -is_low_quality, -date_val)
+            return (completeness, -is_flagged, -is_low_quality, -views)
 
         sorted_items = sorted(self.grouped_records.items(), key=sort_key)
         self.grouped_records.clear()

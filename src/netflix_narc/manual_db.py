@@ -30,6 +30,25 @@ class ManualMetadata(BaseModel):
     ignored: bool = False
     category_scores: dict[str, float] = Field(default_factory=dict)
 
+    @property
+    def completeness_score(self) -> int:
+        """Calculate a 0-100 completeness score for the dossier."""
+        total_fields = 10
+        filled = 0
+
+        if self.content_rating is not None:
+            filled += 1
+        if self.user_rating is not None:
+            filled += 1
+        if self.image_url is not None:
+            filled += 1
+
+        for cat in CSMRatingCategory:
+            if cat.value in self.category_scores:
+                filled += 1
+
+        return int((filled / total_fields) * 100)
+
     def to_normalized_metadata(self) -> NormalizedMetadata:
         """Convert to standard NormalizedMetadata."""
         return NormalizedMetadata(

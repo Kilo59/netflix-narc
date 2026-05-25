@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
 
     from netflix_narc.main import NetflixNarcApp
+    from netflix_narc.parser import ViewingRecord
 
 
 class LineupScreen(Screen[None]):
@@ -28,10 +29,23 @@ class LineupScreen(Screen[None]):
         Binding("s", "skip", "Skip"),
     ]
 
-    def __init__(self, queue: list[str]) -> None:
-        """Initialize the screen with a sorted queue of titles."""
+    def __init__(
+        self,
+        queue: list[str],
+        grouped_records: dict[str, list[ViewingRecord]] | None = None,
+        completeness_map: dict[str, int] | None = None,
+    ) -> None:
+        """Initialize the lineup screen.
+
+        Args:
+            queue: The sorted list of titles to display.
+            grouped_records: Optional dictionary to look up viewing dates and counts.
+            completeness_map: Map of title -> dossier completeness score (0-100).
+        """
         super().__init__()
         self.queue = queue
+        self.grouped_records = grouped_records or {}
+        self.completeness_map = completeness_map or {}
         self.current_index = 0
         self._background_tasks: set[asyncio.Task[None]] = set()
 
@@ -46,9 +60,7 @@ class LineupScreen(Screen[None]):
         yield Header()
         with Container(id="lineup-container"), Vertical(id="lineup-card"):
             yield Static(id="lineup-counter")
-            yield Static(id="lineup-title", classes="title-text")
-            yield Static(id="lineup-date", classes="meta-text")
-            yield Static(id="lineup-flags", classes="meta-text")
+            yield Static(id="title-info")
 
             with Horizontal(id="lineup-actions"):
                 yield Button("Interrogate [I]", id="btn-interrogate", variant="primary")
@@ -67,16 +79,26 @@ class LineupScreen(Screen[None]):
             return
 
         base_title = self.queue[self.current_index]
-        records = self.narc_app.grouped_records.get(base_title, [])
-        date_str = records[0].date_watched.strftime("%Y-%m-%d") if records else "Unknown"
-        flags_str = self.narc_app.evaluated_flags.get(base_title, "None")
+        records = self.grouped_records.get(base_title, [])
+        date_list = [r.date_watched.strftime("%Y-%m-%d") for r in records if r.date_watched]
+        first_watched = min(date_list) if date_list else "Unknown"
+        last_watched = max(date_list) if date_list else "Unknown"
+
+        completeness = self.completeness_map.get(base_title, 0)
+        bars = int(completeness / 10)
+        progress_bar = f"[{'█' * bars}{'░' * (10 - bars)}] {completeness}%"
+
+        info = f"""[b]Title:[/b] {base_title}
+[b]Views:[/b] {len(records)}
+[b]First Watched:[/b] {first_watched}
+[b]Last Watched:[/b] {last_watched}
+
+[b]Dossier Completeness:[/b] {progress_bar}"""
 
         self.query_one("#lineup-counter", Static).update(
             f"Title {self.current_index + 1} of {len(self.queue)}"
         )
-        self.query_one("#lineup-title", Static).update(f"Title: {base_title}")
-        self.query_one("#lineup-date", Static).update(f"Date Watched: {date_str}")
-        self.query_one("#lineup-flags", Static).update(f"API Flags: {flags_str}")
+        self.query_one("#title-info", Static).update(info)
 
     def action_interrogate(self) -> None:
         """Trigger the Interrogation Room screen for manual entry."""

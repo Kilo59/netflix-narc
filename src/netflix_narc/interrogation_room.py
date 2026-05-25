@@ -12,6 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Static
 
 from netflix_narc.csm_api import CSMRatingCategory as CSMCategory
+from netflix_narc.image_utils import download_image_to_path, save_image_from_clipboard
 from netflix_narc.manual_db import ManualMetadata
 
 if TYPE_CHECKING:
@@ -60,6 +61,11 @@ class InterrogationRoomScreen(Screen[bool]):
                 yield Static("Quality Rating (1-5):", classes="form-label")
                 yield Input(id="input-quality-rating", type="number", placeholder="1-5")
 
+            with Horizontal(classes="form-row-image"):
+                yield Static("Cover Image:", classes="form-label")
+                yield Input(id="input-image-url", placeholder="Image URL...")
+                yield Button("Paste", id="btn-paste-image", variant="success")
+
             yield Static("CSM Category Scores (0-5)", classes="section-header")
 
             with Vertical(id="csm-scores"):
@@ -89,6 +95,10 @@ class InterrogationRoomScreen(Screen[bool]):
                 self.query_one("#input-quality-rating", Input).value = str(
                     self.existing_record.user_rating
                 )
+            if self.existing_record.image_url:
+                self.query_one("#input-image-url", Input).value = str(
+                    self.existing_record.image_url
+                )
 
             self.query_one(
                 "#input-flag", Checkbox
@@ -114,10 +124,21 @@ class InterrogationRoomScreen(Screen[bool]):
         """Gather values and save to the Evidence Locker."""
         age_val = self.query_one("#input-age-rating", Input).value
         quality_val = self.query_one("#input-quality-rating", Input).value
+        image_url_val = self.query_one("#input-image-url", Input).value
         is_flagged = self.query_one("#input-flag", Checkbox).value
+
+        # Handle Image Download if it's an HTTP URL
+        if image_url_val and image_url_val.startswith("http"):
+            self.notify("Downloading image...")
+            local_path = await download_image_to_path(image_url_val, self.base_title)
+            if local_path:
+                image_url_val = str(local_path)
+            else:
+                self.notify("Failed to download image.", severity="error")
 
         age_rating = str(age_val) if age_val else None
         user_rating = float(quality_val) if quality_val else None
+        final_image_url = str(image_url_val) if image_url_val else None
 
         scores: dict[str, float] = {}
         for cat in CSMCategory:
@@ -129,6 +150,7 @@ class InterrogationRoomScreen(Screen[bool]):
             title=self.base_title,
             content_rating=age_rating,
             user_rating=user_rating,
+            image_url=final_image_url,
             flagged_for_followup=is_flagged,
             category_scores=scores,
         )
@@ -149,3 +171,17 @@ class InterrogationRoomScreen(Screen[bool]):
             await self._save_record()
         elif event.button.id == "btn-search-web":
             self.action_open_browser()
+        elif event.button.id == "btn-paste-image":
+            await self._paste_image()
+
+    async def _paste_image(self) -> None:
+        """Paste image from OS clipboard and save locally."""
+        filepath = await save_image_from_clipboard(self.base_title)
+        if filepath:
+            self.query_one("#input-image-url", Input).value = str(filepath)
+            self.notify("Image pasted and saved locally!")
+        else:
+            self.notify(
+                "Failed to paste image. Is there an image in your clipboard?",
+                severity="error",
+            )
