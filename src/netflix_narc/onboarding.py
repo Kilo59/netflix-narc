@@ -228,7 +228,7 @@ class WeightImpactPreview(Widget):
         self._baseline_settings = baseline_settings
         self._all_eligible: list[ManualMetadata] = all_eligible or []
         self._pinned: ManualMetadata | None = None
-        self._current_weights = CategoryWeights(**CategoryWeights.DEFAULT_WEIGHTS)
+        self._current_weights = copy.copy(baseline_settings.weights)
 
     @override
     def compose(self) -> ComposeResult:
@@ -248,7 +248,7 @@ class WeightImpactPreview(Widget):
         """Render the initial preview on mount."""
         self._render_preview(self._current_weights)
 
-    def on_weight_row_changed(self, event: WeightRow.Changed) -> None:  # noqa: ARG002
+    def on_weight_row_changed(self, _event: WeightRow.Changed | None = None) -> None:
         """Rebuild the preview whenever any weight changes."""
         # Read all sibling WeightRow widgets to get the full current state
         rows = self.screen.query(WeightRow)
@@ -619,6 +619,15 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
             for row in self.query(WeightRow):
                 row.value = CategoryWeights.DEFAULT_WEIGHTS[row.field_name]
                 row.refresh_buttons()
+            preview = self.query(WeightImpactPreview).first()
+            if preview:
+                preview.on_weight_row_changed(None)
+
+    def on_weight_row_changed(self, event: WeightRow.Changed) -> None:
+        """Forward weight change messages to the live preview panel if present."""
+        preview = self.query(WeightImpactPreview).first()
+        if preview:
+            preview.on_weight_row_changed(event)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Validate age input as the user types and enable/disable Next."""
