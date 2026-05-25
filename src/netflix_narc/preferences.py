@@ -6,14 +6,12 @@ from typing import TYPE_CHECKING, ClassVar, cast, override
 
 from pydantic import SecretStr, TypeAdapter
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, ScrollableContainer, Vertical
+from textual.containers import Container, Horizontal, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Select, Static, Switch
 
 from netflix_narc.onboarding import (
-    _MIN_PREVIEW_TITLES,
     _WEIGHT_ROWS,
-    WeightImpactPreview,
     WeightRow,
 )
 from netflix_narc.settings import CategoryWeights, RatingProviderType, parse_str_age_range
@@ -21,7 +19,7 @@ from netflix_narc.settings import CategoryWeights, RatingProviderType, parse_str
 if TYPE_CHECKING:
     from textual.app import ComposeResult
 
-    from netflix_narc.manual_db import ManualMetadata
+    from netflix_narc.main import NetflixNarcApp
     from netflix_narc.settings import Settings
 
 
@@ -40,14 +38,10 @@ class PreferencesScreen(Screen[None]):
     def __init__(
         self,
         settings: Settings,
-        preview_records: list[ManualMetadata] | None = None,
-        all_eligible: list[ManualMetadata] | None = None,
     ) -> None:
-        """Initialise with current settings, sampled preview records, and full eligible pool."""
+        """Initialise with current settings."""
         super().__init__()
         self._settings = settings
-        self._preview_records: list[ManualMetadata] = preview_records or []
-        self._all_eligible: list[ManualMetadata] = all_eligible or []
 
     @override
     def compose(self) -> ComposeResult:
@@ -70,28 +64,20 @@ class PreferencesScreen(Screen[None]):
             # ── Content Weights ───────────────────────────────────────
             with Container(classes="pref-section"):
                 yield Static("CONTENT WEIGHTS", classes="pref-section-header")
-                with Horizontal(id="pref-weights-layout"):
-                    with Vertical(id="pref-weights-left"):
-                        for label, field in _WEIGHT_ROWS:
-                            current = getattr(self._settings.weights, field)
-                            yield WeightRow(
-                                label,
-                                field,
-                                default=CategoryWeights.DEFAULT_WEIGHTS[field],
-                                initial=current,
-                            )
-                        yield Button(
-                            "↺ Reset All to Defaults",
-                            id="pref-reset-weights",
-                            variant="default",
-                            classes="pref-reset-btn",
-                        )
-                    if len(self._preview_records) >= _MIN_PREVIEW_TITLES:
-                        yield WeightImpactPreview(
-                            self._preview_records,
-                            self._settings,
-                            all_eligible=self._all_eligible,
-                        )
+                for label, field in _WEIGHT_ROWS:
+                    current = getattr(self._settings.weights, field)
+                    yield WeightRow(
+                        label,
+                        field,
+                        default=CategoryWeights.DEFAULT_WEIGHTS[field],
+                        initial=current,
+                    )
+                yield Button(
+                    "↺ Reset All to Defaults",
+                    id="pref-reset-weights",
+                    variant="default",
+                    classes="pref-reset-btn",
+                )
 
             # ── API / Provider ────────────────────────────────────────
             with Container(classes="pref-section"):
@@ -143,6 +129,7 @@ class PreferencesScreen(Screen[None]):
             # ── Action buttons ────────────────────────────────────────
             with Horizontal(id="prefs-actions"):
                 yield Button("Save", id="pref-save", variant="primary")
+                yield Button("Re-launch Setup Wizard", id="pref-relaunch", variant="default")
                 yield Button("Close", id="pref-close", variant="default")
 
         yield Footer()
@@ -157,6 +144,11 @@ class PreferencesScreen(Screen[None]):
             self._save()
         elif btn_id == "pref-close":
             self.dismiss()
+        elif btn_id == "pref-relaunch":
+            self.dismiss()
+            # Launch onboarding relaunch in the main app context
+            narc_app = cast("NetflixNarcApp", self.app)
+            narc_app.call_after_refresh(narc_app.push_onboarding_relaunch)
         elif btn_id == "pref-reset-weights":
             self._reset_weights()
 

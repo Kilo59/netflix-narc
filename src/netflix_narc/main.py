@@ -48,7 +48,6 @@ from netflix_narc.settings import (
 if TYPE_CHECKING:
     from typing import Any
 
-    from netflix_narc.manual_db import ManualMetadata
     from netflix_narc.parser import ViewingRecord
     from netflix_narc.rating_api import NormalizedMetadata, RatingProvider
 
@@ -308,14 +307,7 @@ class NetflixNarcApp(App[None]):
 
     def action_settings(self) -> None:
         """Push the Preferences screen."""
-        sampled, all_eligible = self._get_preview_records()
-        self.push_screen(
-            PreferencesScreen(
-                settings=self.settings,
-                preview_records=sampled,
-                all_eligible=all_eligible,
-            )
-        )
+        self.push_screen(PreferencesScreen(settings=self.settings))
 
     def action_advanced(self) -> None:
         """Open the Advanced options modal (progressive disclosure for C/E actions)."""
@@ -324,24 +316,6 @@ class NetflixNarcApp(App[None]):
     def action_show_help(self) -> None:
         """Push the help screen to explain the app features and usage."""
         self.push_screen(HelpScreen())
-
-    def _get_preview_records(self) -> tuple[list[ManualMetadata], list[ManualMetadata]]:
-        """Fetch sampled preview records and the full eligible pool for the pin-title dropdown."""
-        import asyncio as _asyncio  # noqa: PLC0415
-
-        async def _fetch() -> tuple[list[ManualMetadata], list[ManualMetadata]]:
-            records = await self.evidence_locker.get_all_records()
-            sampled = WeightImpactPreview.select_preview_records(records, self.settings)
-            eligible = WeightImpactPreview.get_eligible_records(records, self.settings)
-            return sampled, eligible
-
-        try:
-            loop = _asyncio.get_event_loop()
-            if loop.is_running():
-                return [], []
-            return loop.run_until_complete(_fetch())
-        except Exception:  # noqa: BLE001
-            return [], []
 
     async def _push_onboarding(self) -> None:
         """Fetch preview records and push the OnboardingScreen."""
@@ -360,6 +334,82 @@ class NetflixNarcApp(App[None]):
             ),
             self.handle_startup_onboarding_complete,
         )
+
+    async def push_onboarding_relaunch(self) -> None:
+        """Fetch preview records and push the OnboardingScreen as a relaunch."""
+        try:
+            all_records = await self.evidence_locker.get_all_records()
+            preview = WeightImpactPreview.select_preview_records(all_records, self.settings)
+            all_eligible = WeightImpactPreview.get_eligible_records(all_records, self.settings)
+        except Exception:  # noqa: BLE001
+            preview = []
+            all_eligible = []
+        self.push_screen(
+            OnboardingScreen(
+                preview_records=preview,
+                baseline_settings=self.settings,
+                all_eligible=all_eligible,
+            ),
+            self.handle_relaunch_onboarding_complete,
+        )
+
+    def handle_relaunch_onboarding_complete(self, result: OnboardingResult | None) -> None:  # noqa: C901
+        """Handle onboarding completion from a relaunch. Re-evaluates and refreshes the table."""
+        if not result:
+            return
+
+        self.settings.child_age_range = result.child_age_range
+        self.settings.weights = result.weights
+
+        provider = result.provider or self.settings.active_rating_provider
+        api_key = result.api_key
+
+        if result.provider is not None:
+            self.settings.active_rating_provider = result.provider
+            match result.provider:
+                case RatingProviderType.CSM:
+                    if api_key:
+                        self.settings.csm_api_key = api_key
+                case RatingProviderType.OMDB:
+                    if api_key:
+                        self.settings.omdb_api_key = api_key
+                case RatingProviderType.TMDB:
+                    if api_key:
+                        self.settings.tmdb_api_key = api_key
+
+        from pydantic import SecretStr as _SecretStr  # noqa: PLC0415
+
+        persist_key = api_key if api_key is not None else _SecretStr("")
+
+        try:
+            update_env_file(
+                provider=provider,
+                api_key=persist_key,
+                child_age_range=result.child_age_range,
+                weights=result.weights,
+            )
+        except OSError as e:
+            self.notify(f"Could not save settings: {e}", severity="warning")
+
+        if api_key is not None and api_key.get_secret_value():
+            try:
+                self.rating_provider = get_rating_provider(
+                    settings=self.settings, cache_dir=self.cache_dir
+                )
+            except (ValueError, NotImplementedError) as e:
+                self.notify(f"Provider error: {e}", severity="warning")
+
+        async def refresh_after_onboarding() -> None:
+            self._set_loading(state=True)
+            self.evaluated_flags.clear()
+            self.evaluated_suitability.clear()
+            for base_title in self.grouped_records:
+                flags_str = await self._fetch_and_evaluate(base_title, cache_only=True)
+                self.evaluated_flags[base_title] = flags_str
+            await self.rebuild_table(evaluate=False, cache_only=True)
+            self._set_loading(state=False)
+
+        self.run_worker(refresh_after_onboarding, exclusive=True)  # type: ignore[arg-type]
 
     def handle_startup_onboarding_complete(self, result: OnboardingResult | None) -> None:  # noqa: C901
         """Handle onboarding completion on startup. Exit if cancelled."""

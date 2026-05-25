@@ -419,7 +419,12 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
                     "This sets the age-rating threshold used in all evaluations.",
                     classes="onb-body",
                 )
+                age_str = ""
+                if self._baseline_settings and self._baseline_settings.child_age_range is not None:
+                    lo, hi = self._baseline_settings.child_age_range
+                    age_str = f"{lo}-{hi}" if lo != hi else str(lo)
                 yield Input(
+                    value=age_str,
                     placeholder="e.g. 10  or  8-12",
                     id="age-input",
                 )
@@ -435,10 +440,14 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
                             classes="onb-body",
                         )
                         for label, field in _WEIGHT_ROWS:
+                            initial_weight = None
+                            if self._baseline_settings:
+                                initial_weight = getattr(self._baseline_settings.weights, field)
                             yield WeightRow(
                                 label,
                                 field,
                                 default=CategoryWeights.DEFAULT_WEIGHTS[field],
+                                initial=initial_weight,
                             )
                         yield Button(
                             "↺ Reset All to Defaults",
@@ -465,12 +474,23 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
                     "This is optional — you can skip and enter data manually.",
                     classes="onb-body",
                 )
+                provider = (
+                    self._baseline_settings.active_rating_provider
+                    if self._baseline_settings
+                    else RatingProviderType.OMDB
+                )
+                api_key_str = ""
+                if self._baseline_settings:
+                    key = getattr(self._baseline_settings, f"{provider.name.lower()}_api_key", None)
+                    if key:
+                        api_key_str = key.get_secret_value()
                 yield Select(
                     [(p.name.replace("_", " "), p) for p in RatingProviderType],
-                    value=RatingProviderType.OMDB,
+                    value=provider,
                     id="provider-select",
                 )
                 yield Input(
+                    value=api_key_str,
                     placeholder="Paste API key here (optional)…",
                     id="api-key-input",
                     password=True,
@@ -489,6 +509,9 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
 
     def on_mount(self) -> None:
         """Initialise the wizard on the first step."""
+        if self._baseline_settings and self._baseline_settings.child_age_range is not None:
+            self._child_age_range = self._baseline_settings.child_age_range
+            self._age_valid = True
         self._go_to_step(0)
 
     # ── Navigation ────────────────────────────────────────────────────────
