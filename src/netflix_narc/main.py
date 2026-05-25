@@ -26,7 +26,14 @@ from textual.widgets import (
 )
 from textual.worker import Worker, WorkerState
 
-from netflix_narc.evaluator import calculate_suitability, evaluate_title, get_suitability_bar
+from netflix_narc.evaluator import (
+    calculate_suitability,
+    evaluate_title,
+    get_age_suitability_deduction,
+    get_categories_suitability_deduction,
+    get_edu_suitability_deduction,
+    get_suitability_bar,
+)
 from netflix_narc.factory import get_rating_provider
 from netflix_narc.interrogation_room import InterrogationRoomScreen
 from netflix_narc.lineup import LineupScreen
@@ -40,7 +47,7 @@ if TYPE_CHECKING:
     from textual.binding import Binding
 
     from netflix_narc.parser import ViewingRecord
-    from netflix_narc.rating_api import RatingProvider
+    from netflix_narc.rating_api import NormalizedMetadata, RatingProvider
 
 
 class SetupConfig(NamedTuple):
@@ -414,6 +421,30 @@ class NetflixNarcApp(App[None]):
                 return pruned
         return full_title
 
+    async def _get_merged_metadata(self, base_title: str) -> NormalizedMetadata | None:
+        """Fetch and merge metadata from cache/database without network requests."""
+        manual_record = await self.evidence_locker.get_record(base_title)
+        api_metadata = None
+        if self.rating_provider:
+            api_metadata = await asyncio.to_thread(
+                self.rating_provider.search_title, base_title, cache_only=True
+            )
+
+        if self.settings.merge_manual_data and manual_record:
+            if api_metadata is None:
+                api_metadata = manual_record.to_normalized_metadata()
+            else:
+                if manual_record.content_rating is not None:
+                    api_metadata.content_rating = manual_record.content_rating
+                if manual_record.user_rating is not None:
+                    api_metadata.user_rating = manual_record.user_rating
+                for cat, val in manual_record.category_scores.items():
+                    api_metadata.category_scores[cat] = val
+        elif manual_record and not self.settings.merge_manual_data:
+            api_metadata = manual_record.to_normalized_metadata()
+
+        return api_metadata
+
     async def rebuild_table(
         self,
         *,
@@ -451,11 +482,71 @@ class NetflixNarcApp(App[None]):
             )
 
             if base_title in self.expanded_titles:
-                for rec in records:
+                # Add Suitability sub-bars if metadata is available
+                metadata = await self._get_merged_metadata(base_title)
+                if metadata:
+                    # 1. Base Quality
+                    base_val = metadata.user_rating if metadata.user_rating is not None else 5.0
+                    base_bar = get_suitability_bar(base_val, width=15)
+                    table.add_row(
+                        "",
+                        "  ├─ Base Quality",
+                        base_bar,
+                        "",
+                        key=f"{base_title}_sub_quality",
+                    )
+
+                    # 2. Age Rating Suitability
+                    age_ded = get_age_suitability_deduction(
+                        metadata.content_rating, self.settings.max_age_rating
+                    )
+                    age_val = max(0.0, 10.0 - age_ded * 2.0)
+                    age_bar = get_suitability_bar(age_val, width=15)
+                    table.add_row(
+                        "",
+                        "  ├─ Age Rating Suitability",
+                        age_bar,
+                        "",
+                        key=f"{base_title}_sub_age",
+                    )
+
+                    # 3. Educational Value Suitability
+                    edu_score = metadata.category_scores.get("Educational Value")
+                    edu_ded = get_edu_suitability_deduction(
+                        edu_score, metadata.user_rating, self.settings.min_quality_rating
+                    )
+                    edu_val = max(0.0, 10.0 - edu_ded * 3.33)
+                    edu_bar = get_suitability_bar(edu_val, width=15)
+                    table.add_row(
+                        "",
+                        "  ├─ Educational Value",
+                        edu_bar,
+                        "",
+                        key=f"{base_title}_sub_edu",
+                    )
+
+                    # 4. Content Safety
+                    content_ded = get_categories_suitability_deduction(
+                        metadata.category_scores, self.settings
+                    )
+                    content_val = max(0.0, 10.0 - content_ded * 1.0)
+                    content_bar = get_suitability_bar(content_val, width=15)
+                    table.add_row(
+                        "",
+                        "  ├─ Content Safety",
+                        content_bar,
+                        "",
+                        key=f"{base_title}_sub_content",
+                    )
+
+                # Now add viewing records
+                for i, rec in enumerate(records):
                     display_title = self._get_display_title(rec.title, base_title)
+                    is_last = i == len(records) - 1
+                    connector = "  └─" if is_last else "  ├─"
                     table.add_row(
                         rec.date_watched.strftime("%Y-%m-%d"),
-                        f"  └─ {display_title}",
+                        f"  {connector} {display_title}",
                         "",
                         "",
                         key=f"{base_title}_{rec.title}_{rec.date_watched.isoformat()}",
