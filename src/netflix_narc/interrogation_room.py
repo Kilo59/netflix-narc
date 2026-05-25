@@ -96,10 +96,12 @@ class InterrogationRoomScreen(Screen[bool]):
                 self.query_one("#input-age-rating", Input).value = str(
                     self.existing_record.content_rating
                 )
-            if self.existing_record.user_rating:
-                self.query_one("#input-quality-rating", Input).value = str(
-                    self.existing_record.user_rating
-                )
+            if self.existing_record.user_rating is not None:
+                # DB stores normalized 0-10 scale; UI expects 1-5
+                display_val = self.existing_record.user_rating / 2
+                # If it's a whole number like 4.0, format it as "4" for aesthetics
+                display_str = f"{display_val:g}"
+                self.query_one("#input-quality-rating", Input).value = display_str
             if self.existing_record.image_url:
                 self.query_one("#input-image-url", Input).value = str(
                     self.existing_record.image_url
@@ -147,7 +149,8 @@ class InterrogationRoomScreen(Screen[bool]):
                 self.notify("Failed to download image.", severity="error")
 
         age_rating = str(age_val) if age_val else None
-        user_rating = float(quality_val) if quality_val else None
+        # Convert UI 1-5 rating into normalized 0-10 DB rating
+        user_rating = (float(quality_val) * 2) if quality_val else None
         final_image_url = str(image_url_val) if image_url_val else None
 
         scores: dict[str, float] = {}
