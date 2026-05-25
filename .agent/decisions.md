@@ -54,3 +54,44 @@ This document tracks significant technical decisions, trade-offs, and design pat
 **Decision**:
 - Reverted to using `self.run_worker(functools.partial(func, *args), ...)` in `main.py`.
 **Rationale**: Minimizes risk of breakage on minor framework updates.
+
+## 7. XDG Config Dir for `.env` Persistence
+**Date**: 2026-05-25
+**Context**: `update_env_file` wrote to a CWD-relative `.env`. This fails silently when the app
+is installed via `pipx` (CWD is unpredictable) and caused age range / weight settings to not
+persist across sessions.
+**Decision**:
+- All settings are written to `~/.config/netflix-narc/.env` via `platformdirs.user_config_dir("netflix-narc")`.
+- `platformdirs` is already a transitive dependency (via Textual) — no new dep required.
+- On first run after this change, an existing CWD `.env` is migrated to the config dir.
+- `Settings.model_config["env_file"]` is updated to point at the config dir path.
+**Rationale**: XDG-compliant, works with `pipx install`, survives CWD changes.
+
+## 8. Onboarding → `OnboardingScreen` + `PreferencesScreen` (SetupScreen retired)
+**Date**: 2026-05-25
+**Context**: `SetupScreen` served double duty as first-run wizard and always-accessible settings.
+It led with API key entry (optional feature), hid category weights entirely, and didn't reliably
+persist settings.
+**Decision**:
+- `SetupScreen` is removed.
+- `OnboardingScreen` (new, `onboarding.py`) — multi-step `ContentSwitcher` wizard, first-run only.
+  Steps: Welcome → Age (required) → Weights (skippable) → API Keys (skippable) → Summary.
+- `PreferencesScreen` (new, `preferences.py`) — always-accessible full settings panel, bound to `s`.
+  Sections: Profile / Content Weights / API & Provider / Advanced.
+- **`AdvancedScreen` is kept** (bound to `a`) for progressive disclosure. It surfaces `Load History
+  File` and `Evaluate via API` for users who haven't discovered the hidden `c`/`e` key bindings.
+  Only its description text is updated to remove the stale reference to "configured an API key in Setup".
+**See**: `.agent/onboarding_overhaul.md` for full design, `.agent/onboarding_overhaul_plan.md` for implementation plan.
+
+
+## 9. Weight Controls: Three-Button Toggle (1–3)
+**Date**: 2026-05-25
+**Context**: `CategoryWeights` fields are integers 1–3 with no UI exposure. The range was kept at
+1–3 (Low / Med / High) for simplicity rather than expanding to 1–5.
+**Decision**:
+- `WeightRow` widget — three `Button` toggles (Low=1, Med=2, High=3). Active button uses `variant="primary"`.
+- `↺` per-row reset button + "Reset All Weights" section button.
+- `DEFAULT_WEIGHTS: ClassVar[dict[str, int]]` added to `CategoryWeights` as the canonical reference
+  for the reset action.
+- All seven `WEIGHTS__*` keys are written to `.env` on every save using pydantic-settings'
+  existing `env_nested_delimiter = "__"` — no model changes needed.
