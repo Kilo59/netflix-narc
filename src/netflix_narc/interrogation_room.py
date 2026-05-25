@@ -53,9 +53,11 @@ class InterrogationRoomScreen(Screen[bool]):
                 yield Button("Search Web [F2]", id="btn-search-web", variant="default")
 
             with Horizontal(classes="form-row"):
-                yield Static("Min Age Rating:")
+                yield Static("Min Age Rating:", classes="form-label")
                 yield Input(id="input-age-rating", placeholder="e.g. 13 or TV-14")
-                yield Static("Quality Rating (1-5):")
+
+            with Horizontal(classes="form-row"):
+                yield Static("Quality Rating (1-5):", classes="form-label")
                 yield Input(id="input-quality-rating", type="number", placeholder="1-5")
 
             yield Static("CSM Category Scores (0-5)", classes="section-header")

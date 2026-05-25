@@ -258,14 +258,13 @@ Select {
     align: left middle;
 }
 
-.form-row Static {
-    margin-right: 1;
+.form-label {
+    width: 30;
     content-align: left middle;
 }
 
 .form-row Input {
-    width: 10;
-    margin-right: 2;
+    width: 20;
 }
 
 .section-header {
