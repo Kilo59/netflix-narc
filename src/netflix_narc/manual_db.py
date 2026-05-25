@@ -149,15 +149,17 @@ class EvidenceLocker:
                     except json.JSONDecodeError:
                         scores = {}
 
-                    records.append(ManualMetadata(
-                        title=row["title"],
-                        content_rating=row["content_rating"],
-                        user_rating=row["user_rating"],
-                        image_url=row["image_url"],
-                        flagged_for_followup=bool(row["flagged_for_followup"]),
-                        ignored=bool(row["ignored"]),
-                        category_scores=scores,
-                    ))
+                    records.append(
+                        ManualMetadata(
+                            title=row["title"],
+                            content_rating=row["content_rating"],
+                            user_rating=row["user_rating"],
+                            image_url=row["image_url"],
+                            flagged_for_followup=bool(row["flagged_for_followup"]),
+                            ignored=bool(row["ignored"]),
+                            category_scores=scores,
+                        )
+                    )
         return records
 
     async def export_to_json(self, filepath: pathlib.Path) -> None:
@@ -173,8 +175,12 @@ class EvidenceLocker:
 
         # Flatten category scores into top level fields for CSV
         fieldnames = [
-            "title", "content_rating", "user_rating", "image_url",
-            "flagged_for_followup", "ignored"
+            "title",
+            "content_rating",
+            "user_rating",
+            "image_url",
+            "flagged_for_followup",
+            "ignored",
         ]
 
         # Add dynamic category fields
@@ -252,6 +258,7 @@ async def main() -> None:
         else:
             await locker.import_from_csv(args.filepath)
         print(f"Imported evidence from {args.filepath}")  # noqa: T201
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -63,6 +63,7 @@ async def test_get_nonexistent_record(temp_db: EvidenceLocker) -> None:
     """Test retrieving a title that doesn't exist."""
     assert await temp_db.get_record("Nonexistent Title") is None
 
+
 @pytest.mark.asyncio
 async def test_ignore_title(temp_db: EvidenceLocker) -> None:
     """Test the convenience method for ignoring a title."""
