@@ -635,6 +635,8 @@ class NetflixNarcApp(App[None]):
                         ("Base Quality", sub_scores["base_quality"]),
                         ("Age Rating", sub_scores["age_rating"]),
                         ("Educational Value", sub_scores["educational_value"]),
+                        ("Positive Messages", sub_scores["positive_messages"]),
+                        ("Positive Role Models", sub_scores["positive_role_models"]),
                         ("Content Safety", sub_scores["content_safety"]),
                     ]:
                         bar_str = get_suitability_bar(sub_score, width=15)

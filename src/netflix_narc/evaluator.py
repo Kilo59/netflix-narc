@@ -17,6 +17,8 @@ class SubSuitabilityScores(TypedDict):
     base_quality: float
     age_rating: float
     educational_value: float
+    positive_messages: float
+    positive_role_models: float
     content_safety: float
 
 
@@ -300,7 +302,7 @@ def calculate_suitability(metadata: NormalizedMetadata, criteria: Settings) -> f
     return max(0.0, min(10.0, score))
 
 
-def calculate_sub_suitabilities(
+def calculate_sub_suitabilities(  # noqa: C901
     metadata: NormalizedMetadata, criteria: Settings
 ) -> SubSuitabilityScores:
     """Calculate normalized scores out of 10.0 for each suitability component."""
@@ -318,14 +320,54 @@ def calculate_sub_suitabilities(
     edu_ded = get_edu_suitability_deduction(edu_score, criteria.weights.educational_value)
     edu_val = max(0.0, 10.0 - edu_ded * 3.33)
 
-    # 4. Content Safety
-    content_ded = get_categories_suitability_deduction(metadata.category_scores, criteria)
-    content_val = max(0.0, 10.0 - content_ded * 1.0)
+    # 4. Positive Messages Suitability
+    msg_score = metadata.category_scores.get("Positive Messages")
+    msg_ded = 0.0
+    if msg_score is not None:
+        deficit = 5.0 - msg_score
+        weighted_deficit = deficit * criteria.weights.positive_messages
+        if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
+            msg_ded = 3.0
+        elif weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
+            msg_ded = 1.5
+    msg_val = max(0.0, 10.0 - msg_ded * 3.33)
+
+    # 5. Positive Role Models Suitability
+    role_score = metadata.category_scores.get("Positive Role Models")
+    role_ded = 0.0
+    if role_score is not None:
+        deficit = 5.0 - role_score
+        weighted_deficit = deficit * criteria.weights.positive_role_models
+        if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
+            role_ded = 3.0
+        elif weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
+            role_ded = 1.5
+    role_val = max(0.0, 10.0 - role_ded * 3.33)
+
+    # 6. Content Safety (Negative Categories only)
+    negative_mapping = {
+        "Violence & Scariness": criteria.weights.violence,
+        "Sexy Stuff": criteria.weights.sexy_stuff,
+        "Language": criteria.weights.language,
+        "Drinking, Drugs & Smoking": criteria.weights.drinking_drugs,
+    }
+    content_ded = 0.0
+    for category, weight in negative_mapping.items():
+        raw_score = metadata.category_scores.get(category)
+        if raw_score is not None:
+            weighted_score = raw_score * weight
+            if weighted_score >= HIGH_DEDUCTION_THRESHOLD:
+                content_ded += 3.0
+            elif weighted_score >= MEDIUM_DEDUCTION_THRESHOLD:
+                content_ded += 1.5
+    content_val = max(0.0, 10.0 - content_ded * 1.66)
 
     return {
         "base_quality": base_val,
         "age_rating": age_val,
         "educational_value": edu_val,
+        "positive_messages": msg_val,
+        "positive_role_models": role_val,
         "content_safety": content_val,
     }
 
