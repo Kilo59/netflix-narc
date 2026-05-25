@@ -128,5 +128,78 @@ def test_evaluate_age_rating_parametrized(
     assert bool(age_flags) == should_flag
 
 
+def test_evaluate_title_flags_zero_educational_value_always():
+    settings = Settings(min_quality_rating=3)  # min quality is 6.0
+    # Educational Value = 0, high quality, default low weight (1)
+    metadata = NormalizedMetadata(
+        title="Zero Educational Show",
+        content_rating="7",
+        user_rating=10.0,  # Perfect 5/5 stars (10.0/10)
+        provider_name="test",
+        category_scores={"Educational Value": 0},
+    )
+    flags = evaluate_title(metadata, settings)
+    assert any("Extremely low Educational Value score (0/5)" in f for f in flags)
+
+
+def test_evaluate_title_flags_one_educational_value_below_perfect_quality():
+    settings = Settings(min_quality_rating=3)
+    # Educational Value = 1, quality is below perfect 10.0
+    metadata = NormalizedMetadata(
+        title="Non-Educational Show 1",
+        content_rating="7",
+        user_rating=8.0,
+        provider_name="test",
+        category_scores={"Educational Value": 1},
+    )
+    flags = evaluate_title(metadata, settings)
+    assert any("Low Educational Value score (1/5) relative to overall quality" in f for f in flags)
+
+
+def test_evaluate_title_escapes_one_educational_value_with_perfect_quality():
+    settings = Settings(min_quality_rating=3)
+    # Educational Value = 1, quality is perfect 10.0
+    metadata = NormalizedMetadata(
+        title="Non-Educational Show 2",
+        content_rating="7",
+        user_rating=10.0,
+        provider_name="test",
+        category_scores={"Educational Value": 1},
+    )
+    flags = evaluate_title(metadata, settings)
+    # 1 score escapes flagging if quality is perfect
+    assert not any("Educational Value" in f for f in flags)
+
+
+def test_evaluate_title_flags_medium_educational_value_with_low_quality():
+    settings = Settings(min_quality_rating=4)  # min quality is 8.0
+    # Educational Value in (2, 3), low quality, default low weight (1)
+    metadata = NormalizedMetadata(
+        title="Low Quality Medium Educational Show",
+        content_rating="7",
+        user_rating=6.0,  # below 8.0
+        provider_name="test",
+        category_scores={"Educational Value": 2},
+    )
+    flags = evaluate_title(metadata, settings)
+    expected_flag = "Medium Educational Value score (2/5) combined with low overall quality"
+    assert any(expected_flag in f for f in flags)
+
+
+def test_evaluate_title_does_not_flag_medium_educational_value_with_high_quality():
+    settings = Settings(min_quality_rating=3)  # min quality is 6.0
+    # Educational Value in (2, 3), high quality, default low weight (1)
+    metadata = NormalizedMetadata(
+        title="High Quality Medium Educational Show",
+        content_rating="7",
+        user_rating=8.0,  # above 6.0
+        provider_name="test",
+        category_scores={"Educational Value": 2},
+    )
+    flags = evaluate_title(metadata, settings)
+    # Should not flag educational value
+    assert not any("Educational Value" in f for f in flags)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])
