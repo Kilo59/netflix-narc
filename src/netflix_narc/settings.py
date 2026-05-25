@@ -14,14 +14,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 DEFAULT_CSV_FILENAME: Final[pathlib.Path] = pathlib.Path("NetflixViewingHistory.csv")
 
 
-def get_config_dir() -> pathlib.Path:
+def get_config_dir(*, create: bool = False) -> pathlib.Path:
     """Return the XDG-compliant user config directory for netflix-narc.
 
-    Creates the directory if it does not already exist.
+    Creates the directory only if create=True.
     Resolves to ~/.config/netflix-narc/ on Linux/macOS.
     """
     d = pathlib.Path(platformdirs.user_config_dir("netflix-narc"))
-    d.mkdir(parents=True, exist_ok=True)
+    if create:
+        d.mkdir(parents=True, exist_ok=True)
     return d
 
 
@@ -59,18 +60,6 @@ class CategoryWeights(BaseSettings):
     contribute to the final weighted-average suitability score (see ADR 12).
     """
 
-    DEFAULT_WEIGHTS: ClassVar[dict[str, int]] = {
-        "base_quality": 4,
-        "age_suitability": 4,
-        "educational_value": 2,
-        "positive_messages": 2,
-        "positive_role_models": 2,
-        "violence": 4,
-        "sexy_stuff": 4,
-        "language": 3,
-        "drinking_drugs": 4,
-    }
-
     # Overall-signal weights
     base_quality: int = 4
     age_suitability: int = 4
@@ -89,7 +78,7 @@ class Settings(BaseSettings):
     """Core application configuration."""
 
     model_config: ClassVar[SettingsConfigDict] = {
-        "env_file": str(get_config_dir() / ".env"),
+        "env_file": str(get_config_dir(create=False) / ".env"),
         "env_file_encoding": "utf-8",
         "env_nested_delimiter": "__",
     }
@@ -144,4 +133,5 @@ def parse_str_age_range(v_str: str) -> tuple[int, int] | None:
         raise ValueError(err_msg)
     if len(parts) == 1:
         return (parts[0], parts[0])
-    return (parts[0], parts[1])
+    p0, p1 = parts[0], parts[1]
+    return (min(p0, p1), max(p0, p1))

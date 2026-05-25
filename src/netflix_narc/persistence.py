@@ -79,12 +79,13 @@ def update_env_file(
     Defaults to the XDG config dir (~/.config/netflix-narc/.env).
     If an existing CWD .env is found on first run it is migrated to the config dir.
     """
-    resolved_path = env_path if env_path is not None else get_config_dir() / ".env"
+    resolved_path = env_path if env_path is not None else get_config_dir(create=True) / ".env"
 
     # One-time migration: if a CWD .env exists and config dir file doesn't yet, migrate it.
-    cwd_env = pathlib.Path(".env")
-    if cwd_env.exists() and not resolved_path.exists() and resolved_path != cwd_env:
-        resolved_path.write_text(cwd_env.read_text(encoding="utf-8"), encoding="utf-8")
+    if env_path is None:
+        cwd_env = pathlib.Path(".env")
+        if cwd_env.exists() and not resolved_path.exists() and resolved_path != cwd_env:
+            resolved_path.write_text(cwd_env.read_text(encoding="utf-8"), encoding="utf-8")
 
     env_lines: list[str] = []
     if resolved_path.exists():

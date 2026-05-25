@@ -45,6 +45,56 @@ SUB_BAR_DEFINITIONS: Final[list[tuple[str, SuitabilityComponent, str]]] = [
 ]
 
 
+class CategoryType(StrEnum):
+    """Types of categories: positive (lower score is bad) or negative (higher score is bad)."""
+
+    POSITIVE = "positive"
+    NEGATIVE = "negative"
+
+
+class CategoryInfo:
+    """Registry mapping category names to weight fields and category types."""
+
+    def __init__(self, weight_field: str, category_type: CategoryType) -> None:
+        """Initialize the category mapping information."""
+        self.weight_field = weight_field
+        self.category_type = category_type
+
+
+CATEGORY_REGISTRY: Final[dict[str, CategoryInfo]] = {
+    "Educational Value": CategoryInfo("educational_value", CategoryType.POSITIVE),
+    "Positive Messages": CategoryInfo("positive_messages", CategoryType.POSITIVE),
+    "Positive Role Models": CategoryInfo("positive_role_models", CategoryType.POSITIVE),
+    "Violence & Scariness": CategoryInfo("violence", CategoryType.NEGATIVE),
+    "Sexy Stuff": CategoryInfo("sexy_stuff", CategoryType.NEGATIVE),
+    "Language": CategoryInfo("language", CategoryType.NEGATIVE),
+    "Drinking, Drugs & Smoking": CategoryInfo("drinking_drugs", CategoryType.NEGATIVE),
+}
+
+
+def _get_category_weight(category: str, criteria: Settings) -> int:
+    """Return the weight configured in Settings for a given category name."""
+    info = CATEGORY_REGISTRY.get(category)
+    if not info:
+        return 1
+    return int(getattr(criteria.weights, info.weight_field))
+
+
+def _formula_deduction(raw_value: float, weight: int) -> float:
+    """Standard category deduction formula: raw_value * weight * 0.12 capped at 3.0."""
+    return min(3.0, raw_value * weight * 0.12)
+
+
+def _calculate_category_deduction(category: str, raw_score: float, criteria: Settings) -> float:
+    """Calculate the suitability deduction for a single category."""
+    info = CATEGORY_REGISTRY.get(category)
+    if not info:
+        return 0.0
+    weight = _get_category_weight(category, criteria)
+    val = 5.0 - raw_score if info.category_type == CategoryType.POSITIVE else raw_score
+    return _formula_deduction(val, weight)
+
+
 def _get_age_limit(content_rating: str | None) -> int | None:
     """Map a content rating string to a numeric age limit."""
     if not content_rating:
@@ -83,28 +133,14 @@ def _evaluate_categories(
     low_score_threshold = 2
     high_weight_threshold = 4
 
-    # Map normalized category strings to weights in Settings
-    mapping = {
-        "Educational Value": criteria.weights.educational_value,
-        "Positive Messages": criteria.weights.positive_messages,
-        "Positive Role Models": criteria.weights.positive_role_models,
-        "Violence & Scariness": criteria.weights.violence,
-        "Sexy Stuff": criteria.weights.sexy_stuff,
-        "Language": criteria.weights.language,
-        "Drinking, Drugs & Smoking": criteria.weights.drinking_drugs,
-    }
-
-    positive_categories = [
-        "Educational Value",
-        "Positive Messages",
-        "Positive Role Models",
-    ]
-
     for category, raw_score in scores.items():
-        weight = mapping.get(category, 1)
+        info = CATEGORY_REGISTRY.get(category)
+        if not info:
+            continue
+        weight = _get_category_weight(category, criteria)
         weighted_score = raw_score * weight
 
-        if category in positive_categories:
+        if info.category_type == CategoryType.POSITIVE:
             if raw_score <= low_score_threshold and weight >= high_weight_threshold:
                 flags.append(f"Low '{category}' score ({raw_score}/5) with high priority weight.")
         elif weighted_score >= flag_threshold:
@@ -206,31 +242,47 @@ HIGH_DEDUCTION_THRESHOLD: Final = 12
 MEDIUM_DEDUCTION_THRESHOLD: Final = 8
 
 
+def _calculate_age_deduction_and_details(
+    content_rating: str | None,
+    child_age_range: tuple[int, int] | None,
+    max_age_rating: int = 12,
+) -> tuple[float, str | None]:
+    """Calculate the age deduction and contextual explanation message."""
+    age_val = _get_age_limit(content_rating)
+    if age_val is None:
+        return 0.0, None
+
+    if child_age_range is None:
+        if age_val > max_age_rating:
+            excess = age_val - max_age_rating
+            deduction = min(5.0, excess * 1.5)
+            return deduction, f"Exceeds maximum allowed age ({max_age_rating})"
+        return 0.0, None
+
+    min_age, max_age = child_age_range
+    if min_age <= age_val <= max_age:
+        return 0.0, None
+
+    range_str = f"{min_age}-{max_age}" if min_age != max_age else str(min_age)
+    if age_val > max_age:
+        excess = age_val - max_age
+        deduction = min(5.0, excess * 1.0)
+        return deduction, f"Exceeds target age range ({range_str})"
+    deficit = min_age - age_val
+    deduction = min(5.0, deficit * 1.0)
+    return deduction, f"Below target age range ({range_str})"
+
+
 def get_age_suitability_deduction(
     content_rating: str | None,
     child_age_range: tuple[int, int] | None,
     max_age_rating: int = 12,
 ) -> float:
     """Calculate suitability deduction based on age rating distance from child's age range."""
-    age_val = _get_age_limit(content_rating)
-    if age_val is None:
-        return 0.0
-
-    if child_age_range is None:
-        if age_val > max_age_rating:
-            excess = age_val - max_age_rating
-            return min(5.0, excess * 1.5)
-        return 0.0
-
-    min_age, max_age = child_age_range
-    if min_age <= age_val <= max_age:
-        return 0.0
-
-    if age_val > max_age:
-        excess = age_val - max_age
-        return min(5.0, excess * 1.0)
-    deficit = min_age - age_val
-    return min(5.0, deficit * 1.0)
+    deduction, _ = _calculate_age_deduction_and_details(
+        content_rating, child_age_range, max_age_rating
+    )
+    return deduction
 
 
 def get_quality_suitability_deduction(
@@ -251,8 +303,7 @@ def get_edu_suitability_deduction(
     """Calculate suitability deduction based on educational value."""
     if edu_score is None:
         return 0.0
-    deficit = 5.0 - edu_score
-    return min(3.0, deficit * weight * 0.12)
+    return _formula_deduction(5.0 - edu_score, weight)
 
 
 def get_categories_suitability_deduction(
@@ -260,33 +311,13 @@ def get_categories_suitability_deduction(
     criteria: Settings,
 ) -> float:
     """Calculate suitability deduction based on negative and positive categories."""
-    negative_mapping = {
-        "Violence & Scariness": criteria.weights.violence,
-        "Sexy Stuff": criteria.weights.sexy_stuff,
-        "Language": criteria.weights.language,
-        "Drinking, Drugs & Smoking": criteria.weights.drinking_drugs,
-    }
-
-    positive_mapping = {
-        "Positive Messages": criteria.weights.positive_messages,
-        "Positive Role Models": criteria.weights.positive_role_models,
-    }
-
     deduction = 0.0
-
-    # Negative categories: deduct if score is high
-    for category, weight in negative_mapping.items():
+    for category in CATEGORY_REGISTRY:
+        if category == "Educational Value":
+            continue
         raw_score = scores.get(category)
         if raw_score is not None:
-            deduction += min(3.0, raw_score * weight * 0.12)
-
-    # Positive categories: deduct if score is low
-    for category, weight in positive_mapping.items():
-        raw_score = scores.get(category)
-        if raw_score is not None:
-            deficit = 5.0 - raw_score
-            deduction += min(3.0, deficit * weight * 0.12)
-
+            deduction += _calculate_category_deduction(category, raw_score, criteria)
     return deduction
 
 
@@ -404,17 +435,14 @@ def _calculate_positive_content_score(
     criteria: Settings,
 ) -> float | None:
     """Return a 0-10 positive-content score, or None if no data is present."""
-    msg_score = scores.get("Positive Messages")
-    role_score = scores.get("Positive Role Models")
-    if msg_score is None and role_score is None:
-        return None
+    categories = ["Positive Messages", "Positive Role Models"]
     deductions: list[float] = []
-    if msg_score is not None:
-        deficit = 5.0 - msg_score
-        deductions.append(min(3.0, deficit * criteria.weights.positive_messages * 0.12))
-    if role_score is not None:
-        deficit = 5.0 - role_score
-        deductions.append(min(3.0, deficit * criteria.weights.positive_role_models * 0.12))
+    for cat in categories:
+        raw_score = scores.get(cat)
+        if raw_score is not None:
+            deductions.append(_calculate_category_deduction(cat, raw_score, criteria))
+    if not deductions:
+        return None
     avg_ded = sum(deductions) / len(deductions)
     return max(0.0, 10.0 - avg_ded * 3.33)
 
@@ -424,17 +452,14 @@ def _calculate_content_safety_score(
     criteria: Settings,
 ) -> float | None:
     """Return a 0-10 content-safety score, or None if no negative-category data is present."""
-    negative_mapping = {
-        "Violence & Scariness": criteria.weights.violence,
-        "Sexy Stuff": criteria.weights.sexy_stuff,
-        "Language": criteria.weights.language,
-        "Drinking, Drugs & Smoking": criteria.weights.drinking_drugs,
-    }
-    safety_deductions: list[float] = [
-        min(3.0, raw * weight * 0.12)
-        for category, weight in negative_mapping.items()
-        if (raw := scores.get(category)) is not None
-    ]
+    safety_deductions: list[float] = []
+    for category, info in CATEGORY_REGISTRY.items():
+        if info.category_type == CategoryType.NEGATIVE:
+            raw_score = scores.get(category)
+            if raw_score is not None:
+                safety_deductions.append(
+                    _calculate_category_deduction(category, raw_score, criteria)
+                )
     if not safety_deductions:
         return None
     return max(0.0, 10.0 - sum(safety_deductions) * 1.66)
@@ -489,29 +514,12 @@ def _explain_age_suitability(
     max_age_rating: int = 12,
 ) -> str | None:
     """Explain deduction for age rating distance."""
-    age_val = _get_age_limit(content_rating)
-    if age_val is None:
-        return None
-
-    if child_age_range is None:
-        if age_val > max_age_rating:
-            excess = age_val - max_age_rating
-            deduction = min(5.0, excess * 1.5)
-            return f"- Exceeds maximum allowed age ({max_age_rating}): -{deduction:.1f}"
-        return None
-
-    min_age, max_age = child_age_range
-    if min_age <= age_val <= max_age:
-        return None
-
-    range_str = f"{min_age}-{max_age}" if min_age != max_age else str(min_age)
-    if age_val > max_age:
-        excess = age_val - max_age
-        deduction = min(5.0, excess * 1.0)
-        return f"- Exceeds target age range ({range_str}): -{deduction:.1f}"
-    deficit = min_age - age_val
-    deduction = min(5.0, deficit * 1.0)
-    return f"- Below target age range ({range_str}): -{deduction:.1f}"
+    deduction, msg = _calculate_age_deduction_and_details(
+        content_rating, child_age_range, max_age_rating
+    )
+    if deduction > 0.0 and msg:
+        return f"- {msg}: -{deduction:.1f}"
+    return None
 
 
 def _explain_quality_suitability(
@@ -546,40 +554,31 @@ def _explain_categories_suitability(
     criteria: Settings,
 ) -> list[str]:
     """Explain deductions for negative and positive categories."""
-    negative_mapping = {
-        "Violence & Scariness": criteria.weights.violence,
-        "Sexy Stuff": criteria.weights.sexy_stuff,
-        "Language": criteria.weights.language,
-        "Drinking, Drugs & Smoking": criteria.weights.drinking_drugs,
-    }
-
-    positive_mapping = {
-        "Positive Messages": criteria.weights.positive_messages,
-        "Positive Role Models": criteria.weights.positive_role_models,
-    }
-
     explanations: list[str] = []
 
-    # Negative categories
-    for category, weight in negative_mapping.items():
-        raw_score = scores.get(category)
-        if raw_score is not None:
-            deduction = min(3.0, raw_score * weight * 0.12)
-            if deduction > MIN_EXPLAIN_DEDUCTION:
-                explanations.append(
-                    f"- High '{category}' score ({raw_score}/5, weight {weight}): -{deduction:.1f}"
-                )
+    # Negative categories first, then positive categories (excluding Educational Value)
+    category_order = [
+        "Violence & Scariness",
+        "Sexy Stuff",
+        "Language",
+        "Drinking, Drugs & Smoking",
+        "Positive Messages",
+        "Positive Role Models",
+    ]
 
-    # Positive categories
-    for category, weight in positive_mapping.items():
+    for category in category_order:
+        info = CATEGORY_REGISTRY[category]
         raw_score = scores.get(category)
         if raw_score is not None:
-            deficit = 5.0 - raw_score
-            deduction = min(3.0, deficit * weight * 0.12)
+            deduction = _calculate_category_deduction(category, raw_score, criteria)
             if deduction > MIN_EXPLAIN_DEDUCTION:
-                explanations.append(
-                    f"- Low '{category}' score ({raw_score}/5, weight {weight}): -{deduction:.1f}"
+                weight = _get_category_weight(category, criteria)
+                qualifier = "Low" if info.category_type == CategoryType.POSITIVE else "High"
+                msg = (
+                    f"- {qualifier} '{category}' score ({raw_score}/5, "
+                    f"weight {weight}): -{deduction:.1f}"
                 )
+                explanations.append(msg)
 
     return explanations
 
