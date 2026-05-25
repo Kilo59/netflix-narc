@@ -362,3 +362,54 @@ Select {
 .suitability-bar-sub {
     color: #808080;
 }
+
+/* Help Screen Styling */
+#help-container {
+    align: center middle;
+    width: 100%;
+    height: 100%;
+}
+
+#help-card {
+    width: 80;
+    height: 90%;
+    background: #181818;
+    border: tall #333333;
+    padding: 2;
+}
+
+#help-scroll {
+    height: 1fr;
+    overflow-y: scroll;
+    padding-right: 2;
+}
+
+.help-title {
+    text-style: bold;
+    color: #E50914;
+    content-align: center middle;
+}
+
+.help-subtitle {
+    color: #808080;
+    content-align: center middle;
+    margin-bottom: 2;
+}
+
+.help-section-title {
+    text-style: bold;
+    color: #E50914;
+    margin-top: 1;
+    margin-bottom: 1;
+}
+
+.help-text {
+    color: #E5E5E5;
+    margin-bottom: 1;
+}
+
+.help-bullet {
+    color: #E5E5E5;
+    margin-left: 2;
+    margin-bottom: 1;
+}

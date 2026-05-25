@@ -33,6 +33,7 @@ from netflix_narc.evaluator import (
     get_suitability_bar,
 )
 from netflix_narc.factory import get_rating_provider
+from netflix_narc.help_screen import HelpScreen
 from netflix_narc.interrogation_room import InterrogationRoomScreen
 from netflix_narc.lineup import LineupScreen
 from netflix_narc.manual_db import EvidenceLocker
@@ -89,6 +90,7 @@ class SetupScreen(Screen[SetupConfig | None]):
             ),
             Input(placeholder="Enter API Key...", id="api-key-input", password=True),
             Input(placeholder="Child's Age or Range (e.g. 10 or 8-12)...", id="child-age-input"),
+            Button("Help / About", id="btn-help"),
             Horizontal(
                 Button("Cancel", variant="error", id="cancel-btn"),
                 Button("Save & Continue", variant="primary", id="save-btn"),
@@ -132,6 +134,8 @@ class SetupScreen(Screen[SetupConfig | None]):
             self._save_settings()
         elif event.button.id == "cancel-btn":
             self.dismiss(None)
+        elif event.button.id == "btn-help":
+            self.narc_app.push_screen(HelpScreen())
 
     def _save_settings(self) -> None:
         """Validate and save settings, then dismiss the screen."""
@@ -230,6 +234,8 @@ class NetflixNarcApp(App[None]):
         ("s", "settings", "Settings"),
         ("e", "evaluate", "Evaluate Titles"),
         ("i", "interrogate", "Interrogate Title"),
+        ("?", "show_help", "Help"),
+        ("h", "show_help", "Help"),
     ]
 
     def __init__(
@@ -357,6 +363,10 @@ class NetflixNarcApp(App[None]):
     def action_settings(self) -> None:
         """Push the setup screen to configure API keys."""
         self.push_screen(SetupScreen(), self.handle_setup_complete)
+
+    def action_show_help(self) -> None:
+        """Push the help screen to explain the app features and usage."""
+        self.push_screen(HelpScreen())
 
     def handle_setup_complete(self, config: SetupConfig | None) -> None:
         """Handle the completion of the setup screen."""
