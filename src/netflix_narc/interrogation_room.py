@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import urllib.parse
 import webbrowser
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, ClassVar, cast, override
 
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
@@ -23,9 +23,11 @@ if TYPE_CHECKING:
 class InterrogationRoomScreen(Screen[bool]):
     """The Interrogation Room Screen: enter manual metadata for a title."""
 
-    BINDINGS = [  # type: ignore[assignment]
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("escape", "cancel", "Cancel"),
-        Binding("ctrl+s", "open_browser", "Search Web"),
+        Binding("f2", "open_browser", "Search Web"),
+        Binding("up", "focus_previous", "Focus Previous", show=False),
+        Binding("down", "focus_next", "Focus Next", show=False),
     ]
 
     def __init__(self, base_title: str) -> None:
@@ -37,8 +39,6 @@ class InterrogationRoomScreen(Screen[bool]):
     @property
     def narc_app(self) -> NetflixNarcApp:
         """Type-safe access to the main app."""
-        from typing import cast
-
         return cast("NetflixNarcApp", self.app)
 
     @override
@@ -46,11 +46,15 @@ class InterrogationRoomScreen(Screen[bool]):
         """Compose the form inputs."""
         yield Header()
         with Container(id="interrogation-container"), Vertical(id="interrogation-card"):
-            yield Static(f"Manual Data Entry for: [b]{self.base_title}[/b]", classes="title-text")
+            with Horizontal(id="interrogation-header"):
+                yield Static(
+                    f"Manual Data Entry for: [b]{self.base_title}[/b]", classes="title-text"
+                )
+                yield Button("Search Web [F2]", id="btn-search-web", variant="default")
 
             with Horizontal(classes="form-row"):
                 yield Static("Min Age Rating:")
-                yield Input(id="input-age-rating", type="integer", placeholder="e.g. 13")
+                yield Input(id="input-age-rating", placeholder="e.g. 13 or TV-14")
                 yield Static("Quality Rating (1-5):")
                 yield Input(id="input-quality-rating", type="number", placeholder="1-5")
 
@@ -95,7 +99,7 @@ class InterrogationRoomScreen(Screen[bool]):
 
     def action_cancel(self) -> None:
         """Discard changes and close."""
-        self.dismiss(False)
+        self.dismiss(False)  # noqa: FBT003
 
     def action_open_browser(self) -> None:
         """Open the default web browser to search for this title on Common Sense Media."""
@@ -133,7 +137,7 @@ class InterrogationRoomScreen(Screen[bool]):
         # Optionally update evaluated flags cache so we don't need a full rebuild
         self.narc_app.evaluated_flags.pop(self.base_title, None)
 
-        self.dismiss(True)
+        self.dismiss(True)  # noqa: FBT003
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle save or cancel."""
@@ -141,3 +145,5 @@ class InterrogationRoomScreen(Screen[bool]):
             self.action_cancel()
         elif event.button.id == "btn-save":
             await self._save_record()
+        elif event.button.id == "btn-search-web":
+            self.action_open_browser()

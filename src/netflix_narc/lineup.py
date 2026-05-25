@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, ClassVar, cast, override
 
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class LineupScreen(Screen[None]):
     """The Lineup Screen: sequentially review titles in the queue."""
 
-    BINDINGS = [  # type: ignore[assignment]
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("q", "app.pop_screen", "Quit Lineup"),
         Binding("i", "interrogate", "Interrogate"),
         Binding("x", "ignore", "Ignore"),
@@ -38,20 +38,17 @@ class LineupScreen(Screen[None]):
     @property
     def narc_app(self) -> NetflixNarcApp:
         """Type-safe access to the main app."""
-        from typing import cast
-
         return cast("NetflixNarcApp", self.app)
 
     @override
     def compose(self) -> ComposeResult:
         """Compose the child widgets for the Lineup Screen."""
         yield Header()
-        with Container(id="lineup-container"):
-            with Vertical(id="lineup-card"):
-                yield Static(id="lineup-counter")
-                yield Static(id="lineup-title", classes="title-text")
-                yield Static(id="lineup-date", classes="meta-text")
-                yield Static(id="lineup-flags", classes="meta-text")
+        with Container(id="lineup-container"), Vertical(id="lineup-card"):
+            yield Static(id="lineup-counter")
+            yield Static(id="lineup-title", classes="title-text")
+            yield Static(id="lineup-date", classes="meta-text")
+            yield Static(id="lineup-flags", classes="meta-text")
 
             with Horizontal(id="lineup-actions"):
                 yield Button("Interrogate [I]", id="btn-interrogate", variant="primary")
