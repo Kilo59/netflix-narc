@@ -221,40 +221,41 @@ def get_quality_suitability_deduction(
 
 def get_edu_suitability_deduction(
     edu_score: float | None,
-    user_rating: float | None,
-    min_quality_rating: int,
+    weight: int,
 ) -> float:
     """Calculate suitability deduction based on educational value."""
     if edu_score is None:
         return 0.0
-
-    if edu_score <= 0:
+    deficit = 5.0 - edu_score
+    weighted_deficit = deficit * weight
+    if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
         return 3.0
-    if edu_score == 1:
-        if user_rating is None or user_rating < PERFECT_QUALITY_RATING:
-            return 2.0
-    elif edu_score in (2, 3):
-        min_normalized = min_quality_rating * 2
-        is_low_quality = user_rating is not None and user_rating < min_normalized
-        if is_low_quality:
-            return 1.0
+    if weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
+        return 1.5
     return 0.0
 
 
-def get_categories_suitability_deduction(
+def get_categories_suitability_deduction(  # noqa: C901
     scores: dict[str, int | float],
     criteria: Settings,
 ) -> float:
-    """Calculate suitability deduction based on negative categories."""
-    mapping = {
+    """Calculate suitability deduction based on negative and positive categories."""
+    negative_mapping = {
         "Violence & Scariness": criteria.weights.violence,
         "Sexy Stuff": criteria.weights.sexy_stuff,
         "Language": criteria.weights.language,
         "Drinking, Drugs & Smoking": criteria.weights.drinking_drugs,
     }
 
+    positive_mapping = {
+        "Positive Messages": criteria.weights.positive_messages,
+        "Positive Role Models": criteria.weights.positive_role_models,
+    }
+
     deduction = 0.0
-    for category, weight in mapping.items():
+
+    # Negative categories: deduct if score is high
+    for category, weight in negative_mapping.items():
         raw_score = scores.get(category)
         if raw_score is not None:
             weighted_score = raw_score * weight
@@ -262,6 +263,18 @@ def get_categories_suitability_deduction(
                 deduction += 3.0
             elif weighted_score >= MEDIUM_DEDUCTION_THRESHOLD:
                 deduction += 1.5
+
+    # Positive categories: deduct if score is low
+    for category, weight in positive_mapping.items():
+        raw_score = scores.get(category)
+        if raw_score is not None:
+            deficit = 5.0 - raw_score
+            weighted_deficit = deficit * weight
+            if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
+                deduction += 3.0
+            elif weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
+                deduction += 1.5
+
     return deduction
 
 
@@ -279,9 +292,7 @@ def calculate_suitability(metadata: NormalizedMetadata, criteria: Settings) -> f
     score -= get_quality_suitability_deduction(metadata.user_rating, criteria.min_quality_rating)
 
     edu_score = metadata.category_scores.get("Educational Value")
-    score -= get_edu_suitability_deduction(
-        edu_score, metadata.user_rating, criteria.min_quality_rating
-    )
+    score -= get_edu_suitability_deduction(edu_score, criteria.weights.educational_value)
 
     score -= get_categories_suitability_deduction(metadata.category_scores, criteria)
 
@@ -304,9 +315,7 @@ def calculate_sub_suitabilities(
 
     # 3. Educational Value Suitability
     edu_score = metadata.category_scores.get("Educational Value")
-    edu_ded = get_edu_suitability_deduction(
-        edu_score, metadata.user_rating, criteria.min_quality_rating
-    )
+    edu_ded = get_edu_suitability_deduction(edu_score, criteria.weights.educational_value)
     edu_val = max(0.0, 10.0 - edu_ded * 3.33)
 
     # 4. Content Safety
@@ -366,40 +375,42 @@ def _explain_quality_suitability(
 
 def _explain_edu_suitability(
     edu_score: float | None,
-    user_rating: float | None,
-    min_quality_rating: int,
+    weight: int,
 ) -> str | None:
     """Explain deduction for educational value."""
     if edu_score is None:
         return None
 
-    if edu_score <= 0:
-        return "- Extremely low Educational Value score (0/5): -3.0"
-    if edu_score == 1:
-        if user_rating is None or user_rating < PERFECT_QUALITY_RATING:
-            return "- Low Educational Value score (1/5) relative to quality: -2.0"
-    elif edu_score in (2, 3):
-        min_normalized = min_quality_rating * 2
-        is_low_quality = user_rating is not None and user_rating < min_normalized
-        if is_low_quality:
-            return "- Medium Educational Value score (2-3/5) with low overall quality: -1.0"
+    deficit = 5.0 - edu_score
+    weighted_deficit = deficit * weight
+    if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
+        return f"- Low Educational Value score ({edu_score}/5, weight {weight}): -3.0"
+    if weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
+        return f"- Mediocre Educational Value score ({edu_score}/5, weight {weight}): -1.5"
     return None
 
 
-def _explain_categories_suitability(
+def _explain_categories_suitability(  # noqa: C901
     scores: dict[str, int | float],
     criteria: Settings,
 ) -> list[str]:
-    """Explain deductions for negative categories."""
-    mapping = {
+    """Explain deductions for negative and positive categories."""
+    negative_mapping = {
         "Violence & Scariness": criteria.weights.violence,
         "Sexy Stuff": criteria.weights.sexy_stuff,
         "Language": criteria.weights.language,
         "Drinking, Drugs & Smoking": criteria.weights.drinking_drugs,
     }
 
+    positive_mapping = {
+        "Positive Messages": criteria.weights.positive_messages,
+        "Positive Role Models": criteria.weights.positive_role_models,
+    }
+
     explanations: list[str] = []
-    for category, weight in mapping.items():
+
+    # Negative categories
+    for category, weight in negative_mapping.items():
         raw_score = scores.get(category)
         if raw_score is not None:
             weighted_score = raw_score * weight
@@ -411,6 +422,22 @@ def _explain_categories_suitability(
                 explanations.append(
                     f"- Elevated '{category}' score ({raw_score}/5, weight {weight}): -1.5"
                 )
+
+    # Positive categories
+    for category, weight in positive_mapping.items():
+        raw_score = scores.get(category)
+        if raw_score is not None:
+            deficit = 5.0 - raw_score
+            weighted_deficit = deficit * weight
+            if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
+                explanations.append(
+                    f"- Low '{category}' score ({raw_score}/5, weight {weight}): -3.0"
+                )
+            elif weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
+                explanations.append(
+                    f"- Mediocre '{category}' score ({raw_score}/5, weight {weight}): -1.5"
+                )
+
     return explanations
 
 
@@ -433,9 +460,7 @@ def explain_suitability(metadata: NormalizedMetadata, criteria: Settings) -> lis
         explanations.append(quality_expl)
 
     edu_score = metadata.category_scores.get("Educational Value")
-    edu_expl = _explain_edu_suitability(
-        edu_score, metadata.user_rating, criteria.min_quality_rating
-    )
+    edu_expl = _explain_edu_suitability(edu_score, criteria.weights.educational_value)
     if edu_expl:
         explanations.append(edu_expl)
 
