@@ -210,3 +210,5 @@ __marimo__/
 NetflixViewingHistory.csv
 
 *.sqlite
+
+.evidence_images/
