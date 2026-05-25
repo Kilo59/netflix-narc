@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, TypedDict
 
 if TYPE_CHECKING:
     from netflix_narc.rating_api import NormalizedMetadata
     from netflix_narc.settings import Settings
 
 PERFECT_QUALITY_RATING: Final = 10.0
+
+
+class SubSuitabilityScores(TypedDict):
+    """Sub-suitability scores out of 10.0 for each component."""
+
+    base_quality: float
+    age_rating: float
+    educational_value: float
+    content_safety: float
 
 
 def _get_age_limit(content_rating: str | None) -> int | None:
@@ -243,6 +252,36 @@ def calculate_suitability(metadata: NormalizedMetadata, criteria: Settings) -> f
 
     # Bound the score between 0.0 and 10.0
     return max(0.0, min(10.0, score))
+
+
+def calculate_sub_suitabilities(
+    metadata: NormalizedMetadata, criteria: Settings
+) -> SubSuitabilityScores:
+    """Calculate normalized scores out of 10.0 for each suitability component."""
+    # 1. Base Quality
+    base_val = metadata.user_rating if metadata.user_rating is not None else 5.0
+
+    # 2. Age Rating Suitability
+    age_ded = get_age_suitability_deduction(metadata.content_rating, criteria.max_age_rating)
+    age_val = max(0.0, 10.0 - age_ded * 2.0)
+
+    # 3. Educational Value Suitability
+    edu_score = metadata.category_scores.get("Educational Value")
+    edu_ded = get_edu_suitability_deduction(
+        edu_score, metadata.user_rating, criteria.min_quality_rating
+    )
+    edu_val = max(0.0, 10.0 - edu_ded * 3.33)
+
+    # 4. Content Safety
+    content_ded = get_categories_suitability_deduction(metadata.category_scores, criteria)
+    content_val = max(0.0, 10.0 - content_ded * 1.0)
+
+    return {
+        "base_quality": base_val,
+        "age_rating": age_val,
+        "educational_value": edu_val,
+        "content_safety": content_val,
+    }
 
 
 def _explain_age_suitability(

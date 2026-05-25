@@ -16,11 +16,9 @@ from textual.widgets import Button, Checkbox, Footer, Header, Input, Static
 
 from netflix_narc.csm_api import CSMRatingCategory as CSMCategory
 from netflix_narc.evaluator import (
+    calculate_sub_suitabilities,
     calculate_suitability,
     explain_suitability,
-    get_age_suitability_deduction,
-    get_categories_suitability_deduction,
-    get_edu_suitability_deduction,
     get_suitability_bar,
 )
 from netflix_narc.image_utils import download_image_to_path, save_image_from_clipboard
@@ -273,37 +271,22 @@ class InterrogationRoomScreen(Screen[bool]):
             f"Overall Suitability:  {overall_bar}"
         )
 
+        sub_scores = calculate_sub_suitabilities(metadata, self.narc_app.settings)
+
         # 2. Base Quality
-        base_val = metadata.user_rating if metadata.user_rating is not None else 5.0
-        base_bar = get_suitability_bar(base_val, width=15)
+        base_bar = get_suitability_bar(sub_scores["base_quality"], width=15)
         self.query_one("#base-quality-bar", Static).update(f"  └─ Base Quality:     {base_bar}")
 
         # 3. Age Rating Suitability
-        age_ded = get_age_suitability_deduction(
-            metadata.content_rating, self.narc_app.settings.max_age_rating
-        )
-        # Normalize age suitability out of 10
-        age_val = max(0.0, 10.0 - age_ded * 2.0)
-        age_bar = get_suitability_bar(age_val, width=15)
+        age_bar = get_suitability_bar(sub_scores["age_rating"], width=15)
         self.query_one("#age-suitability-bar", Static).update(f"  └─ Age Rating:       {age_bar}")
 
         # 4. Educational Value
-        edu_score = scores.get("Educational Value")
-        edu_ded = get_edu_suitability_deduction(
-            edu_score, metadata.user_rating, self.narc_app.settings.min_quality_rating
-        )
-        # Normalize edu suitability out of 10
-        edu_val = max(0.0, 10.0 - edu_ded * 3.33)
-        edu_bar = get_suitability_bar(edu_val, width=15)
+        edu_bar = get_suitability_bar(sub_scores["educational_value"], width=15)
         self.query_one("#edu-suitability-bar", Static).update(f"  └─ Educational Value:{edu_bar}")
 
-        # 5. Content Safety (negative categories)
-        content_ded = get_categories_suitability_deduction(
-            metadata.category_scores, self.narc_app.settings
-        )
-        # Normalize content suitability out of 10
-        content_val = max(0.0, 10.0 - content_ded * 1.0)
-        content_bar = get_suitability_bar(content_val, width=15)
+        # 5. Content Safety
+        content_bar = get_suitability_bar(sub_scores["content_safety"], width=15)
         self.query_one("#content-suitability-bar", Static).update(
             f"  └─ Content Safety:   {content_bar}"
         )

@@ -27,11 +27,9 @@ from textual.widgets import (
 from textual.worker import Worker, WorkerState
 
 from netflix_narc.evaluator import (
+    calculate_sub_suitabilities,
     calculate_suitability,
     evaluate_title,
-    get_age_suitability_deduction,
-    get_categories_suitability_deduction,
-    get_edu_suitability_deduction,
     get_suitability_bar,
 )
 from netflix_narc.factory import get_rating_provider
@@ -485,59 +483,21 @@ class NetflixNarcApp(App[None]):
                 # Add Suitability sub-bars if metadata is available
                 metadata = await self._get_merged_metadata(base_title)
                 if metadata:
-                    # 1. Base Quality
-                    base_val = metadata.user_rating if metadata.user_rating is not None else 5.0
-                    base_bar = get_suitability_bar(base_val, width=15)
-                    table.add_row(
-                        "",
-                        "  ├─ Base Quality",
-                        base_bar,
-                        "",
-                        key=f"{base_title}_sub_quality",
-                    )
-
-                    # 2. Age Rating Suitability
-                    age_ded = get_age_suitability_deduction(
-                        metadata.content_rating, self.settings.max_age_rating
-                    )
-                    age_val = max(0.0, 10.0 - age_ded * 2.0)
-                    age_bar = get_suitability_bar(age_val, width=15)
-                    table.add_row(
-                        "",
-                        "  ├─ Age Rating Suitability",
-                        age_bar,
-                        "",
-                        key=f"{base_title}_sub_age",
-                    )
-
-                    # 3. Educational Value Suitability
-                    edu_score = metadata.category_scores.get("Educational Value")
-                    edu_ded = get_edu_suitability_deduction(
-                        edu_score, metadata.user_rating, self.settings.min_quality_rating
-                    )
-                    edu_val = max(0.0, 10.0 - edu_ded * 3.33)
-                    edu_bar = get_suitability_bar(edu_val, width=15)
-                    table.add_row(
-                        "",
-                        "  ├─ Educational Value",
-                        edu_bar,
-                        "",
-                        key=f"{base_title}_sub_edu",
-                    )
-
-                    # 4. Content Safety
-                    content_ded = get_categories_suitability_deduction(
-                        metadata.category_scores, self.settings
-                    )
-                    content_val = max(0.0, 10.0 - content_ded * 1.0)
-                    content_bar = get_suitability_bar(content_val, width=15)
-                    table.add_row(
-                        "",
-                        "  ├─ Content Safety",
-                        content_bar,
-                        "",
-                        key=f"{base_title}_sub_content",
-                    )
+                    sub_scores = calculate_sub_suitabilities(metadata, self.settings)
+                    for label, sub_score in [
+                        ("Base Quality", sub_scores["base_quality"]),
+                        ("Age Rating", sub_scores["age_rating"]),
+                        ("Educational Value", sub_scores["educational_value"]),
+                        ("Content Safety", sub_scores["content_safety"]),
+                    ]:
+                        bar_str = get_suitability_bar(sub_score, width=15)
+                        table.add_row(
+                            "",
+                            f"  ├─ {label}",
+                            bar_str,
+                            "",
+                            key=f"{base_title}_sub_{label.lower().replace(' ', '_')}",
+                        )
 
                 # Now add viewing records
                 for i, rec in enumerate(records):
