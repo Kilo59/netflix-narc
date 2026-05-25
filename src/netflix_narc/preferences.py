@@ -41,11 +41,13 @@ class PreferencesScreen(Screen[None]):
         self,
         settings: Settings,
         preview_records: list[ManualMetadata] | None = None,
+        all_eligible: list[ManualMetadata] | None = None,
     ) -> None:
-        """Initialise with the current settings and optional preview records."""
+        """Initialise with current settings, sampled preview records, and full eligible pool."""
         super().__init__()
         self._settings = settings
         self._preview_records: list[ManualMetadata] = preview_records or []
+        self._all_eligible: list[ManualMetadata] = all_eligible or []
 
     @override
     def compose(self) -> ComposeResult:
@@ -88,6 +90,7 @@ class PreferencesScreen(Screen[None]):
                         yield WeightImpactPreview(
                             self._preview_records,
                             self._settings,
+                            all_eligible=self._all_eligible,
                         )
 
             # ── API / Provider ────────────────────────────────────────

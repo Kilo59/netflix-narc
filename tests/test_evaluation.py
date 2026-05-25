@@ -16,7 +16,7 @@ from netflix_narc.settings import Settings
 
 
 def test_evaluate_title_flags_age():
-    settings = Settings(max_age_rating=10)
+    settings = Settings(max_age_rating=10, _env_file=None)  # type: ignore[call-arg]
     metadata = NormalizedMetadata(
         title="Mature Show", content_rating="12", user_rating=8.0, provider_name="test"
     )
@@ -26,7 +26,7 @@ def test_evaluate_title_flags_age():
 
 
 def test_evaluate_title_flags_quality():
-    settings = Settings(min_quality_rating=4)  # 4/5 means 8/10
+    settings = Settings(min_quality_rating=4, _env_file=None)  # type: ignore[call-arg]  # 4/5 means 8/10
     metadata = NormalizedMetadata(
         title="Mediocre Show",
         content_rating="7",
@@ -39,7 +39,7 @@ def test_evaluate_title_flags_quality():
 
 
 def test_evaluate_title_flags_violence():
-    settings = Settings()
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
     settings.weights.violence = 3
     # 3 * 3 = 9 > 8 threshold
     metadata = NormalizedMetadata(
@@ -55,7 +55,7 @@ def test_evaluate_title_flags_violence():
 
 
 def test_evaluate_title_flags_low_educational_value_with_high_weight():
-    settings = Settings()
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
     # High importance on a positive category
     settings.weights.educational_value = 3
     # low_score_threshold branch: low raw score with high weight
@@ -72,7 +72,7 @@ def test_evaluate_title_flags_low_educational_value_with_high_weight():
 
 
 def test_evaluate_title_does_not_flag_violence_when_weight_is_low():
-    settings = Settings()
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
     # Low importance on a negative category, so weighted_score stays below flag_threshold
     settings.weights.violence = 1
     # Somewhat high raw score, but low weight should prevent flagging
@@ -89,7 +89,7 @@ def test_evaluate_title_does_not_flag_violence_when_weight_is_low():
 
 
 def test_evaluate_title_passes_appropriate():
-    settings = Settings(max_age_rating=12, min_quality_rating=3)
+    settings = Settings(max_age_rating=12, min_quality_rating=3, _env_file=None)  # type: ignore[call-arg]
     metadata = NormalizedMetadata(
         title="Family Show",
         content_rating="7",
@@ -122,7 +122,7 @@ def test_evaluate_age_rating_parametrized(
     should_flag: bool,
 ) -> None:
     """Parametrized sweep of age-rating checks."""
-    settings = Settings(max_age_rating=max_age)
+    settings = Settings(max_age_rating=max_age, _env_file=None)  # type: ignore[call-arg]
     metadata = NormalizedMetadata(
         title="Test Title",
         content_rating=content_rating,
@@ -135,7 +135,7 @@ def test_evaluate_age_rating_parametrized(
 
 
 def test_evaluate_title_flags_zero_educational_value_always():
-    settings = Settings(min_quality_rating=3)  # min quality is 6.0
+    settings = Settings(min_quality_rating=3, _env_file=None)  # type: ignore[call-arg]  # min quality is 6.0
     # Educational Value = 0, high quality, default low weight (1)
     metadata = NormalizedMetadata(
         title="Zero Educational Show",
@@ -149,7 +149,7 @@ def test_evaluate_title_flags_zero_educational_value_always():
 
 
 def test_evaluate_title_flags_one_educational_value_below_perfect_quality():
-    settings = Settings(min_quality_rating=3)
+    settings = Settings(min_quality_rating=3, _env_file=None)  # type: ignore[call-arg]
     # Educational Value = 1, quality is below perfect 10.0
     metadata = NormalizedMetadata(
         title="Non-Educational Show 1",
@@ -163,7 +163,7 @@ def test_evaluate_title_flags_one_educational_value_below_perfect_quality():
 
 
 def test_evaluate_title_escapes_one_educational_value_with_perfect_quality():
-    settings = Settings(min_quality_rating=3)
+    settings = Settings(min_quality_rating=3, _env_file=None)  # type: ignore[call-arg]
     # Educational Value = 1, quality is perfect 10.0
     metadata = NormalizedMetadata(
         title="Non-Educational Show 2",
@@ -178,7 +178,7 @@ def test_evaluate_title_escapes_one_educational_value_with_perfect_quality():
 
 
 def test_evaluate_title_flags_medium_educational_value_with_low_quality():
-    settings = Settings(min_quality_rating=4)  # min quality is 8.0
+    settings = Settings(min_quality_rating=4, _env_file=None)  # type: ignore[call-arg]  # min quality is 8.0
     # Educational Value in (2, 3), low quality, default low weight (1)
     metadata = NormalizedMetadata(
         title="Low Quality Medium Educational Show",
@@ -193,7 +193,7 @@ def test_evaluate_title_flags_medium_educational_value_with_low_quality():
 
 
 def test_evaluate_title_does_not_flag_medium_educational_value_with_high_quality():
-    settings = Settings(min_quality_rating=3)  # min quality is 6.0
+    settings = Settings(min_quality_rating=3, _env_file=None)  # type: ignore[call-arg]  # min quality is 6.0
     # Educational Value in (2, 3), high quality, default low weight (1)
     metadata = NormalizedMetadata(
         title="High Quality Medium Educational Show",
@@ -208,7 +208,7 @@ def test_evaluate_title_does_not_flag_medium_educational_value_with_high_quality
 
 
 def test_calculate_suitability_excellent():
-    settings = Settings()
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
     metadata = NormalizedMetadata(
         title="Excellent Title",
         content_rating="PG",
@@ -222,7 +222,7 @@ def test_calculate_suitability_excellent():
 
 
 def test_calculate_suitability_with_deductions():
-    settings = Settings(max_age_rating=10, min_quality_rating=4)  # min quality is 8.0
+    settings = Settings(max_age_rating=10, min_quality_rating=4, _env_file=None)  # type: ignore[call-arg]  # min quality is 8.0
     metadata = NormalizedMetadata(
         title="Flawed Title",
         content_rating="12",  # age rating exceeds
@@ -251,7 +251,7 @@ def test_get_suitability_bar():
 
 
 def test_explain_suitability():
-    settings = Settings(max_age_rating=10, min_quality_rating=4)
+    settings = Settings(max_age_rating=10, min_quality_rating=4, _env_file=None)  # type: ignore[call-arg]
     metadata = NormalizedMetadata(
         title="Flawed Title",
         content_rating="12",
@@ -283,7 +283,7 @@ def test_parse_child_age_range():
 
 def test_age_distance_suitability_symmetric():
     # child age range is (8, 12)
-    settings = Settings(child_age_range=(8, 12))
+    settings = Settings(child_age_range=(8, 12), _env_file=None)  # type: ignore[call-arg]
 
     # Title is exact match / inside range -> deduction is 0.0
     metadata_ok = NormalizedMetadata(

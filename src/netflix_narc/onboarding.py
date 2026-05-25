@@ -204,22 +204,38 @@ class WeightImpactPreview(Widget):
         color: #444444;
         margin-top: 1;
     }
+    WeightImpactPreview #wip-pin-select {
+        margin-bottom: 1;
+        height: 3;
+    }
     """
 
     def __init__(
         self,
         preview_records: list[ManualMetadata],
         baseline_settings: Settings,
+        all_eligible: list[ManualMetadata] | None = None,
     ) -> None:
-        """Initialise with eligible preview records and the current saved settings."""
+        """Initialise with sampled records, baseline settings, and the full eligible pool."""
         super().__init__()
         self._records = preview_records
         self._baseline_settings = baseline_settings
+        self._all_eligible: list[ManualMetadata] = all_eligible or []
+        self._pinned: ManualMetadata | None = None
         self._current_weights = CategoryWeights(**CategoryWeights.DEFAULT_WEIGHTS)
 
     @override
     def compose(self) -> ComposeResult:
+        """Compose the preview panel: title, optional pin-select, and body."""
         yield Static("WEIGHT IMPACT PREVIEW", classes="wip-title")
+        if len(self._all_eligible) >= _MIN_PREVIEW_TITLES:
+            options: list[tuple[str, str]] = [(r.title, r.title) for r in self._all_eligible]
+            yield Select(
+                options,
+                prompt="📌 Pin a title…",
+                id="wip-pin-select",
+                allow_blank=True,
+            )
         yield Static("", id="wip-body")
 
     def on_mount(self) -> None:
@@ -236,12 +252,34 @@ class WeightImpactPreview(Widget):
         self._current_weights = CategoryWeights(**kwargs)
         self._render_preview(self._current_weights)
 
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Pin or unpin a specific title in the impact preview."""
+        event.stop()
+        if event.select.id != "wip-pin-select":
+            return
+        if event.value is Select.BLANK:
+            self._pinned = None
+        else:
+            self._pinned = next((r for r in self._all_eligible if r.title == event.value), None)
+        self._render_preview(self._current_weights)
+
     def _render_preview(self, live_weights: CategoryWeights) -> None:
         body = self.query_one("#wip-body", Static)
 
-        if len(self._records) < _MIN_PREVIEW_TITLES:
+        # Build display list: pinned title first (always), then sampled (deduped)
+        display: list[tuple[ManualMetadata, bool]] = []  # (record, is_pinned)
+        if self._pinned is not None:
+            display.append((self._pinned, True))
+        display.extend(
+            (r, False)
+            for r in self._records
+            if self._pinned is None or r.title != self._pinned.title
+        )
+        display = display[:_MAX_PREVIEW_TITLES]
+
+        if len(display) < _MIN_PREVIEW_TITLES:
             body.update(
-                "[dim]Complete more title dossiers (≥70%)\nto unlock the impact preview.[/dim]"
+                "[dim]Complete more title dossiers (\u226570%)\nto unlock the impact preview.[/dim]"
             )
             return
 
@@ -249,34 +287,52 @@ class WeightImpactPreview(Widget):
         live_settings = copy.copy(self._baseline_settings)
         live_settings.weights = live_weights
 
-        for record in self._records:
+        for record, is_pinned in display:
             meta = record.to_normalized_metadata()
             before = calculate_suitability(meta, self._baseline_settings)
             after = calculate_suitability(meta, live_settings)
             delta = after - before
 
-            if len(record.title) > _TITLE_MAX_LEN:
-                title_display = record.title[:24] + "\u2026"
-            else:
-                title_display = record.title
+            raw_title = record.title
+            if len(raw_title) > _TITLE_MAX_LEN:
+                raw_title = raw_title[:24] + "\u2026"
+            pin_mark = "\U0001f4cc " if is_pinned else ""
+            title_display = f"{pin_mark}{raw_title}"
 
             before_bar = get_suitability_bar(before, width=8)
             after_bar = get_suitability_bar(after, width=8)
 
             if abs(delta) < _DELTA_EPSILON:
-                delta_str = "[dim]—[/dim]"
+                delta_str = "[dim]\u2014[/dim]"
             elif delta > 0:
-                delta_str = f"[green]↑ +{delta:.1f}[/green]"
+                delta_str = f"[green]\u2191 +{delta:.1f}[/green]"
             else:
-                delta_str = f"[red]↓ {delta:.1f}[/red]"
+                delta_str = f"[red]\u2193 {delta:.1f}[/red]"
 
             lines.append(f"[bold]{title_display}[/bold]")
-            lines.append(f"  {before_bar} → {after_bar}  {delta_str}")
+            lines.append(f"  {before_bar} \u2192 {after_bar}  {delta_str}")
 
+        count = len(display)
         lines.append(
-            f"\n[dim]{len(self._records)} titles  •  ≥{_COMPLETENESS_THRESHOLD}% complete[/dim]"
+            f"\n[dim]{count} titles  \u2022  \u2265{_COMPLETENESS_THRESHOLD}% complete[/dim]"
         )
         body.update("\n".join(lines))
+
+    @classmethod
+    def get_eligible_records(
+        cls,
+        all_records: list[ManualMetadata],
+        baseline_settings: Settings,
+    ) -> list[ManualMetadata]:
+        """Return all records with completeness >= threshold, sorted by suitability score."""
+        return sorted(
+            [
+                r
+                for r in all_records
+                if r.completeness_score >= _COMPLETENESS_THRESHOLD and not r.ignored
+            ],
+            key=lambda r: calculate_suitability(r.to_normalized_metadata(), baseline_settings),
+        )
 
     @classmethod
     def select_preview_records(
@@ -285,21 +341,13 @@ class WeightImpactPreview(Widget):
         baseline_settings: Settings,
     ) -> list[ManualMetadata]:
         """Filter, score, sort and sample records for the preview panel."""
-        eligible = [
-            r
-            for r in all_records
-            if r.completeness_score >= _COMPLETENESS_THRESHOLD and not r.ignored
-        ]
+        eligible = cls.get_eligible_records(all_records, baseline_settings)
         if len(eligible) < _MIN_PREVIEW_TITLES:
             return eligible  # will trigger the graceful-hide path
 
-        scored = sorted(
-            eligible,
-            key=lambda r: calculate_suitability(r.to_normalized_metadata(), baseline_settings),
-        )
-        n = min(_MAX_PREVIEW_TITLES, len(scored))
-        indices = _sample_indices(len(scored), n)
-        return [scored[i] for i in indices]
+        n = min(_MAX_PREVIEW_TITLES, len(eligible))
+        indices = _sample_indices(len(eligible), n)
+        return [eligible[i] for i in indices]
 
 
 # ──────────────────────────────────────────────
@@ -335,11 +383,13 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         self,
         preview_records: list[ManualMetadata] | None = None,
         baseline_settings: Settings | None = None,
+        all_eligible: list[ManualMetadata] | None = None,
     ) -> None:
-        """Initialise the wizard with optional preview records and baseline settings."""
+        """Initialise the wizard with optional preview, baseline settings, and eligible pool."""
         super().__init__()
         self._preview_records: list[ManualMetadata] = preview_records or []
         self._baseline_settings = baseline_settings
+        self._all_eligible: list[ManualMetadata] = all_eligible or []
         self._current_step = 0
         self._child_age_range: tuple[int, int] | None = None
         self._age_valid = False
@@ -405,6 +455,7 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
                         yield WeightImpactPreview(
                             self._preview_records,
                             self._baseline_settings,
+                            all_eligible=self._all_eligible,
                         )
             # Step 3: API
             with Container(id="step-api", classes="hidden"):

@@ -308,10 +308,12 @@ class NetflixNarcApp(App[None]):
 
     def action_settings(self) -> None:
         """Push the Preferences screen."""
+        sampled, all_eligible = self._get_preview_records()
         self.push_screen(
             PreferencesScreen(
                 settings=self.settings,
-                preview_records=self._get_preview_records(),
+                preview_records=sampled,
+                all_eligible=all_eligible,
             )
         )
 
@@ -323,34 +325,39 @@ class NetflixNarcApp(App[None]):
         """Push the help screen to explain the app features and usage."""
         self.push_screen(HelpScreen())
 
-    def _get_preview_records(self) -> list[ManualMetadata]:
-        """Fetch Evidence Locker records eligible for the weight impact preview."""
+    def _get_preview_records(self) -> tuple[list[ManualMetadata], list[ManualMetadata]]:
+        """Fetch sampled preview records and the full eligible pool for the pin-title dropdown."""
         import asyncio as _asyncio  # noqa: PLC0415
 
-        async def _fetch() -> list[ManualMetadata]:
+        async def _fetch() -> tuple[list[ManualMetadata], list[ManualMetadata]]:
             records = await self.evidence_locker.get_all_records()
-            return WeightImpactPreview.select_preview_records(records, self.settings)
+            sampled = WeightImpactPreview.select_preview_records(records, self.settings)
+            eligible = WeightImpactPreview.get_eligible_records(records, self.settings)
+            return sampled, eligible
 
         try:
             loop = _asyncio.get_event_loop()
             if loop.is_running():
-                # We're inside an async context; schedule as a coroutine and return empty
-                # for now. The preview panel will be empty on this call path;
-                # a proper async refresh can be added later.
-                return []
+                return [], []
             return loop.run_until_complete(_fetch())
         except Exception:  # noqa: BLE001
-            return []
+            return [], []
 
     async def _push_onboarding(self) -> None:
         """Fetch preview records and push the OnboardingScreen."""
         try:
             all_records = await self.evidence_locker.get_all_records()
             preview = WeightImpactPreview.select_preview_records(all_records, self.settings)
+            all_eligible = WeightImpactPreview.get_eligible_records(all_records, self.settings)
         except Exception:  # noqa: BLE001
             preview = []
+            all_eligible = []
         self.push_screen(
-            OnboardingScreen(preview_records=preview, baseline_settings=self.settings),
+            OnboardingScreen(
+                preview_records=preview,
+                baseline_settings=self.settings,
+                all_eligible=all_eligible,
+            ),
             self.handle_startup_onboarding_complete,
         )
 
