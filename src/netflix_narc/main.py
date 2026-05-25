@@ -26,6 +26,7 @@ from textual.widgets import (
 from textual.worker import Worker, WorkerState
 
 from netflix_narc.evaluator import (
+    SUB_BAR_DEFINITIONS,
     calculate_sub_suitabilities,
     calculate_suitability,
     evaluate_title,
@@ -630,22 +631,19 @@ class NetflixNarcApp(App[None]):
                 # Add Suitability sub-bars if metadata is available
                 metadata = await self._get_merged_metadata(base_title)
                 if metadata:
-                    sub_scores = calculate_sub_suitabilities(metadata, self.settings)
-                    for label, sub_score in [
-                        ("Base Quality", sub_scores["base_quality"]),
-                        ("Age Rating", sub_scores["age_rating"]),
-                        ("Educational Value", sub_scores["educational_value"]),
-                        ("Positive Messages", sub_scores["positive_messages"]),
-                        ("Positive Role Models", sub_scores["positive_role_models"]),
-                        ("Content Safety", sub_scores["content_safety"]),
-                    ]:
+                    sub_scores = cast(
+                        "dict[str, float]",
+                        calculate_sub_suitabilities(metadata, self.settings),
+                    )
+                    for label, key_name, _ in SUB_BAR_DEFINITIONS:
+                        sub_score = sub_scores[key_name]
                         bar_str = get_suitability_bar(sub_score, width=15)
                         table.add_row(
                             "",
                             f"  ├─ {label}",
                             bar_str,
                             "",
-                            key=f"{base_title}_sub_{label.lower().replace(' ', '_')}",
+                            key=f"{base_title}_sub_{key_name}",
                         )
 
                 # Now add viewing records

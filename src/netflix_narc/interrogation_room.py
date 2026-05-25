@@ -16,6 +16,7 @@ from textual.widgets import Button, Checkbox, Footer, Header, Input, Static
 
 from netflix_narc.csm_api import CSMRatingCategory as CSMCategory
 from netflix_narc.evaluator import (
+    SUB_BAR_DEFINITIONS,
     calculate_sub_suitabilities,
     calculate_suitability,
     explain_suitability,
@@ -65,10 +66,8 @@ class InterrogationRoomScreen(Screen[bool]):
 
             with Vertical(id="suitability-dashboard"):
                 yield Static("", id="overall-suitability-bar", classes="suitability-bar-main")
-                yield Static("", id="base-quality-bar", classes="suitability-bar-sub")
-                yield Static("", id="age-suitability-bar", classes="suitability-bar-sub")
-                yield Static("", id="edu-suitability-bar", classes="suitability-bar-sub")
-                yield Static("", id="content-suitability-bar", classes="suitability-bar-sub")
+                for _, _, widget_id in SUB_BAR_DEFINITIONS:
+                    yield Static("", id=widget_id, classes="suitability-bar-sub")
 
             with Horizontal(classes="form-row"):
                 yield Static("Min Age Rating:", classes="form-label")
@@ -271,25 +270,18 @@ class InterrogationRoomScreen(Screen[bool]):
             f"Overall Suitability:  {overall_bar}"
         )
 
-        sub_scores = calculate_sub_suitabilities(metadata, self.narc_app.settings)
-
-        # 2. Base Quality
-        base_bar = get_suitability_bar(sub_scores["base_quality"], width=15)
-        self.query_one("#base-quality-bar", Static).update(f"  └─ Base Quality:     {base_bar}")
-
-        # 3. Age Rating Suitability
-        age_bar = get_suitability_bar(sub_scores["age_rating"], width=15)
-        self.query_one("#age-suitability-bar", Static).update(f"  └─ Age Rating:       {age_bar}")
-
-        # 4. Educational Value
-        edu_bar = get_suitability_bar(sub_scores["educational_value"], width=15)
-        self.query_one("#edu-suitability-bar", Static).update(f"  └─ Educational Value:{edu_bar}")
-
-        # 5. Content Safety
-        content_bar = get_suitability_bar(sub_scores["content_safety"], width=15)
-        self.query_one("#content-suitability-bar", Static).update(
-            f"  └─ Content Safety:   {content_bar}"
+        sub_scores = cast(
+            "dict[str, float]",
+            calculate_sub_suitabilities(metadata, self.narc_app.settings),
         )
+
+        # Render all sub-suitability bars dynamically based on single source of truth
+        max_label_len = max(len(label) for label, _, _ in SUB_BAR_DEFINITIONS)
+        for label, key_name, widget_id in SUB_BAR_DEFINITIONS:
+            sub_score = sub_scores[key_name]
+            bar_str = get_suitability_bar(sub_score, width=15)
+            padded_label = f"{label}:".ljust(max_label_len + 1)
+            self.query_one(f"#{widget_id}", Static).update(f"  └─ {padded_label} {bar_str}")
 
         # Calculate detailed explanations for tooltip
         explanations = explain_suitability(metadata, self.narc_app.settings)

@@ -17,9 +17,17 @@ class SubSuitabilityScores(TypedDict):
     base_quality: float
     age_rating: float
     educational_value: float
-    positive_messages: float
-    positive_role_models: float
+    positive_content: float
     content_safety: float
+
+
+SUB_BAR_DEFINITIONS: Final[list[tuple[str, str, str]]] = [
+    ("Base Quality", "base_quality", "base-quality-bar"),
+    ("Age Rating", "age_rating", "age-suitability-bar"),
+    ("Educational Value", "educational_value", "edu-suitability-bar"),
+    ("Positive Content", "positive_content", "pos-suitability-bar"),
+    ("Content Safety", "content_safety", "content-suitability-bar"),
+]
 
 
 def _get_age_limit(content_rating: str | None) -> int | None:
@@ -320,7 +328,7 @@ def calculate_sub_suitabilities(  # noqa: C901
     edu_ded = get_edu_suitability_deduction(edu_score, criteria.weights.educational_value)
     edu_val = max(0.0, 10.0 - edu_ded * 3.33)
 
-    # 4. Positive Messages Suitability
+    # 4. Positive Content Suitability (Messages & Role Models combined)
     msg_score = metadata.category_scores.get("Positive Messages")
     msg_ded = 0.0
     if msg_score is not None:
@@ -330,9 +338,7 @@ def calculate_sub_suitabilities(  # noqa: C901
             msg_ded = 3.0
         elif weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
             msg_ded = 1.5
-    msg_val = max(0.0, 10.0 - msg_ded * 3.33)
 
-    # 5. Positive Role Models Suitability
     role_score = metadata.category_scores.get("Positive Role Models")
     role_ded = 0.0
     if role_score is not None:
@@ -342,9 +348,12 @@ def calculate_sub_suitabilities(  # noqa: C901
             role_ded = 3.0
         elif weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
             role_ded = 1.5
-    role_val = max(0.0, 10.0 - role_ded * 3.33)
 
-    # 6. Content Safety (Negative Categories only)
+    # Average the positive content deductions to represent a single combined score
+    pos_ded = (msg_ded + role_ded) / 2.0
+    pos_val = max(0.0, 10.0 - pos_ded * 3.33)
+
+    # 5. Content Safety (Negative Categories only)
     negative_mapping = {
         "Violence & Scariness": criteria.weights.violence,
         "Sexy Stuff": criteria.weights.sexy_stuff,
@@ -366,8 +375,7 @@ def calculate_sub_suitabilities(  # noqa: C901
         "base_quality": base_val,
         "age_rating": age_val,
         "educational_value": edu_val,
-        "positive_messages": msg_val,
-        "positive_role_models": role_val,
+        "positive_content": pos_val,
         "content_safety": content_val,
     }
 
