@@ -34,13 +34,21 @@ class RatingProviderType(StrEnum):
 
 
 class CategoryWeights(BaseSettings):
-    """Configuration for how much weight to apply to specific CSM categories.
+    """Configuration for how much weight to apply to each suitability component.
 
-    A higher weight means the category is strictly discouraged.
-    Categories scoring poorly on CSM multiplied by these weights will flag the title.
+    Weights are integers 1-5 (V.Low / Low / Med / High / V.High).
+
+    For negative categories a higher weight means the category is penalised more
+    aggressively.  For positive categories a higher weight means a low score
+    pulls the suitability score down harder.
+
+    base_quality and age_suitability control how much those headline components
+    contribute to the final weighted-average suitability score (see ADR 12).
     """
 
     DEFAULT_WEIGHTS: ClassVar[dict[str, int]] = {
+        "base_quality": 4,
+        "age_suitability": 4,
         "educational_value": 2,
         "positive_messages": 2,
         "positive_role_models": 2,
@@ -50,6 +58,11 @@ class CategoryWeights(BaseSettings):
         "drinking_drugs": 4,
     }
 
+    # Overall-signal weights
+    base_quality: int = 4
+    age_suitability: int = 4
+
+    # Content-category weights
     educational_value: int = 2
     positive_messages: int = 2
     positive_role_models: int = 2

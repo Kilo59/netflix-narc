@@ -363,6 +363,11 @@ class WeightImpactPreview(Widget):
 _STEPS = ["step-welcome", "step-age", "step-weights", "step-api", "step-summary"]
 _STEP_LABELS = ["Welcome", "Age", "Weights", "Provider", "Ready"]
 
+_WEIGHT_ROWS_OVERALL: list[tuple[str, str]] = [
+    ("Overall Quality", "base_quality"),
+    ("Age Suitability", "age_suitability"),
+]
+
 _WEIGHT_ROWS: list[tuple[str, str]] = [
     ("Educational Value", "educational_value"),
     ("Positive Messages", "positive_messages"),
@@ -445,6 +450,18 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
                             "You can always adjust these later.",
                             classes="onb-body",
                         )
+                        yield Static("Overall signals", classes="onb-weight-group-label")
+                        for label, field in _WEIGHT_ROWS_OVERALL:
+                            initial_weight = None
+                            if self._baseline_settings:
+                                initial_weight = getattr(self._baseline_settings.weights, field)
+                            yield WeightRow(
+                                label,
+                                field,
+                                default=CategoryWeights.DEFAULT_WEIGHTS[field],
+                                initial=initial_weight,
+                            )
+                        yield Static("Content categories", classes="onb-weight-group-label")
                         for label, field in _WEIGHT_ROWS:
                             initial_weight = None
                             if self._baseline_settings:
@@ -585,12 +602,17 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
             provider_str = provider.value.upper()
         else:
             provider_str = "Manual only"
+        w_lines_overall = "\n".join(
+            f"  {lbl}: {_WEIGHT_LABELS[getattr(weights, field)]}"
+            for lbl, field in _WEIGHT_ROWS_OVERALL
+        )
         w_lines = "\n".join(
             f"  {lbl}: {_WEIGHT_LABELS[getattr(weights, field)]}" for lbl, field in _WEIGHT_ROWS
         )
         body = (
             f"Child age range:  {age_str}\n"
             f"Provider:         {provider_str}\n\n"
+            f"Overall weights:\n{w_lines_overall}\n\n"
             f"Content weights:\n{w_lines}"
         )
         self.query_one("#summary-body", Static).update(body)

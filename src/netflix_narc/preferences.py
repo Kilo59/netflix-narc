@@ -12,6 +12,7 @@ from textual.widgets import Button, Footer, Header, Input, Select, Static, Switc
 
 from netflix_narc.onboarding import (
     _WEIGHT_ROWS,
+    _WEIGHT_ROWS_OVERALL,
     WeightRow,
 )
 from netflix_narc.settings import CategoryWeights, RatingProviderType, parse_str_age_range
@@ -64,6 +65,16 @@ class PreferencesScreen(Screen[None]):
             # ── Content Weights ───────────────────────────────────────
             with Container(classes="pref-section"):
                 yield Static("CONTENT WEIGHTS", classes="pref-section-header")
+                yield Static("Overall signals", classes="pref-weight-group-label")
+                for label, field in _WEIGHT_ROWS_OVERALL:
+                    current = getattr(self._settings.weights, field)
+                    yield WeightRow(
+                        label,
+                        field,
+                        default=CategoryWeights.DEFAULT_WEIGHTS[field],
+                        initial=current,
+                    )
+                yield Static("Content categories", classes="pref-weight-group-label")
                 for label, field in _WEIGHT_ROWS:
                     current = getattr(self._settings.weights, field)
                     yield WeightRow(

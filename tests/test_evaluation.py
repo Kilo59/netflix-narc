@@ -6,6 +6,8 @@ import pytest
 from pydantic import ValidationError
 
 from netflix_narc.evaluator import (
+    _component_weights,
+    calculate_sub_suitabilities,
     calculate_suitability,
     evaluate_title,
     explain_suitability,
@@ -222,24 +224,36 @@ def test_calculate_suitability_excellent():
 
 
 def test_calculate_suitability_with_deductions():
-    settings = Settings(max_age_rating=10, min_quality_rating=4, _env_file=None)  # type: ignore[call-arg]  # min quality is 8.0
-    metadata = NormalizedMetadata(
+    """A title with multiple bad signals should score well below a clean title.
+
+    Under the weighted-average-of-components model (ADR 12) we no longer assert
+    a single exact value (that would re-couple the test to specific multiplier
+    constants).  Instead we verify that:
+      - The score is strictly lower than a clean title with the same settings.
+      - The score is in the valid 0–10 range.
+      - The score is low enough to signal genuine problems.
+    """
+    settings = Settings(max_age_rating=10, min_quality_rating=4, _env_file=None)  # type: ignore[call-arg]
+    metadata_flawed = NormalizedMetadata(
         title="Flawed Title",
-        content_rating="12",  # age rating exceeds
-        user_rating=6.0,  # below quality, is_low_quality is True
+        content_rating="15",  # age rating well above max
+        user_rating=5.0,  # below min quality (min_quality_rating=4 → 8.0 normalised)
         provider_name="test",
-        category_scores={"Educational Value": 2, "Violence & Scariness": 4},
+        category_scores={"Violence & Scariness": 5, "Educational Value": 1},
     )
-    score = calculate_suitability(metadata, settings)
-    # Deductions:
-    # Age excess: 12 - 10 = 2 -> min(5.0, 2 * 1.5) = 3.0
-    # Quality deficit: 8.0 - 6.0 = 2.0 -> 2.0 * 1.0 = 2.0
-    # Edu score is 2 under low quality -> 1.0 deduction
-    # Violence raw score 4 * weight 3 = 12 >= 12 -> 3.0 deduction
-    # Total deduction: 3.0 + 2.0 + 1.0 + 3.0 = 9.0
-    # Score: 6.0 - 9.0 = -3.0 -> bounded to 0.0
-    expected_score = 0.0
-    assert score == expected_score
+    metadata_clean = NormalizedMetadata(
+        title="Clean Title",
+        content_rating="8",
+        user_rating=9.0,
+        provider_name="test",
+        category_scores={"Violence & Scariness": 1, "Educational Value": 5},
+    )
+    score_flawed = calculate_suitability(metadata_flawed, settings)
+    score_clean = calculate_suitability(metadata_clean, settings)
+
+    assert 0.0 <= score_flawed <= 10.0
+    assert score_flawed < score_clean
+    assert score_flawed < 6.0, f"Expected low score for flawed title, got {score_flawed}"
 
 
 def test_get_suitability_bar():
@@ -283,35 +297,68 @@ def test_parse_child_age_range():
 
 
 def test_age_distance_suitability_symmetric():
-    # child age range is (8, 12)
+    """Age-rating distance from the child's range should penalise in both directions.
+
+    Under the weighted-average model the penalty manifests in the age_rating
+    component.  We verify direction and ordering rather than exact values.
+    """
     settings = Settings(child_age_range=(8, 12), _env_file=None)  # type: ignore[call-arg]
 
-    # Title is exact match / inside range -> deduction is 0.0
     metadata_ok = NormalizedMetadata(
         title="Exact Match", content_rating="10", user_rating=8.0, provider_name="test"
     )
-    score_ok = calculate_suitability(metadata_ok, settings)
-    # Expected base score: 8.0 - 0.0 deduction = 8.0
-    expected_ok = 8.0
-    assert score_ok == expected_ok
-
-    # Title is too mature -> deduction excess * 1.0
     metadata_mature = NormalizedMetadata(
         title="Mature", content_rating="14", user_rating=8.0, provider_name="test"
     )
-    score_mature = calculate_suitability(metadata_mature, settings)
-    # Expected deduction: excess = 14 - 12 = 2.0 -> 8.0 - 2.0 = 6.0
-    expected_mature = 6.0
-    assert score_mature == expected_mature
-
-    # Title is too young -> deduction deficit * 1.0 (symmetric!)
     metadata_young = NormalizedMetadata(
         title="Young", content_rating="5", user_rating=8.0, provider_name="test"
     )
+
+    score_ok = calculate_suitability(metadata_ok, settings)
+    score_mature = calculate_suitability(metadata_mature, settings)
     score_young = calculate_suitability(metadata_young, settings)
-    # Expected deduction: deficit = 8 - 5 = 3.0 -> 8.0 - 3.0 = 5.0
-    expected_young = 5.0
-    assert score_young == expected_young
+
+    # In-range title should score highest
+    assert score_ok > score_mature
+    assert score_ok > score_young
+    # Both out-of-range titles should be penalised relative to in-range
+    assert score_mature < score_ok
+    assert score_young < score_ok
+    # The age_rating component itself should show the deduction
+    sub_ok = calculate_sub_suitabilities(metadata_ok, settings)
+    sub_mature = calculate_sub_suitabilities(metadata_mature, settings)
+    sub_young = calculate_sub_suitabilities(metadata_young, settings)
+    assert sub_ok["age_rating"] > sub_mature["age_rating"]  # type: ignore[literal-required]
+    assert sub_ok["age_rating"] > sub_young["age_rating"]  # type: ignore[literal-required]
+
+
+def test_suitability_equals_weighted_average_of_sub_bars():
+    """Invariant: calculate_suitability() == weighted mean of calculate_sub_suitabilities().
+
+    This is the core guarantee of ADR 12.  If this test breaks, the two systems
+    have drifted apart again.
+    """
+    settings = Settings(child_age_range=(8, 12), _env_file=None)  # type: ignore[call-arg]
+    metadata = NormalizedMetadata(
+        title="Test",
+        content_rating="10",
+        user_rating=7.5,
+        provider_name="test",
+        category_scores={
+            "Educational Value": 3,
+            "Positive Messages": 4,
+            "Violence & Scariness": 2,
+        },
+    )
+    overall = calculate_suitability(metadata, settings)
+    sub = calculate_sub_suitabilities(metadata, settings)
+    weights = _component_weights(settings)
+
+    total = sum(sub[k] * weights[k] for k in weights if k in sub)  # type: ignore[literal-required]
+    total_w = sum(weights[k] for k in weights if k in sub)
+    expected = total / total_w
+
+    assert abs(overall - expected) < 1e-9, f"overall={overall:.6f} != weighted_mean={expected:.6f}"
 
 
 if __name__ == "__main__":
