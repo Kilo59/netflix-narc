@@ -208,3 +208,7 @@ __marimo__/
 
 # Netflix Narc Specifics
 NetflixViewingHistory.csv
+
+*.sqlite
+
+.evidence_images/

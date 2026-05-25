@@ -105,6 +105,14 @@ def on_setup_completed(self, payload: str):
     self.notify(f"Setup returned: {payload}")
 ```
 
+## Clipboard API Limitations
+
+Textual provides a clipboard API (`self.app.clipboard` and `self.app.copy_to_clipboard()`), but it has significant limitations that agents must be aware of:
+1. **Internal Text Only**: The `self.app.clipboard` property only contains text copied *from within the app itself*. It does not allow you to read text copied from the host OS clipboard.
+2. **Text Only (No Images)**: The API strictly handles string `text`. It cannot read or write binary image data to the clipboard.
+3. **Platform Support**: `copy_to_clipboard()` uses ANSI OSC 52 escape sequences to push text to the OS clipboard, which is not supported by all terminal emulators (e.g., standard macOS Terminal.app).
+4. **Workaround for Images**: If you need to capture images from the OS clipboard (e.g. on macOS), you must bypass Textual and use native OS commands (like `osascript` or `pbpaste`/third-party binaries) wrapped in Python subprocesses.
+
 ## Official Documentation & Reference
 
 For more detailed information, consult the official Textual documentation:
