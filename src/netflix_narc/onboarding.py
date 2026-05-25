@@ -46,13 +46,19 @@ class OnboardingResult(NamedTuple):
 # WeightRow composite widget
 # ──────────────────────────────────────────────
 
-_WEIGHT_LABELS: dict[int, str] = {1: "Low", 2: "Med", 3: "High"}
+_WEIGHT_LABELS: dict[int, str] = {
+    1: "V.Low",
+    2: "Low",
+    3: "Med",
+    4: "High",
+    5: "V.High",
+}
 _WEIGHT_MIN = 1
-_WEIGHT_MAX = 3
+_WEIGHT_MAX = 5
 
 
 class WeightRow(Widget):
-    """A single category weight row: label + Low/Med/High toggle buttons + reset."""
+    """A single category weight row: label + V.Low to V.High toggle buttons + reset."""
 
     DEFAULT_CSS = """
     WeightRow {
@@ -66,8 +72,8 @@ class WeightRow(Widget):
         color: #E5E5E5;
     }
     WeightRow .wr-btn {
-        width: 7;
-        min-width: 7;
+        width: 8;
+        min-width: 8;
         margin: 0 0;
         background: #333333;
         color: #808080;
@@ -123,12 +129,12 @@ class WeightRow(Widget):
     @override
     def compose(self) -> ComposeResult:
         yield Static(self.label, classes="wr-label")
-        for w in (_WEIGHT_MIN, 2, _WEIGHT_MAX):
+        for w in range(_WEIGHT_MIN, _WEIGHT_MAX + 1):
             yield Button(_WEIGHT_LABELS[w], id=f"wr-{self.field_name}-{w}", classes="wr-btn")
         yield Button("↺", id=f"wr-{self.field_name}-reset", classes="wr-reset")
 
     def _refresh_buttons(self) -> None:
-        for w in (_WEIGHT_MIN, 2, _WEIGHT_MAX):
+        for w in range(_WEIGHT_MIN, _WEIGHT_MAX + 1):
             btn = self.query_one(f"#wr-{self.field_name}-{w}", Button)
             if w == self.value:
                 btn.variant = "primary"
@@ -145,7 +151,7 @@ class WeightRow(Widget):
         if btn_id == f"wr-{self.field_name}-reset":
             self.value = self.default
         else:
-            for w in (_WEIGHT_MIN, 2, _WEIGHT_MAX):
+            for w in range(_WEIGHT_MIN, _WEIGHT_MAX + 1):
                 if btn_id == f"wr-{self.field_name}-{w}":
                     self.value = w
                     break

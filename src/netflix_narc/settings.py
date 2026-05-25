@@ -41,22 +41,22 @@ class CategoryWeights(BaseSettings):
     """
 
     DEFAULT_WEIGHTS: ClassVar[dict[str, int]] = {
-        "educational_value": 1,
-        "positive_messages": 1,
-        "positive_role_models": 1,
-        "violence": 3,
-        "sexy_stuff": 3,
-        "language": 2,
-        "drinking_drugs": 3,
+        "educational_value": 2,
+        "positive_messages": 2,
+        "positive_role_models": 2,
+        "violence": 4,
+        "sexy_stuff": 4,
+        "language": 3,
+        "drinking_drugs": 4,
     }
 
-    educational_value: int = 1
-    positive_messages: int = 1
-    positive_role_models: int = 1
-    violence: int = 3
-    sexy_stuff: int = 3
-    language: int = 2
-    drinking_drugs: int = 3
+    educational_value: int = 2
+    positive_messages: int = 2
+    positive_role_models: int = 2
+    violence: int = 4
+    sexy_stuff: int = 4
+    language: int = 3
+    drinking_drugs: int = 4
 
 
 class Settings(BaseSettings):

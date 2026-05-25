@@ -84,7 +84,7 @@ persist settings.
 **See**: `.agent/onboarding_overhaul.md` for full design, `.agent/onboarding_overhaul_plan.md` for implementation plan.
 
 
-## 9. Weight Controls: Three-Button Toggle (1–3)
+## 9. Weight Controls: Three-Button Toggle (1–3) [SUPERSEDED by ADR 11]
 **Date**: 2026-05-25
 **Context**: `CategoryWeights` fields are integers 1–3 with no UI exposure. The range was kept at
 1–3 (Low / Med / High) for simplicity rather than expanding to 1–5.
@@ -114,3 +114,19 @@ have no way to know whether changing "Violence" from Med to High will affect 1 t
   replaced with a dim hint: "Complete more title dossiers (≥70%) to unlock the impact preview."
   This is the expected state on first run — no special-casing needed.
 **See**: `.agent/weight_impact_preview.md` for full algorithm, rendering spec, and mockup.
+
+## 11. Continuous Proportional Deduction Model & Proportional Weight Scale Expansion (1–5)
+**Date**: 2026-05-25
+**Context**:
+- Coarse step-based thresholds (`8` and `12` weighted deficit/score levels) caused sudden and extreme jumps in suitability deductions, making minor weight adjustments feel completely ineffective or unpredictable. For instance, a small change in weight did not adjust the suitability score at all, until it suddenly crossed a step boundary and deducted a massive 1.5 or 3.0 points.
+- The 1-3 weight scale was too narrow to capture granular user safety preferences.
+**Decision**:
+- Replaced the coarse step-based deduction model with a **continuous proportional deduction model**. The suitability score deduction scales smoothly as:
+  - For negative categories: `Deduction = min(3.0, Raw Score * Weight * 0.12)`
+  - For positive categories: `Deduction = min(3.0, Deficit * Weight * 0.12)` where `Deficit = 5.0 - Raw Score`.
+- Expanded the category weight scale from `1–3` (Low, Med, High) to `1–5` (`V.Low`, `Low`, `Med`, `High`, `V.High`), shifting default category weights accordingly (`Low` maps to `2`, `Med` to `3`, `High` to `4`) to preserve baseline relative behaviors.
+- Adjusted `high_weight_threshold` from `3` to `4` for category evaluation checks.
+**Alternatives Considered**:
+- **Keeping Step-Based Deductions with More Steps**: We could have added more steps (e.g., 0.5, 1.0, 1.5, 2.0, 2.5, 3.0). However, this would still exhibit abrupt, non-linear score jumps and would not resolve the fundamental issue of lack of predictability during minor slider/weight adjustments.
+- **Pure Linear Deductions Without Cap**: Having a linear deduction without a maximum cap could completely tank a title's suitability score to negative values or overwhelm other categories based on a single extremely bad category score. Capping individual category deductions at `3.0` ensures balanced multi-dimensional evaluation.
+- **Logarithmic or Exponential Deduction Scaling**: Using a non-linear continuous curve. While mathematically sophisticated, it is much harder for a user to reason about or compute manually compared to the simple proportional formula (`deficit * weight * 0.12`).

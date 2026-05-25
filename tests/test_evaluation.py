@@ -57,7 +57,7 @@ def test_evaluate_title_flags_violence():
 def test_evaluate_title_flags_low_educational_value_with_high_weight():
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
     # High importance on a positive category
-    settings.weights.educational_value = 3
+    settings.weights.educational_value = 4
     # low_score_threshold branch: low raw score with high weight
     metadata = NormalizedMetadata(
         title="Not Very Educational Show",
@@ -252,7 +252,7 @@ def test_get_suitability_bar():
 
 def test_explain_suitability():
     settings = Settings(max_age_rating=10, min_quality_rating=4, _env_file=None)  # type: ignore[call-arg]
-    settings.weights.educational_value = 3
+    settings.weights.educational_value = 4
     metadata = NormalizedMetadata(
         title="Flawed Title",
         content_rating="12",

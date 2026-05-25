@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from netflix_narc.settings import Settings
 
 PERFECT_QUALITY_RATING: Final = 10.0
+MIN_EXPLAIN_DEDUCTION: Final = 0.05
 
 
 class SubSuitabilityScores(TypedDict):
@@ -66,7 +67,7 @@ def _evaluate_categories(
     flags: list[str] = []
     flag_threshold = 8
     low_score_threshold = 2
-    high_weight_threshold = 3
+    high_weight_threshold = 4
 
     # Map normalized category strings to weights in Settings
     mapping = {
@@ -237,15 +238,10 @@ def get_edu_suitability_deduction(
     if edu_score is None:
         return 0.0
     deficit = 5.0 - edu_score
-    weighted_deficit = deficit * weight
-    if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
-        return 3.0
-    if weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
-        return 1.5
-    return 0.0
+    return min(3.0, deficit * weight * 0.12)
 
 
-def get_categories_suitability_deduction(  # noqa: C901
+def get_categories_suitability_deduction(
     scores: dict[str, int | float],
     criteria: Settings,
 ) -> float:
@@ -268,22 +264,14 @@ def get_categories_suitability_deduction(  # noqa: C901
     for category, weight in negative_mapping.items():
         raw_score = scores.get(category)
         if raw_score is not None:
-            weighted_score = raw_score * weight
-            if weighted_score >= HIGH_DEDUCTION_THRESHOLD:
-                deduction += 3.0
-            elif weighted_score >= MEDIUM_DEDUCTION_THRESHOLD:
-                deduction += 1.5
+            deduction += min(3.0, raw_score * weight * 0.12)
 
     # Positive categories: deduct if score is low
     for category, weight in positive_mapping.items():
         raw_score = scores.get(category)
         if raw_score is not None:
             deficit = 5.0 - raw_score
-            weighted_deficit = deficit * weight
-            if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
-                deduction += 3.0
-            elif weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
-                deduction += 1.5
+            deduction += min(3.0, deficit * weight * 0.12)
 
     return deduction
 
@@ -310,7 +298,7 @@ def calculate_suitability(metadata: NormalizedMetadata, criteria: Settings) -> f
     return max(0.0, min(10.0, score))
 
 
-def calculate_sub_suitabilities(  # noqa: C901
+def calculate_sub_suitabilities(
     metadata: NormalizedMetadata, criteria: Settings
 ) -> SubSuitabilityScores:
     """Calculate normalized scores out of 10.0 for each suitability component."""
@@ -333,21 +321,13 @@ def calculate_sub_suitabilities(  # noqa: C901
     msg_ded = 0.0
     if msg_score is not None:
         deficit = 5.0 - msg_score
-        weighted_deficit = deficit * criteria.weights.positive_messages
-        if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
-            msg_ded = 3.0
-        elif weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
-            msg_ded = 1.5
+        msg_ded = min(3.0, deficit * criteria.weights.positive_messages * 0.12)
 
     role_score = metadata.category_scores.get("Positive Role Models")
     role_ded = 0.0
     if role_score is not None:
         deficit = 5.0 - role_score
-        weighted_deficit = deficit * criteria.weights.positive_role_models
-        if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
-            role_ded = 3.0
-        elif weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
-            role_ded = 1.5
+        role_ded = min(3.0, deficit * criteria.weights.positive_role_models * 0.12)
 
     # Average the positive content deductions to represent a single combined score
     pos_ded = (msg_ded + role_ded) / 2.0
@@ -364,11 +344,7 @@ def calculate_sub_suitabilities(  # noqa: C901
     for category, weight in negative_mapping.items():
         raw_score = metadata.category_scores.get(category)
         if raw_score is not None:
-            weighted_score = raw_score * weight
-            if weighted_score >= HIGH_DEDUCTION_THRESHOLD:
-                content_ded += 3.0
-            elif weighted_score >= MEDIUM_DEDUCTION_THRESHOLD:
-                content_ded += 1.5
+            content_ded += min(3.0, raw_score * weight * 0.12)
     content_val = max(0.0, 10.0 - content_ded * 1.66)
 
     return {
@@ -432,15 +408,13 @@ def _explain_edu_suitability(
         return None
 
     deficit = 5.0 - edu_score
-    weighted_deficit = deficit * weight
-    if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
-        return f"- Low Educational Value score ({edu_score}/5, weight {weight}): -3.0"
-    if weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
-        return f"- Mediocre Educational Value score ({edu_score}/5, weight {weight}): -1.5"
+    deduction = min(3.0, deficit * weight * 0.12)
+    if deduction > MIN_EXPLAIN_DEDUCTION:
+        return f"- Low Educational Value score ({edu_score}/5, weight {weight}): -{deduction:.1f}"
     return None
 
 
-def _explain_categories_suitability(  # noqa: C901
+def _explain_categories_suitability(
     scores: dict[str, int | float],
     criteria: Settings,
 ) -> list[str]:
@@ -463,14 +437,10 @@ def _explain_categories_suitability(  # noqa: C901
     for category, weight in negative_mapping.items():
         raw_score = scores.get(category)
         if raw_score is not None:
-            weighted_score = raw_score * weight
-            if weighted_score >= HIGH_DEDUCTION_THRESHOLD:
+            deduction = min(3.0, raw_score * weight * 0.12)
+            if deduction > MIN_EXPLAIN_DEDUCTION:
                 explanations.append(
-                    f"- High '{category}' score ({raw_score}/5, weight {weight}): -3.0"
-                )
-            elif weighted_score >= MEDIUM_DEDUCTION_THRESHOLD:
-                explanations.append(
-                    f"- Elevated '{category}' score ({raw_score}/5, weight {weight}): -1.5"
+                    f"- High '{category}' score ({raw_score}/5, weight {weight}): -{deduction:.1f}"
                 )
 
     # Positive categories
@@ -478,14 +448,10 @@ def _explain_categories_suitability(  # noqa: C901
         raw_score = scores.get(category)
         if raw_score is not None:
             deficit = 5.0 - raw_score
-            weighted_deficit = deficit * weight
-            if weighted_deficit >= HIGH_DEDUCTION_THRESHOLD:
+            deduction = min(3.0, deficit * weight * 0.12)
+            if deduction > MIN_EXPLAIN_DEDUCTION:
                 explanations.append(
-                    f"- Low '{category}' score ({raw_score}/5, weight {weight}): -3.0"
-                )
-            elif weighted_deficit >= MEDIUM_DEDUCTION_THRESHOLD:
-                explanations.append(
-                    f"- Mediocre '{category}' score ({raw_score}/5, weight {weight}): -1.5"
+                    f"- Low '{category}' score ({raw_score}/5, weight {weight}): -{deduction:.1f}"
                 )
 
     return explanations
