@@ -53,3 +53,10 @@ def get_rating_provider(settings: Settings) -> RatingProvider:
 
 ## Evaluation Logic
 The [evaluator.py](src/netflix_narc/evaluator.py) module consumes only the `NormalizedMetadata`. It applies user-defined weights (from `Settings`) to the `category_scores` to generate flags. This separation ensures that adding a new API provider never requires changes to the core evaluation rules.
+
+## Manual Metadata & Completeness Score
+For titles that lack external API data, users can manually enter metadata via the Interrogation Room.
+- **Evidence Locker**: Uses `aiosqlite` in [manual_db.py](src/netflix_narc/manual_db.py) to persist this manual data.
+- **Completeness Score**: A calculated 0-100% score tracking how completely a title's manual metadata has been filled out. This relies on 10 fields (Ratings, Image URL, and CSM categories).
+- **Queue Priority**: The TUI queue strictly sorts unreviewed titles by their `Completeness Score` first (ascending) to guarantee that entirely un-scored titles bubble to the top.
+- **Native Image Hook**: A zero-dependency OS hook (via `osascript`) in [image_utils.py](src/netflix_narc/image_utils.py) allows grabbing cover images directly from the macOS clipboard, bypassing standard Textual limitations.

@@ -25,6 +25,7 @@ A CLI/TUI application that ingests Netflix viewing history, fetches metadata and
 - `src/netflix_narc/manual_db.py`: The "Evidence Locker", using `aiosqlite` to store manually entered metadata for titles that external APIs can't score.
 - `src/netflix_narc/lineup.py`: The "Lineup Screen" TUI component for iterating through the queue of flagged or un-scored titles.
 - `src/netflix_narc/interrogation_room.py`: The "Interrogation Room Screen" for manual entry of CSM criteria for titles missing API data.
+- `src/netflix_narc/image_utils.py`: Native macOS utilities (osascript/pbpaste equivalents) to bypass TUI limitations for binary clipboard access and image downloading.
 - `src/netflix_narc/main.py`: The Textual app entrypoint (`NetflixNarcApp`). Orchestrates onboarding, the data table, and pushing the manual entry screens.
 
 ## AI Agent Rules for this Project
