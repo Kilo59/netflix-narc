@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, ClassVar, NamedTuple, cast, override
 
 from pydantic import SecretStr, TypeAdapter
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import Container, Horizontal
 from textual.coordinate import Coordinate
 from textual.screen import Screen
@@ -47,8 +48,6 @@ from netflix_narc.settings import (
 
 if TYPE_CHECKING:
     from typing import Any
-
-    from textual.binding import Binding
 
     from netflix_narc.parser import ViewingRecord
     from netflix_narc.rating_api import NormalizedMetadata, RatingProvider
@@ -221,6 +220,65 @@ class LoadCsvScreen(Screen[str | None]):
             self.notify("Please enter a path to the CSV.", severity="warning")
 
 
+class AdvancedScreen(Screen[None]):
+    """A modal exposing advanced / API-focused actions."""
+
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        Binding("escape", "app.pop_screen", "Close"),
+        Binding("q", "app.pop_screen", "Close"),
+    ]
+
+    @property
+    def narc_app(self) -> NetflixNarcApp:
+        """Type-safe access to the main app."""
+        return cast("NetflixNarcApp", self.app)
+
+    @override
+    def compose(self) -> ComposeResult:
+        """Compose the advanced screen widgets."""
+        yield Container(
+            Static("Advanced Options", classes="title"),
+            Static(
+                "These options are for users who have already configured an API key "
+                "in Setup and want to fetch ratings automatically.",
+                classes="instructions",
+            ),
+            Button(
+                "Load History File  [C]",
+                id="adv-load-csv",
+                variant="default",
+            ),
+            Static(
+                "Reload your Netflix viewing history from a file on disk.",
+                classes="instructions",
+            ),
+            Button(
+                "Evaluate Titles via API  [E]",
+                id="adv-evaluate",
+                variant="primary",
+            ),
+            Static(
+                "Fetch ratings from your configured provider and score all titles.",
+                classes="instructions",
+            ),
+            Horizontal(
+                Button("Close", variant="error", id="adv-close"),
+            ),
+            id="setup-container",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses in the advanced screen."""
+        if event.button.id == "adv-load-csv":
+            self.dismiss(None)
+            self.narc_app.action_load_csv()
+        elif event.button.id == "adv-evaluate":
+            self.dismiss(None)
+            self.narc_app.action_evaluate()
+        elif event.button.id == "adv-close":
+            self.dismiss(None)
+
+
 class NetflixNarcApp(App[None]):
     """A Textual TUI for viewing and evaluating Netflix history."""
 
@@ -230,12 +288,14 @@ class NetflixNarcApp(App[None]):
         ("ctrl+c", "quit", "Quit"),
         ("f10", "quit", "Quit"),
         ("l", "start_lineup", "The Lineup"),
-        ("c", "load_csv", "Load CSV"),
-        ("s", "settings", "Settings"),
-        ("e", "evaluate", "Evaluate Titles"),
         ("i", "interrogate", "Interrogate Title"),
+        ("s", "settings", "Settings"),
+        ("a", "advanced", "Advanced"),
         ("?", "show_help", "Help"),
         ("h", "show_help", "Help"),
+        # Hidden from footer — still functional for power users
+        Binding("c", "load_csv", "Load History File", show=False),
+        Binding("e", "evaluate", "Evaluate Titles", show=False),
     ]
 
     def __init__(
@@ -363,6 +423,10 @@ class NetflixNarcApp(App[None]):
     def action_settings(self) -> None:
         """Push the setup screen to configure API keys."""
         self.push_screen(SetupScreen(), self.handle_setup_complete)
+
+    def action_advanced(self) -> None:
+        """Open the Advanced options modal."""
+        self.push_screen(AdvancedScreen())
 
     def action_show_help(self) -> None:
         """Push the help screen to explain the app features and usage."""

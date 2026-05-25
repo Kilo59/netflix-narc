@@ -66,8 +66,7 @@ class HelpScreen(Screen[None]):
                 yield Static(
                     "  • [b]The Lineup  [L][/b]\n"
                     "    The best place to start. Surfaces the titles that most\n"
-                    "    need your attention — things watched frequently, or with\n"
-                    "    no rating yet. Work through them one at a time.",
+                    "    need your attention. Work through them one at a time.",
                     classes="help-bullet",
                 )
                 yield Static(
@@ -90,9 +89,8 @@ class HelpScreen(Screen[None]):
                 yield Static(
                     "  [b]L[/b]          Open The Lineup\n"
                     "  [b]I[/b]          Interrogate selected title\n"
-                    "  [b]E[/b]          Evaluate all titles\n"
-                    "  [b]C[/b]          Load / refresh CSV history\n"
                     "  [b]S[/b]          Open Setup\n"
+                    "  [b]A[/b]          Advanced options\n"
                     "  [b]?[/b] / [b]H[/b]      Show this screen\n"
                     "  [b]Q[/b] / [b]ESC[/b]    Go back / Quit",
                     classes="help-text",
