@@ -130,3 +130,31 @@ have no way to know whether changing "Violence" from Med to High will affect 1 t
 - **Keeping Step-Based Deductions with More Steps**: We could have added more steps (e.g., 0.5, 1.0, 1.5, 2.0, 2.5, 3.0). However, this would still exhibit abrupt, non-linear score jumps and would not resolve the fundamental issue of lack of predictability during minor slider/weight adjustments.
 - **Pure Linear Deductions Without Cap**: Having a linear deduction without a maximum cap could completely tank a title's suitability score to negative values or overwhelm other categories based on a single extremely bad category score. Capping individual category deductions at `3.0` ensures balanced multi-dimensional evaluation.
 - **Logarithmic or Exponential Deduction Scaling**: Using a non-linear continuous curve. While mathematically sophisticated, it is much harder for a user to reason about or compute manually compared to the simple proportional formula (`deficit * weight * 0.12`).
+
+## 12. Weighted Average-of-Components Scoring Model
+**Date**: 2026-05-25
+**Context**:
+- `calculate_suitability()` used an additive deduction model anchored to `user_rating`. `calculate_sub_suitabilities()` computed five per-component 0–10 sub-bar scores using completely different multipliers. The two systems were independent — their values were not guaranteed to be consistent with each other.
+- This caused nonsensical UI output: a title could display sub-bars of 6–9/10 while the headline score showed 1.6/10.
+- Category weights only affected the deduction magnitude within their sub-bar. Because the headline was calculated separately from the sub-bars, changing a weight had unpredictable and sometimes zero visible effect on the overall score.
+- Base Quality and Age Suitability were hardcoded fixed values in the weighted average, making them implicitly more or less important than intended and not configurable by the user.
+
+**Decision**:
+- `calculate_sub_suitabilities()` becomes the **single source of truth**. All five component scores are computed here. `calculate_suitability()` is a thin wrapper that returns the **weighted mean** of those component scores.
+- This guarantees the invariant: `overall score = weighted mean of sub-bar scores`. Sub-bars always explain the headline.
+- Category weights serve a **dual role**:
+  1. They control how aggressively the sub-bar score is pulled down (via the deduction formula).
+  2. They control how much that sub-bar counts in the final weighted average.
+  - Example: Violence at V.High (5) means the Content Safety bar is both pulled down harder *and* carries more weight in the headline. Both effects compound, making weight choices feel impactful.
+- **All five components are user-configurable**, including Base Quality (`base_quality`) and Age Suitability (`age_suitability`). These are added to `CategoryWeights` with a default of **High (4)** since they are foundational signals most users care about. Component weights in the average are:
+  - `base_quality`: `settings.weights.base_quality`
+  - `age_rating`: `settings.weights.age_suitability`
+  - `educational_value`: `settings.weights.educational_value`
+  - `positive_content`: `mean(positive_messages, positive_role_models)`
+  - `content_safety`: `mean(violence, sexy_stuff, language, drinking_drugs)`
+- **Missing data is excluded from the average**. If a title has no Educational Value score (e.g., from OMDb), that component is omitted entirely from the weighted average rather than defaulting to 10/10 and artificially inflating the score.
+
+**Alternatives Considered**:
+- **Keep additive deduction as primary, derive sub-bars from it**: Sub-bar scores would require complex reverse-mapping of local deductions back onto a 0–10 scale per-component. Error-prone and hard to reason about.
+- **Simple equal-weight average of components**: Weights would only affect the sub-bar score magnitude, not its contribution to the headline. A user setting Violence to V.High would see the Content Safety bar move, but the headline effect would be diluted to 1/5 of that change. Weights would feel ineffective at the headline level.
+- **Fixed weights for Base Quality and Age Suitability**: Removing user control over foundational signals forces an implicit priority judgement on the user's behalf. A user who cares primarily about content safety should be able to reduce the influence of overall quality ratings on the headline score.
