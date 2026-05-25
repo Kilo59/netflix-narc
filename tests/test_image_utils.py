@@ -28,6 +28,7 @@ def test_normalize_title_for_filename() -> None:
     assert normalize_title_for_filename("Breaking Bad: Season 1") == "breaking_bad_season_1"
     assert normalize_title_for_filename("  The Witcher  ") == "the_witcher"
     assert normalize_title_for_filename("---abc$$$123---") == "abc_123"
+    assert normalize_title_for_filename("$$$") == "untitled"
 
 
 def test_ensure_image_dir(tmp_path: pathlib.Path, monkeypatch: MonkeyPatch) -> None:
@@ -102,8 +103,8 @@ async def test_save_image_from_clipboard_failure(
     monkeypatch: MonkeyPatch,
     caplog: LogCaptureFixture,
 ) -> None:
-    """Verify that a clipboard subprocess failure is handled gracefully."""
-    test_dir = tmp_path / "custom_images"
+    """Verify that a clipboard subprocess failure is handled gracefully and escapes path quotes."""
+    test_dir = tmp_path / 'custom_"images"'
     monkeypatch.setattr("netflix_narc.image_utils.IMAGE_DIR", test_dir)
 
     class FakeProcess:
@@ -115,19 +116,25 @@ async def test_save_image_from_clipboard_failure(
         async def communicate(self) -> tuple[bytes, bytes]:
             return b"FAIL", b"osascript error"
 
+    captured_args: list[object] = []
+
     async def fake_create_subprocess_exec(
-        *_args: object,
+        *args: object,
         **_kwargs: object,
     ) -> FakeProcess:
+        captured_args.extend(args)
         return FakeProcess()
 
     monkeypatch.setattr("asyncio.create_subprocess_exec", fake_create_subprocess_exec)
+    monkeypatch.setattr("sys.platform", "darwin")
 
     with caplog.at_level("ERROR"):
         result = await save_image_from_clipboard("My Show")
 
     assert result is None
     assert any("Failed to save clipboard image" in record.message for record in caplog.records)
+    # Check that the path with double quotes is escaped inside AppleScript (POSIX file "...")
+    assert any('custom_\\"images\\"' in arg for arg in captured_args if isinstance(arg, str))
 
 
 if __name__ == "__main__":

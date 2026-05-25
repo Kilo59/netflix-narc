@@ -7,6 +7,7 @@ import logging
 import pathlib
 import re
 import subprocess
+import sys
 
 import httpx
 
@@ -29,18 +30,24 @@ def normalize_title_for_filename(title: str) -> str:
     # Deduplicate underscores
     title = re.sub(r"_+", "_", title)
     # Strip leading/trailing underscores
-    return title.strip("_")
+    normalized = title.strip("_")
+    return normalized or "untitled"
 
 
 async def save_image_from_clipboard(title: str) -> pathlib.Path | None:
     """Read image from macOS clipboard using osascript and save it locally."""
+    if sys.platform != "darwin":
+        logger.warning("Clipboard image saving is only supported on macOS.")
+        return None
+
     ensure_image_dir()
     norm_title = normalize_title_for_filename(title)
     filepath = IMAGE_DIR / f"{norm_title}.png"
 
+    safe_path = str(filepath.absolute()).replace('"', '\\"')
     script = f"""
     try
-        set theFile to (open for access POSIX file "{filepath.absolute()}" with write permission)
+        set theFile to (open for access POSIX file "{safe_path}" with write permission)
         set eof of theFile to 0
         write (the clipboard as «class PNGf») to theFile
         close access theFile

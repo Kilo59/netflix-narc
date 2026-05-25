@@ -9,6 +9,10 @@ import csv
 import json
 import logging
 import pathlib
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from contextlib import AbstractAsyncContextManager
 
 import aiosqlite
 from pydantic import BaseModel, Field
@@ -32,8 +36,17 @@ class ManualMetadata(BaseModel):
 
     @property
     def completeness_score(self) -> int:
-        """Calculate a 0-100 completeness score for the dossier."""
-        total_fields = 10
+        """Calculate a 0-100 completeness score for the dossier.
+
+        The score is based on content_rating, user_rating, image_url,
+        plus one field for each CSMRatingCategory entry (from category_scores).
+        """
+        # 3 fixed fields: content_rating, user_rating, image_url
+        total_fields = 3 + len(CSMRatingCategory)
+
+        if total_fields == 0:
+            return 0
+
         filled = 0
 
         if self.content_rating is not None:
@@ -47,7 +60,7 @@ class ManualMetadata(BaseModel):
             if cat.value in self.category_scores:
                 filled += 1
 
-        return int((filled / total_fields) * 100)
+        return round(100 * filled / total_fields)
 
     def to_normalized_metadata(self) -> NormalizedMetadata:
         """Convert to standard NormalizedMetadata."""
@@ -67,8 +80,8 @@ class EvidenceLocker:
         """Initialize the Evidence Locker SQLite database."""
         self.db_path = pathlib.Path(db_path)
 
-    def _get_connection(self) -> aiosqlite.Connection:
-        """Return an aiosqlite connection (used as an async context manager)."""
+    def _get_connection(self) -> AbstractAsyncContextManager[aiosqlite.Connection]:
+        """Return an async context manager yielding an aiosqlite connection."""
         return aiosqlite.connect(self.db_path)
 
     async def init(self) -> None:
@@ -184,15 +197,11 @@ class EvidenceLocker:
     async def export_to_json(self, filepath: pathlib.Path) -> None:
         """Export all manual records to a JSON file."""
         records = [r.model_dump() for r in await self.get_all_records()]
-        filepath.write_text(json.dumps(records, indent=2), encoding="utf-8")  # noqa: ASYNC240
+        data_str = json.dumps(records, indent=2)
+        await asyncio.to_thread(filepath.write_text, data_str, encoding="utf-8")
 
-    async def export_to_csv(self, filepath: pathlib.Path) -> None:
-        """Export all manual records to a CSV file."""
-        records = await self.get_all_records()
-        if not records:
-            return
-
-        # Flatten category scores into top level fields for CSV
+    def _write_csv(self, filepath: pathlib.Path, records: list[ManualMetadata]) -> None:
+        """Synchronously write records to a CSV file."""
         fieldnames = [
             "title",
             "content_rating",
@@ -201,8 +210,6 @@ class EvidenceLocker:
             "flagged_for_followup",
             "ignored",
         ]
-
-        # Add dynamic category fields
         fieldnames.extend(category.value for category in CSMRatingCategory)
 
         with filepath.open("w", encoding="utf-8", newline="") as f:
@@ -221,34 +228,47 @@ class EvidenceLocker:
                     row[category.value] = record.category_scores.get(category.value, "")
                 writer.writerow(row)
 
+    async def export_to_csv(self, filepath: pathlib.Path) -> None:
+        """Export all manual records to a CSV file."""
+        records = await self.get_all_records()
+        if not records:
+            return
+        await asyncio.to_thread(self._write_csv, filepath, records)
+
     async def import_from_json(self, filepath: pathlib.Path) -> None:
         """Import records from a JSON file, upserting over existing entries."""
-        data = json.loads(filepath.read_text(encoding="utf-8"))  # noqa: ASYNC240
+        content = await asyncio.to_thread(filepath.read_text, encoding="utf-8")
+        data = json.loads(content)
         for entry in data:
             await self.upsert_record(ManualMetadata(**entry))
 
-    async def import_from_csv(self, filepath: pathlib.Path) -> None:
-        """Import records from a CSV file, upserting over existing entries."""
+    def _read_csv(self, filepath: pathlib.Path) -> list[dict[str, str]]:
+        """Synchronously read rows from a CSV file."""
         with filepath.open("r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            for row in reader:
-                scores = {}
-                for category in CSMRatingCategory:
-                    val = row.get(category.value)
-                    if val:
-                        with contextlib.suppress(ValueError):
-                            scores[category.value] = float(val)
+            return list(reader)
 
-                metadata = ManualMetadata(
-                    title=row["title"],
-                    content_rating=row.get("content_rating") or None,
-                    user_rating=float(row["user_rating"]) if row.get("user_rating") else None,
-                    image_url=row.get("image_url") or None,
-                    flagged_for_followup=bool(int(row.get("flagged_for_followup", 0))),
-                    ignored=bool(int(row.get("ignored", 0))),
-                    category_scores=scores,
-                )
-                await self.upsert_record(metadata)
+    async def import_from_csv(self, filepath: pathlib.Path) -> None:
+        """Import records from a CSV file, upserting over existing entries."""
+        rows = await asyncio.to_thread(self._read_csv, filepath)
+        for row in rows:
+            scores = {}
+            for category in CSMRatingCategory:
+                val = row.get(category.value)
+                if val:
+                    with contextlib.suppress(ValueError):
+                        scores[category.value] = float(val)
+
+            metadata = ManualMetadata(
+                title=row["title"],
+                content_rating=row.get("content_rating") or None,
+                user_rating=float(row["user_rating"]) if row.get("user_rating") else None,
+                image_url=row.get("image_url") or None,
+                flagged_for_followup=bool(int(row.get("flagged_for_followup", 0))),
+                ignored=bool(int(row.get("ignored", 0))),
+                category_scores=scores,
+            )
+            await self.upsert_record(metadata)
 
 
 # CLI interface for import/export tools
