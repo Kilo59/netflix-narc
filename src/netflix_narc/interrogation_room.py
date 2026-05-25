@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import pathlib
 import urllib.parse
 import webbrowser
@@ -27,7 +28,7 @@ class InterrogationRoomScreen(Screen[bool]):
     """The Interrogation Room Screen: enter manual metadata for a title."""
 
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
-        Binding("escape", "cancel", "Cancel"),
+        Binding("escape", "save_and_exit", "Save & Exit"),
         Binding("f2", "open_browser", "Search Web"),
         Binding("up", "focus_previous", "Focus Previous", show=False),
         Binding("down", "focus_next", "Focus Next", show=False),
@@ -81,8 +82,8 @@ class InterrogationRoomScreen(Screen[bool]):
             yield Checkbox("Flag for future follow-up", id="input-flag")
 
             with Horizontal(id="interrogation-actions"):
-                yield Button("Cancel", id="btn-cancel", variant="default")
-                yield Button("Save", id="btn-save", variant="primary")
+                yield Button("Discard Changes", id="btn-cancel", variant="error")
+                yield Button("Save & Exit", id="btn-save", variant="primary")
         yield Footer()
 
     async def on_mount(self) -> None:
@@ -118,6 +119,10 @@ class InterrogationRoomScreen(Screen[bool]):
         """Discard changes and close."""
         self.dismiss(False)  # noqa: FBT003
 
+    async def action_save_and_exit(self) -> None:
+        """Save changes and close."""
+        await self._save_record()
+
     def action_open_browser(self) -> None:
         """Open the default web browser to search for this title on Common Sense Media."""
         query = urllib.parse.quote_plus(self.base_title)
@@ -148,8 +153,9 @@ class InterrogationRoomScreen(Screen[bool]):
         scores: dict[str, float] = {}
         for cat in CSMCategory:
             val = self.query_one(f"#csm-{cat.name}", Input).value
-            if val and val.isdigit():
-                scores[cat.value] = float(val)
+            if val:
+                with contextlib.suppress(ValueError):
+                    scores[cat.value] = float(val)
 
         record = ManualMetadata(
             title=self.base_title,

@@ -268,11 +268,10 @@ class NetflixNarcApp(App[None]):
         """Load CSV and perform initial cache-based evaluation on the main thread."""
         self._load_startup_csv()
 
-        if self.rating_provider:
-            for base_title in self.grouped_records:
-                if base_title not in self.evaluated_flags:
-                    flags_str = await self._fetch_and_evaluate(base_title, cache_only=True)
-                    self.evaluated_flags[base_title] = flags_str
+        for base_title in self.grouped_records:
+            if base_title not in self.evaluated_flags:
+                flags_str = await self._fetch_and_evaluate(base_title, cache_only=True)
+                self.evaluated_flags[base_title] = flags_str
 
         await self._finish_startup()
 
@@ -351,10 +350,6 @@ class NetflixNarcApp(App[None]):
 
         Runs as an async worker on the main event loop.
         """
-        provider = self.rating_provider
-        if provider is None:
-            return
-
         self._set_loading(state=True)
 
         titles = list(self.grouped_records.keys())
