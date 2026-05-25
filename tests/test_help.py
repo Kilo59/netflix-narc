@@ -8,10 +8,9 @@ from __future__ import annotations
 
 import pytest
 from pydantic import SecretStr
-from textual.widgets import Button
 
 from netflix_narc.help_screen import HelpScreen
-from netflix_narc.main import NetflixNarcApp, SetupScreen
+from netflix_narc.main import NetflixNarcApp
 from netflix_narc.settings import Settings
 
 
@@ -32,9 +31,6 @@ async def test_action_help_pushes_help_screen(no_onboard_settings: Settings) -> 
     app = NetflixNarcApp(settings=no_onboard_settings, csv_path=None)
     async with app.run_test() as pilot:
         await pilot.pause()
-
-        # Verify SetupScreen is NOT on the stack
-        assert not any(isinstance(s, SetupScreen) for s in pilot.app.screen_stack)
 
         # Now press 'h' to trigger help
         await pilot.press("h")
@@ -58,19 +54,18 @@ async def test_action_question_mark_pushes_help_screen(no_onboard_settings: Sett
         assert any(isinstance(s, HelpScreen) for s in screens_after)
 
 
-async def test_setup_screen_help_button_pushes_help_screen(no_onboard_settings: Settings) -> None:
-    """Pressing the 'Help / About' button on SetupScreen pushes a HelpScreen."""
+async def test_help_button_from_preferences_opens_help(no_onboard_settings: Settings) -> None:
+    """The help screen should be reachable while PreferencesScreen is visible."""
     app = NetflixNarcApp(settings=no_onboard_settings, csv_path=None)
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        # Push SetupScreen manually
+        # Open preferences via 's'
         await pilot.press("s")
         await pilot.pause()
 
-        # Trigger the help button on SetupScreen programmatically
-        btn = pilot.app.screen.query_one("#btn-help", Button)
-        btn.press()
+        # Open help from preferences context via '?' key
+        await pilot.press("?")
         await pilot.pause()
 
         screens_after = pilot.app.screen_stack

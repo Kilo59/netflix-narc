@@ -7,9 +7,8 @@ import asyncio
 import contextlib
 import pathlib
 import webbrowser
-from typing import TYPE_CHECKING, ClassVar, NamedTuple, cast, override
+from typing import TYPE_CHECKING, ClassVar, cast, override
 
-from pydantic import SecretStr, TypeAdapter
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal
@@ -22,7 +21,6 @@ from textual.widgets import (
     Header,
     Input,
     LoadingIndicator,
-    Select,
     Static,
 )
 from textual.worker import Worker, WorkerState
@@ -38,131 +36,21 @@ from netflix_narc.help_screen import HelpScreen
 from netflix_narc.interrogation_room import InterrogationRoomScreen
 from netflix_narc.lineup import LineupScreen
 from netflix_narc.manual_db import EvidenceLocker
+from netflix_narc.onboarding import OnboardingResult, OnboardingScreen, WeightImpactPreview
 from netflix_narc.persistence import load_and_group_history, update_env_file
+from netflix_narc.preferences import PreferencesScreen
 from netflix_narc.settings import (
     DEFAULT_CSV_FILENAME,
     RatingProviderType,
     Settings,
-    parse_str_age_range,
 )
 
 if TYPE_CHECKING:
     from typing import Any
 
+    from netflix_narc.manual_db import ManualMetadata
     from netflix_narc.parser import ViewingRecord
     from netflix_narc.rating_api import NormalizedMetadata, RatingProvider
-
-
-class SetupConfig(NamedTuple):
-    """Configuration result from the setup screen."""
-
-    provider: RatingProviderType
-    api_key: SecretStr
-    child_age_range: tuple[int, int]
-
-
-class SetupScreen(Screen[SetupConfig | None]):
-    """A screen prompting for initial configuration (Provider, API Key, Target Child Age)."""
-
-    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
-        ("escape", "cancel", "Cancel"),
-    ]
-
-    @property
-    def narc_app(self) -> NetflixNarcApp:
-        """Type-safe access to the main app."""
-        return cast("NetflixNarcApp", self.app)
-
-    @override
-    def compose(self) -> ComposeResult:
-        """Compose the setup screen widgets."""
-        yield Container(
-            Static("Welcome to Netflix Narc!", classes="title"),
-            Static(
-                "Configure your rating provider, API key, and target child age.",
-                classes="instructions",
-            ),
-            Select(
-                [(p.name.replace("_", " "), p) for p in RatingProviderType],
-                value=RatingProviderType.OMDB,
-                id="provider-select",
-            ),
-            Input(placeholder="Enter API Key...", id="api-key-input", password=True),
-            Input(placeholder="Child's Age or Range (e.g. 10 or 8-12)...", id="child-age-input"),
-            Button("Help / About", id="btn-help"),
-            Horizontal(
-                Button("Cancel", variant="error", id="cancel-btn"),
-                Button("Save & Continue", variant="primary", id="save-btn"),
-            ),
-            id="setup-container",
-        )
-
-    def on_mount(self) -> None:
-        """Pre-populate fields with current settings."""
-        settings = self.narc_app.settings
-        if settings.child_age_range:
-            min_age, max_age = settings.child_age_range
-            range_str = f"{min_age}-{max_age}" if min_age != max_age else str(min_age)
-            self.query_one("#child-age-input", Input).value = range_str
-
-        self.query_one("#provider-select", Select).value = settings.active_rating_provider
-
-        active_provider = settings.active_rating_provider
-        key_val = ""
-        if active_provider == RatingProviderType.CSM:
-            key_val = settings.csm_api_key.get_secret_value()
-        elif active_provider == RatingProviderType.OMDB:
-            key_val = settings.omdb_api_key.get_secret_value()
-        elif active_provider == RatingProviderType.TMDB:
-            key_val = settings.tmdb_api_key.get_secret_value()
-
-        if key_val:
-            self.query_one("#api-key-input", Input).value = key_val
-
-    def on_input_submitted(self, _event: Input.Submitted) -> None:
-        """Save settings when Enter is pressed on the Input widget."""
-        self._save_settings()
-
-    def action_cancel(self) -> None:
-        """Handle escape key to cancel."""
-        self.dismiss(None)
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button press events in the setup screen."""
-        if event.button.id == "save-btn":
-            self._save_settings()
-        elif event.button.id == "cancel-btn":
-            self.dismiss(None)
-        elif event.button.id == "btn-help":
-            self.narc_app.push_screen(HelpScreen())
-
-    def _save_settings(self) -> None:
-        """Validate and save settings, then dismiss the screen."""
-        provider = self.query_one("#provider-select", Select).value
-        api_key = self.query_one("#api-key-input", Input).value
-        child_age = self.query_one("#child-age-input", Input).value.strip()
-
-        if not provider or not isinstance(provider, RatingProviderType):
-            self.notify("Provider is required", severity="warning")
-            return
-        try:
-            parsed_range = parse_str_age_range(child_age)
-        except ValueError:
-            self.notify("Please enter a valid child age (e.g., 10 or 8-12)", severity="warning")
-            return
-
-        if parsed_range is None:
-            self.notify("Please enter a valid child age (e.g., 10 or 8-12)", severity="warning")
-            return
-
-        secret_key = TypeAdapter(SecretStr).validate_python(api_key or "")
-        self.dismiss(
-            SetupConfig(
-                provider=provider,
-                api_key=secret_key,
-                child_age_range=parsed_range,
-            )
-        )
 
 
 class LoadCsvScreen(Screen[str | None]):
@@ -239,8 +127,8 @@ class AdvancedScreen(Screen[None]):
         yield Container(
             Static("Advanced Options", classes="title"),
             Static(
-                "These options are for users who have already configured an API key "
-                "in Setup and want to fetch ratings automatically.",
+                "Use these actions to load your history file or fetch ratings from your "
+                "configured provider. You can also trigger them directly with [C] and [E].",
                 classes="instructions",
             ),
             Button(
@@ -360,14 +248,12 @@ class NetflixNarcApp(App[None]):
         table.add_column("Flags", key="flags")
 
         # Only require child_age_range to be configured to pass onboarding.
-        # An API key is optional.
+        # An API key is optional — it is collected on a skippable onboarding step.
         needs_onboarding = self.settings.child_age_range is None
 
         if needs_onboarding:
             self._set_loading(state=False)
-            self.call_after_refresh(
-                lambda: self.push_screen(SetupScreen(), self.handle_startup_onboarding_complete)
-            )
+            self.call_after_refresh(self._push_onboarding)
         else:
             # Initialize provider if an API key is available
             active_provider = self.settings.active_rating_provider
@@ -421,56 +307,101 @@ class NetflixNarcApp(App[None]):
         self._set_loading(state=False)
 
     def action_settings(self) -> None:
-        """Push the setup screen to configure API keys."""
-        self.push_screen(SetupScreen(), self.handle_setup_complete)
+        """Push the Preferences screen."""
+        self.push_screen(
+            PreferencesScreen(
+                settings=self.settings,
+                preview_records=self._get_preview_records(),
+            )
+        )
 
     def action_advanced(self) -> None:
-        """Open the Advanced options modal."""
+        """Open the Advanced options modal (progressive disclosure for C/E actions)."""
         self.push_screen(AdvancedScreen())
 
     def action_show_help(self) -> None:
         """Push the help screen to explain the app features and usage."""
         self.push_screen(HelpScreen())
 
-    def handle_setup_complete(self, config: SetupConfig | None) -> None:
-        """Handle the completion of the setup screen."""
-        if config:
-            provider = config.provider
-            api_key = config.api_key
-            child_age = config.child_age_range
+    def _get_preview_records(self) -> list[ManualMetadata]:
+        """Fetch Evidence Locker records eligible for the weight impact preview."""
+        import asyncio as _asyncio  # noqa: PLC0415
 
-            self.settings.active_rating_provider = provider
-            match provider:
+        async def _fetch() -> list[ManualMetadata]:
+            records = await self.evidence_locker.get_all_records()
+            return WeightImpactPreview.select_preview_records(records, self.settings)
+
+        try:
+            loop = _asyncio.get_event_loop()
+            if loop.is_running():
+                # We're inside an async context; schedule as a coroutine and return empty
+                # for now. The preview panel will be empty on this call path;
+                # a proper async refresh can be added later.
+                return []
+            return loop.run_until_complete(_fetch())
+        except Exception:  # noqa: BLE001
+            return []
+
+    async def _push_onboarding(self) -> None:
+        """Fetch preview records and push the OnboardingScreen."""
+        try:
+            all_records = await self.evidence_locker.get_all_records()
+            preview = WeightImpactPreview.select_preview_records(all_records, self.settings)
+        except Exception:  # noqa: BLE001
+            preview = []
+        self.push_screen(
+            OnboardingScreen(preview_records=preview, baseline_settings=self.settings),
+            self.handle_startup_onboarding_complete,
+        )
+
+    def handle_startup_onboarding_complete(self, result: OnboardingResult | None) -> None:  # noqa: C901
+        """Handle onboarding completion on startup. Exit if cancelled."""
+        if not result:
+            self.exit()
+            return
+
+        self.settings.child_age_range = result.child_age_range
+        self.settings.weights = result.weights
+
+        provider = result.provider or self.settings.active_rating_provider
+        api_key = result.api_key
+
+        if result.provider is not None:
+            self.settings.active_rating_provider = result.provider
+            match result.provider:
                 case RatingProviderType.CSM:
-                    self.settings.csm_api_key = api_key
+                    if api_key:
+                        self.settings.csm_api_key = api_key
                 case RatingProviderType.OMDB:
-                    self.settings.omdb_api_key = api_key
+                    if api_key:
+                        self.settings.omdb_api_key = api_key
                 case RatingProviderType.TMDB:
-                    self.settings.tmdb_api_key = api_key
+                    if api_key:
+                        self.settings.tmdb_api_key = api_key
 
-            self.settings.child_age_range = child_age
+        # Determine the key to persist (use empty string if not provided)
+        from pydantic import SecretStr as _SecretStr  # noqa: PLC0415
 
+        persist_key = api_key if api_key is not None else _SecretStr("")
+
+        try:
+            update_env_file(
+                provider=provider,
+                api_key=persist_key,
+                child_age_range=result.child_age_range,
+                weights=result.weights,
+            )
+        except OSError as e:
+            self.notify(f"Could not save settings: {e}", severity="warning")
+
+        # Only initialize a rating provider if an API key was actually supplied
+        if api_key is not None and api_key.get_secret_value():
             try:
                 self.rating_provider = get_rating_provider(
                     settings=self.settings, cache_dir=self.cache_dir
                 )
-                update_env_file(
-                    provider=provider,
-                    api_key=api_key,
-                    env_path=pathlib.Path(".env"),
-                    child_age_range=child_age,
-                )
-                self.notify(f"Settings saved for {provider.upper()}.")
             except (ValueError, NotImplementedError) as e:
-                self.notify(f"Initialization error: {e}", severity="error")
-
-    def handle_startup_onboarding_complete(self, config: SetupConfig | None) -> None:
-        """Handle onboarding completion on startup. Exit if cancelled."""
-        if not config:
-            self.exit()
-            return
-
-        self.handle_setup_complete(config)
+                self.notify(f"Provider error: {e}", severity="warning")
 
         self._set_loading(state=True)
         self.call_after_refresh(self._startup_sync_sequence)

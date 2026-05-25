@@ -7,10 +7,22 @@ import re
 from enum import StrEnum
 from typing import ClassVar, Final
 
+import platformdirs
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_CSV_FILENAME: Final[pathlib.Path] = pathlib.Path("NetflixViewingHistory.csv")
+
+
+def get_config_dir() -> pathlib.Path:
+    """Return the XDG-compliant user config directory for netflix-narc.
+
+    Creates the directory if it does not already exist.
+    Resolves to ~/.config/netflix-narc/ on Linux/macOS.
+    """
+    d = pathlib.Path(platformdirs.user_config_dir("netflix-narc"))
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 class RatingProviderType(StrEnum):
@@ -28,6 +40,16 @@ class CategoryWeights(BaseSettings):
     Categories scoring poorly on CSM multiplied by these weights will flag the title.
     """
 
+    DEFAULT_WEIGHTS: ClassVar[dict[str, int]] = {
+        "educational_value": 1,
+        "positive_messages": 1,
+        "positive_role_models": 1,
+        "violence": 3,
+        "sexy_stuff": 3,
+        "language": 2,
+        "drinking_drugs": 3,
+    }
+
     educational_value: int = 1
     positive_messages: int = 1
     positive_role_models: int = 1
@@ -41,7 +63,7 @@ class Settings(BaseSettings):
     """Core application configuration."""
 
     model_config: ClassVar[SettingsConfigDict] = {
-        "env_file": ".env",
+        "env_file": str(get_config_dir() / ".env"),
         "env_file_encoding": "utf-8",
         "env_nested_delimiter": "__",
     }

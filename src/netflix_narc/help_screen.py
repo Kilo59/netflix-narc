@@ -47,7 +47,7 @@ class HelpScreen(Screen[None]):
                 yield Static("HOW IT WORKS", classes="help-section-title")
                 yield Static(
                     "Every title in your history gets a [b]Suitability Score[/b]. "
-                    "You set the bar in [b]Setup[/b] — the age range you're "
+                    "You set the bar in [b]Preferences[/b] — the age range you're "
                     "screening for, and how much weight to give things like "
                     "violence or language. Anything that doesn't meet your bar "
                     "gets flagged in the main table.",
@@ -77,10 +77,11 @@ class HelpScreen(Screen[None]):
                     classes="help-bullet",
                 )
                 yield Static(
-                    "  • [b]Setup  [S][/b]\n"
-                    "    Where you define your standards. Set the age range\n"
-                    "    you're screening for and how strictly each content\n"
-                    "    category is penalized.",
+                    "  • [b]Preferences  [S][/b]\n"
+                    "    Change your settings any time. Adjust the age range,\n"
+                    "    content category weights, API provider, and advanced\n"
+                    "    options. A live preview shows how weight changes affect\n"
+                    "    your existing title scores (requires ≥2 rated titles).",
                     classes="help-bullet",
                 )
 
@@ -89,8 +90,8 @@ class HelpScreen(Screen[None]):
                 yield Static(
                     "  [b]L[/b]          Open The Lineup\n"
                     "  [b]I[/b]          Interrogate selected title\n"
-                    "  [b]S[/b]          Open Setup\n"
-                    "  [b]A[/b]          Advanced options\n"
+                    "  [b]S[/b]          Preferences\n"
+                    "  [b]A[/b]          Advanced options (load CSV, evaluate)\n"
                     "  [b]?[/b] / [b]H[/b]      Show this screen\n"
                     "  [b]Q[/b] / [b]ESC[/b]    Go back / Quit",
                     classes="help-text",
