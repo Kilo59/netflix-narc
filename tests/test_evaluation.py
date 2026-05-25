@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from netflix_narc.evaluator import calculate_suitability, evaluate_title, get_suitability_bar
+from netflix_narc.evaluator import (
+    calculate_suitability,
+    evaluate_title,
+    explain_suitability,
+    get_suitability_bar,
+)
 from netflix_narc.rating_api import NormalizedMetadata
 from netflix_narc.settings import Settings
 
@@ -242,6 +247,22 @@ def test_get_suitability_bar():
     assert "green" in bar
     assert "█" in bar
     assert "8.5/10" in bar
+
+
+def test_explain_suitability():
+    settings = Settings(max_age_rating=10, min_quality_rating=4)
+    metadata = NormalizedMetadata(
+        title="Flawed Title",
+        content_rating="12",
+        user_rating=6.0,
+        provider_name="test",
+        category_scores={"Educational Value": 0},
+    )
+    explanations = explain_suitability(metadata, settings)
+    assert any("Base quality rating: 6.0/10" in line for line in explanations)
+    assert any("Exceeds maximum allowed age" in line for line in explanations)
+    assert any("Quality is below minimum required" in line for line in explanations)
+    assert any("Extremely low Educational Value score" in line for line in explanations)
 
 
 if __name__ == "__main__":

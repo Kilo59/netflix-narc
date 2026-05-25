@@ -345,3 +345,20 @@ Select {
     color: #ffffff;
     height: 3;
 }
+
+#suitability-dashboard {
+    background: #1f1f1f;
+    border: solid #333333;
+    padding: 1 2;
+    margin-bottom: 1;
+    height: auto;
+}
+
+.suitability-bar-main {
+    text-style: bold;
+    color: #ffffff;
+}
+
+.suitability-bar-sub {
+    color: #808080;
+}

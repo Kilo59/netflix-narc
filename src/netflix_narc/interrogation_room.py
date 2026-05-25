@@ -15,7 +15,14 @@ from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Static
 
 from netflix_narc.csm_api import CSMRatingCategory as CSMCategory
-from netflix_narc.evaluator import calculate_suitability, get_suitability_bar
+from netflix_narc.evaluator import (
+    calculate_suitability,
+    explain_suitability,
+    get_age_suitability_deduction,
+    get_categories_suitability_deduction,
+    get_edu_suitability_deduction,
+    get_suitability_bar,
+)
 from netflix_narc.image_utils import download_image_to_path, save_image_from_clipboard
 from netflix_narc.manual_db import ManualMetadata
 from netflix_narc.rating_api import NormalizedMetadata
@@ -58,7 +65,12 @@ class InterrogationRoomScreen(Screen[bool]):
                 )
                 yield Button("Search Web [F2]", id="btn-search-web", variant="default")
 
-            yield Static("", id="interrogation-suitability-bar", classes="suitability-widget")
+            with Vertical(id="suitability-dashboard"):
+                yield Static("", id="overall-suitability-bar", classes="suitability-bar-main")
+                yield Static("", id="base-quality-bar", classes="suitability-bar-sub")
+                yield Static("", id="age-suitability-bar", classes="suitability-bar-sub")
+                yield Static("", id="edu-suitability-bar", classes="suitability-bar-sub")
+                yield Static("", id="content-suitability-bar", classes="suitability-bar-sub")
 
             with Horizontal(classes="form-row"):
                 yield Static("Min Age Rating:", classes="form-label")
@@ -254,13 +266,60 @@ class InterrogationRoomScreen(Screen[bool]):
             category_scores=scores,
         )
 
-        # Calculate score and update the bar widget
+        # Calculate score and update the bar widgets
         score = calculate_suitability(metadata, self.narc_app.settings)
-        bar_text = get_suitability_bar(score, width=20)
+        overall_bar = get_suitability_bar(score, width=20)
+        self.query_one("#overall-suitability-bar", Static).update(
+            f"Overall Suitability:  {overall_bar}"
+        )
 
-        # Display nicely in the widget
-        widget = self.query_one("#interrogation-suitability-bar", Static)
-        widget.update(f"Real-time Suitability Index: {bar_text}")
+        # 2. Base Quality
+        base_val = metadata.user_rating if metadata.user_rating is not None else 5.0
+        base_bar = get_suitability_bar(base_val, width=15)
+        self.query_one("#base-quality-bar", Static).update(f"  └─ Base Quality:     {base_bar}")
+
+        # 3. Age Rating Suitability
+        age_ded = get_age_suitability_deduction(
+            metadata.content_rating, self.narc_app.settings.max_age_rating
+        )
+        # Normalize age suitability out of 10
+        age_val = max(0.0, 10.0 - age_ded * 2.0)
+        age_bar = get_suitability_bar(age_val, width=15)
+        self.query_one("#age-suitability-bar", Static).update(f"  └─ Age Rating:       {age_bar}")
+
+        # 4. Educational Value
+        edu_score = scores.get("Educational Value")
+        edu_ded = get_edu_suitability_deduction(
+            edu_score, metadata.user_rating, self.narc_app.settings.min_quality_rating
+        )
+        # Normalize edu suitability out of 10
+        edu_val = max(0.0, 10.0 - edu_ded * 3.33)
+        edu_bar = get_suitability_bar(edu_val, width=15)
+        self.query_one("#edu-suitability-bar", Static).update(f"  └─ Educational Value:{edu_bar}")
+
+        # 5. Content Safety (negative categories)
+        content_ded = get_categories_suitability_deduction(
+            metadata.category_scores, self.narc_app.settings
+        )
+        # Normalize content suitability out of 10
+        content_val = max(0.0, 10.0 - content_ded * 1.0)
+        content_bar = get_suitability_bar(content_val, width=15)
+        self.query_one("#content-suitability-bar", Static).update(
+            f"  └─ Content Safety:   {content_bar}"
+        )
+
+        # Calculate detailed explanations for tooltip
+        explanations = explain_suitability(metadata, self.narc_app.settings)
+        tooltip_lines = [
+            f"Detailed Score Breakdown for: {self.base_title}",
+            "========================================",
+        ]
+        tooltip_lines.extend(explanations)
+        tooltip_lines.append("========================================")
+        tooltip_lines.append(f"Final Suitability Score: {score:.1f}/10")
+        tooltip_text = "\n".join(tooltip_lines)
+
+        self.query_one("#suitability-dashboard", Vertical).tooltip = tooltip_text
 
     def on_input_changed(self, _event: Input.Changed) -> None:
         """Handle real-time updates of suitability score when inputs change."""

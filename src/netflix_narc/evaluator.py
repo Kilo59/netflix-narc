@@ -154,7 +154,7 @@ HIGH_DEDUCTION_THRESHOLD: Final = 12
 MEDIUM_DEDUCTION_THRESHOLD: Final = 8
 
 
-def _get_age_suitability_deduction(
+def get_age_suitability_deduction(
     content_rating: str | None,
     max_age_rating: int,
 ) -> float:
@@ -166,7 +166,7 @@ def _get_age_suitability_deduction(
     return 0.0
 
 
-def _get_quality_suitability_deduction(
+def get_quality_suitability_deduction(
     user_rating: float | None,
     min_quality_rating: int,
 ) -> float:
@@ -177,7 +177,7 @@ def _get_quality_suitability_deduction(
     return 0.0
 
 
-def _get_edu_suitability_deduction(
+def get_edu_suitability_deduction(
     edu_score: float | None,
     user_rating: float | None,
     min_quality_rating: int,
@@ -199,7 +199,7 @@ def _get_edu_suitability_deduction(
     return 0.0
 
 
-def _get_categories_suitability_deduction(
+def get_categories_suitability_deduction(
     scores: dict[str, int | float],
     criteria: Settings,
 ) -> float:
@@ -231,18 +231,122 @@ def calculate_suitability(metadata: NormalizedMetadata, criteria: Settings) -> f
     # Start with overall quality rating (0-10 scale). Default to 5.0 if None.
     score = metadata.user_rating if metadata.user_rating is not None else 5.0
 
-    score -= _get_age_suitability_deduction(metadata.content_rating, criteria.max_age_rating)
-    score -= _get_quality_suitability_deduction(metadata.user_rating, criteria.min_quality_rating)
+    score -= get_age_suitability_deduction(metadata.content_rating, criteria.max_age_rating)
+    score -= get_quality_suitability_deduction(metadata.user_rating, criteria.min_quality_rating)
 
     edu_score = metadata.category_scores.get("Educational Value")
-    score -= _get_edu_suitability_deduction(
+    score -= get_edu_suitability_deduction(
         edu_score, metadata.user_rating, criteria.min_quality_rating
     )
 
-    score -= _get_categories_suitability_deduction(metadata.category_scores, criteria)
+    score -= get_categories_suitability_deduction(metadata.category_scores, criteria)
 
     # Bound the score between 0.0 and 10.0
     return max(0.0, min(10.0, score))
+
+
+def _explain_age_suitability(
+    content_rating: str | None,
+    max_age_rating: int,
+) -> str | None:
+    """Explain deduction for exceeding age rating."""
+    age_val = _get_age_limit(content_rating)
+    if age_val is not None and age_val > max_age_rating:
+        excess = age_val - max_age_rating
+        deduction = min(5.0, excess * 1.5)
+        return f"- Exceeds maximum allowed age ({max_age_rating}): -{deduction:.1f}"
+    return None
+
+
+def _explain_quality_suitability(
+    user_rating: float | None,
+    min_quality_rating: int,
+) -> str | None:
+    """Explain deduction for low overall quality."""
+    min_normalized = min_quality_rating * 2
+    if user_rating is not None and user_rating < min_normalized:
+        deficit = min_normalized - user_rating
+        return f"- Quality is below minimum required ({min_normalized:.1f}): -{deficit:.1f}"
+    return None
+
+
+def _explain_edu_suitability(
+    edu_score: float | None,
+    user_rating: float | None,
+    min_quality_rating: int,
+) -> str | None:
+    """Explain deduction for educational value."""
+    if edu_score is None:
+        return None
+
+    if edu_score <= 0:
+        return "- Extremely low Educational Value score (0/5): -3.0"
+    if edu_score == 1:
+        if user_rating is None or user_rating < PERFECT_QUALITY_RATING:
+            return "- Low Educational Value score (1/5) relative to quality: -2.0"
+    elif edu_score in (2, 3):
+        min_normalized = min_quality_rating * 2
+        is_low_quality = user_rating is not None and user_rating < min_normalized
+        if is_low_quality:
+            return "- Medium Educational Value score (2-3/5) with low overall quality: -1.0"
+    return None
+
+
+def _explain_categories_suitability(
+    scores: dict[str, int | float],
+    criteria: Settings,
+) -> list[str]:
+    """Explain deductions for negative categories."""
+    mapping = {
+        "Violence & Scariness": criteria.weights.violence,
+        "Sexy Stuff": criteria.weights.sexy_stuff,
+        "Language": criteria.weights.language,
+        "Drinking, Drugs & Smoking": criteria.weights.drinking_drugs,
+    }
+
+    explanations: list[str] = []
+    for category, weight in mapping.items():
+        raw_score = scores.get(category)
+        if raw_score is not None:
+            weighted_score = raw_score * weight
+            if weighted_score >= HIGH_DEDUCTION_THRESHOLD:
+                explanations.append(
+                    f"- High '{category}' score ({raw_score}/5, weight {weight}): -3.0"
+                )
+            elif weighted_score >= MEDIUM_DEDUCTION_THRESHOLD:
+                explanations.append(
+                    f"- Elevated '{category}' score ({raw_score}/5, weight {weight}): -1.5"
+                )
+    return explanations
+
+
+def explain_suitability(metadata: NormalizedMetadata, criteria: Settings) -> list[str]:
+    """Provide a list of specific score deductions for a title."""
+    explanations: list[str] = []
+
+    # Base score
+    base_score = metadata.user_rating if metadata.user_rating is not None else 5.0
+    explanations.append(f"Base quality rating: {base_score:.1f}/10")
+
+    age_expl = _explain_age_suitability(metadata.content_rating, criteria.max_age_rating)
+    if age_expl:
+        explanations.append(age_expl)
+
+    quality_expl = _explain_quality_suitability(metadata.user_rating, criteria.min_quality_rating)
+    if quality_expl:
+        explanations.append(quality_expl)
+
+    edu_score = metadata.category_scores.get("Educational Value")
+    edu_expl = _explain_edu_suitability(
+        edu_score, metadata.user_rating, criteria.min_quality_rating
+    )
+    if edu_expl:
+        explanations.append(edu_expl)
+
+    cat_expls = _explain_categories_suitability(metadata.category_scores, criteria)
+    explanations.extend(cat_expls)
+
+    return explanations
 
 
 def get_suitability_bar(score: float, width: int = 10) -> str:
