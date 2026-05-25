@@ -28,56 +28,70 @@ class HelpScreen(Screen[None]):
         with Container(id="help-container"), Vertical(id="help-card"):
             yield Static("NETFLIX NARC", classes="help-title")
             yield Static(
-                "Review your Netflix history for age-inappropriate content.",
+                "Know what your family is actually watching.",
                 classes="help-subtitle",
             )
 
             with ScrollableContainer(id="help-scroll"):
-                # ── Getting Started ──────────────────────────────────────
-                yield Static("GETTING STARTED", classes="help-section-title")
+                # ── What This Is ─────────────────────────────────────────
+                yield Static("WHAT THIS IS", classes="help-section-title")
                 yield Static(
-                    "  [b]1.[/b]  On Netflix, go to [i]Account → Viewing Activity[/i]\n"
-                    "       and click [i]Download all[/i] to get your history CSV.\n"
-                    "  [b]2.[/b]  Press [b]C[/b] to load that file into the app.\n"
-                    "  [b]3.[/b]  Press [b]L[/b] to open [b]The Lineup[/b] — a queue\n"
-                    "       of titles to review one by one.\n"
-                    "  [b]4.[/b]  For each title, press [b]I[/b] to open the\n"
-                    "       [b]Interrogation Room[/b] and enter its age rating\n"
-                    "       and content details yourself.\n"
-                    "  [b]5.[/b]  Press [b]E[/b] to score everything. Flagged titles\n"
-                    "       will be highlighted in the main table.",
+                    "Netflix tracks everything your household watches. Netflix Narc "
+                    "lets you go through that history and flag anything that might "
+                    "be too mature — violence, language, adult themes — based on "
+                    "standards you define.",
                     classes="help-text",
                 )
 
-                # ── Screens ──────────────────────────────────────────────
-                yield Static("SCREENS", classes="help-section-title")
+                # ── How It Works ─────────────────────────────────────────
+                yield Static("HOW IT WORKS", classes="help-section-title")
+                yield Static(
+                    "Every title in your history gets a [b]Suitability Score[/b]. "
+                    "You set the bar in [b]Setup[/b] — the age range you're "
+                    "screening for, and how much weight to give things like "
+                    "violence or language. Anything that doesn't meet your bar "
+                    "gets flagged in the main table.",
+                    classes="help-text",
+                )
+                yield Static(
+                    "The scores are based on details [i]you[/i] enter for each "
+                    "title — the age rating, content categories, and so on. "
+                    "[b]The Lineup[/b] is where you do that work, one title at "
+                    "a time, without having to scroll through your entire history.",
+                    classes="help-text",
+                )
+
+                # ── The Screens ───────────────────────────────────────────
+                yield Static("THE SCREENS", classes="help-section-title")
                 yield Static(
                     "  • [b]The Lineup  [L][/b]\n"
-                    "    A guided queue of titles that need your attention.\n"
-                    "    Skip, Ignore, or Interrogate each one in turn.",
+                    "    The best place to start. Surfaces the titles that most\n"
+                    "    need your attention — things watched frequently, or with\n"
+                    "    no rating yet. Work through them one at a time.",
                     classes="help-bullet",
                 )
                 yield Static(
                     "  • [b]Interrogation Room  [I][/b]\n"
-                    "    Enter a title's age rating and content scores manually.\n"
-                    "    Your entries are saved locally and used in every evaluation.",
+                    "    Where you rate a title. Enter its age rating and score\n"
+                    "    content like violence, language, and adult themes.\n"
+                    "    Your entries are saved and used in every evaluation.",
                     classes="help-bullet",
                 )
                 yield Static(
                     "  • [b]Setup  [S][/b]\n"
-                    "    Set your suitability threshold, child age range, and\n"
-                    "    category weights. API keys are optional — the app works\n"
-                    "    without them using only your manual entries.",
+                    "    Where you define your standards. Set the age range\n"
+                    "    you're screening for and how strictly each content\n"
+                    "    category is penalized.",
                     classes="help-bullet",
                 )
 
                 # ── Key Bindings ─────────────────────────────────────────
                 yield Static("KEY BINDINGS", classes="help-section-title")
                 yield Static(
-                    "  [b]C[/b]          Load / refresh CSV history\n"
                     "  [b]L[/b]          Open The Lineup\n"
                     "  [b]I[/b]          Interrogate selected title\n"
                     "  [b]E[/b]          Evaluate all titles\n"
+                    "  [b]C[/b]          Load / refresh CSV history\n"
                     "  [b]S[/b]          Open Setup\n"
                     "  [b]?[/b] / [b]H[/b]      Show this screen\n"
                     "  [b]Q[/b] / [b]ESC[/b]    Go back / Quit",
