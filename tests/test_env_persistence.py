@@ -51,5 +51,21 @@ def test_update_env_file_preserves_formatting(tmp_path: pathlib.Path) -> None:
     assert content.count("OMDB_API_KEY") == 1
 
 
+def test_update_env_file_with_child_age_range(tmp_path: pathlib.Path) -> None:
+    """Test that update_env_file persists the child age range tuple correctly."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("ACTIVE_RATING_PROVIDER=omdb\nOMDB_API_KEY=my-key\n")
+
+    update_env_file(
+        RatingProviderType.OMDB,
+        SecretStr("my-key"),
+        env_path=env_file,
+        child_age_range=(8, 12),
+    )
+
+    content = env_file.read_text()
+    assert "CHILD_AGE_RANGE=8,12" in content
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])
