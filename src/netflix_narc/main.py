@@ -28,6 +28,7 @@ from textual.worker import Worker, WorkerState
 
 from netflix_narc.evaluator import evaluate_title
 from netflix_narc.factory import get_rating_provider
+from netflix_narc.interrogation_room import InterrogationRoomScreen
 from netflix_narc.lineup import LineupScreen
 from netflix_narc.manual_db import EvidenceLocker
 from netflix_narc.persistence import load_and_group_history, update_env_file
@@ -171,6 +172,7 @@ class NetflixNarcApp(App[None]):
         ("c", "load_csv", "Load CSV"),
         ("s", "settings", "Settings"),
         ("e", "evaluate", "Evaluate Titles"),
+        ("i", "interrogate", "Interrogate Title"),
     ]
 
     def __init__(
@@ -472,6 +474,30 @@ class NetflixNarcApp(App[None]):
             else:
                 self.expanded_titles.add(row_key)
             await self.rebuild_table(evaluate=False, cursor_to_key=row_key)
+
+    def action_interrogate(self) -> None:
+        """Interrogate the currently selected row in the data table."""
+        table = self.query_one(DataTable)
+        try:
+            if not table.cursor_coordinate:
+                return
+            row_key = table.coordinate_to_cell_key(table.cursor_coordinate).row_key.value
+        except (LookupError, ValueError):
+            return
+
+        if not row_key or not isinstance(row_key, str):
+            return
+
+        base_title = row_key
+        if base_title not in self.grouped_records:
+            # Check if it's a child row. Child keys format: {base_title}_{rec.title}_{date}
+            for b_title in self.grouped_records:
+                if base_title.startswith(b_title + "_"):
+                    base_title = b_title
+                    break
+
+        if base_title in self.grouped_records:
+            self.push_screen(InterrogationRoomScreen(base_title=base_title))
 
     async def _fetch_and_evaluate(self, base_title: str, *, cache_only: bool) -> str:  # noqa: C901
         """Fetch metadata, merge manual data, and evaluate."""

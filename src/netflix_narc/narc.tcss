@@ -282,6 +282,18 @@ Select {
     min-width: 10;
 }
 
+#image-preview {
+    width: 100%;
+    height: auto;
+    content-align: center middle;
+    margin-top: 1;
+    margin-bottom: 1;
+}
+
+.hidden {
+    display: none;
+}
+
 .section-header {
     color: #E50914;
     text-style: bold;

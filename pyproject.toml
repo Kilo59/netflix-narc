@@ -19,6 +19,7 @@ dependencies = [
     "hishel>=1.1.9",
     "httpx[http2]>=0.28.1",
     "pydantic-settings>=2.13.1",
+    "rich-pixels>=3.0.1",
     "textual>=8.1.1",
 ]
 

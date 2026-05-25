@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import pathlib
 import urllib.parse
 import webbrowser
 from typing import TYPE_CHECKING, ClassVar, cast, override
 
+from rich_pixels import Pixels
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
 from textual.screen import Screen
@@ -66,6 +68,8 @@ class InterrogationRoomScreen(Screen[bool]):
                 yield Input(id="input-image-url", placeholder="Image URL...")
                 yield Button("Paste", id="btn-paste-image", variant="success")
 
+            yield Static(id="image-preview", classes="hidden")
+
             yield Static("CSM Category Scores (0-5)", classes="section-header")
 
             with Vertical(id="csm-scores"):
@@ -99,6 +103,7 @@ class InterrogationRoomScreen(Screen[bool]):
                 self.query_one("#input-image-url", Input).value = str(
                     self.existing_record.image_url
                 )
+                self._update_image_preview(self.existing_record.image_url)
 
             self.query_one(
                 "#input-flag", Checkbox
@@ -179,9 +184,30 @@ class InterrogationRoomScreen(Screen[bool]):
         filepath = await save_image_from_clipboard(self.base_title)
         if filepath:
             self.query_one("#input-image-url", Input).value = str(filepath)
+            self._update_image_preview(str(filepath))
             self.notify("Image pasted and saved locally!")
         else:
             self.notify(
                 "Failed to paste image. Is there an image in your clipboard?",
                 severity="error",
             )
+
+    def _update_image_preview(self, path_or_url: str) -> None:
+        """Update the image preview if the path is a valid local file."""
+        preview = self.query_one("#image-preview", Static)
+        if not path_or_url or path_or_url.startswith("http"):
+            preview.display = False
+            return
+
+        path = pathlib.Path(path_or_url)
+        if path.exists() and path.is_file():
+            try:
+                # Resize the image so it fits reasonably in the TUI without taking over the screen
+                pixels = Pixels.from_image_path(str(path), resize=(35, 25))
+                preview.update(pixels)
+                preview.display = True
+            except (OSError, ValueError) as e:
+                self.notify(f"Could not render image: {e}", severity="warning")
+                preview.display = False
+        else:
+            preview.display = False
