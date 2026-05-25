@@ -52,4 +52,14 @@ def get_rating_provider(settings: Settings) -> RatingProvider:
   - `imdbRating` (0-10) -> `user_rating`.
 
 ## Evaluation Logic
-The [evaluator.py](src/netflix_narc/evaluator.py) module consumes only the `NormalizedMetadata`. It applies user-defined weights (from `Settings`) to the `category_scores` to generate flags. This separation ensures that adding a new API provider never requires changes to the core evaluation rules.
+The [evaluator.py](src/netflix_narc/evaluator.py) module consumes only the `NormalizedMetadata`. It computes suitability scores using one of two user-selectable Scoring Modes (codified in ADRs 11–13):
+- **Option A (Quality Focus)**: Quality signals (Base Quality, Educational Suitability, Positive Suitability) drive the base score, and Gate signals (Age Suitability, Safety Suitability) apply penalty-only deductions continuously based on their deficit below perfect.
+- **Option B (Balanced)**: Unified weighted average of all 5 components, where Gate signals are capped at `GATE_NEUTRAL_CAP = 7.0` before averaging to prevent boring/low-quality titles from scoring too high.
+Additionally, the module flags extreme violations (such as high negative category scores or underage content) based on user-defined weights. This clean separation ensures that adding a new API provider never requires changes to the core evaluation or flagging rules.
+
+## Manual Metadata & Completeness Score
+For titles that lack external API data, users can manually enter metadata via the Interrogation Room.
+- **Evidence Locker**: Uses `aiosqlite` in [manual_db.py](src/netflix_narc/manual_db.py) to persist this manual data.
+- **Completeness Score**: A calculated 0-100% score tracking how completely a title's manual metadata has been filled out. This relies on 10 fields (Ratings, Image URL, and CSM categories).
+- **Queue Priority**: The TUI queue strictly sorts unreviewed titles by their `Completeness Score` first (ascending) to guarantee that entirely un-scored titles bubble to the top.
+- **Native Image Hook**: A zero-dependency OS hook (via `osascript`) in [image_utils.py](src/netflix_narc/image_utils.py) allows grabbing cover images directly from the macOS clipboard, bypassing standard Textual limitations.

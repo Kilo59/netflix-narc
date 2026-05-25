@@ -29,6 +29,7 @@ gh pr checks <number>              # See CI status for a PR
 - **HTTP Client**: [httpx](https://www.python-httpx.org/) (sync, via hishel)
 - **HTTP Caching**: [hishel](https://hishel.com/) — CRITICAL for API rate limits. See `.agents/skills/hishel/SKILL.md`.
 - **Configuration**: [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
+- **Database**: [aiosqlite](https://aiosqlite.omnilib.dev/) (Async SQLite for local storage)
 - **Data Models**: pydantic (`BaseModel`, `SecretStr`)
 - **Linter / Formatter**: [Ruff](https://docs.astral.sh/ruff/) (`>=0.15.5`)
 - **Type Checker**: [mypy](https://mypy-lang.org/) (strict mode)
@@ -37,10 +38,15 @@ gh pr checks <number>              # See CI status for a PR
 ## Project Structure
 
 ```text
-.agent/                         # Design docs (architecture, API design, plan)
+.agent/                         # Design docs (architecture, API design, plan, ADRs)
   architecture.md
+  decisions.md
   design.md
   plan.md
+  onboarding_overhaul.md        # Requirements & design for onboarding/settings overhaul
+  onboarding_overhaul_plan.md   # Implementation plan for onboarding/settings overhaul
+  weight_impact_preview.md      # Design & algorithm for the live weight impact preview panel
+  weight_impact_preview_mockup.png
 .agents/                        # Agent-specific instructions
   TESTING.md                    # Mandatory testing patterns and rules
   workflows/                    # Step-by-step guides for common tasks
@@ -55,7 +61,13 @@ src/netflix_narc/
   factory.py                    # Instantiates the correct RatingProvider
   evaluator.py                  # Applies user weights to NormalizedMetadata
   rating_api.py                 # RatingProvider Protocol + NormalizedMetadata model
-  settings.py                   # pydantic-settings config (API keys, thresholds)
+  settings.py                   # pydantic-settings config; get_config_dir() for XDG path
+  persistence.py                # Writes all settings (incl. WEIGHTS__*) to config dir .env
+  manual_db.py                  # The Evidence Locker (async SQLite for manual data)
+  onboarding.py                 # [PLANNED] First-run multi-step wizard (OnboardingScreen)
+  preferences.py                # [PLANNED] Always-accessible settings panel (PreferencesScreen)
+  lineup.py                     # The Lineup Screen (Discovery Queue UI)
+  interrogation_room.py         # The Interrogation Room Screen (Manual Data Entry UI)
   main.py                       # Textual TUI entrypoint
 tests/
   conftest.py                   # Shared fixtures (fake_settings, response payloads)
@@ -63,6 +75,8 @@ tests/
   test_parser.py                # Unit tests for parser.py
   test_rating_api.py            # HTTP-mocked tests for API clients (respx)
   test_project.py               # Meta-tests (config consistency checks)
+  test_persistence.py           # [PLANNED] Round-trip tests for settings persistence
+  test_onboarding.py            # [PLANNED] Structural tests for OnboardingScreen
 ```
 
 After ANY code change, validate with the following tools in this order. **ALWAYS prefix with `uv run`**:
@@ -115,9 +129,11 @@ uv run pytest -vv
 ## Architecture Rules
 
 1. **Never mock hishel's cache logic**: When testing `csm_api.py` or `omdb_api.py`, pass a `tmp_path`-based `cache_dir` to the client constructor. This keeps the cache functional but sandboxed.
-2. **Onboarding First**: If `Settings` cannot find the API key for the active provider, the TUI MUST intercept and present an onboarding view.
-3. **Dependency restraint**: Do not add heavy parsing libraries (e.g., `pandas`). Use standard library + pydantic.
-4. **Strict Typing**: Use Python 3.13 features. Always prefer typed pydantic models or `TypedDict` over raw dicts.
+2. **Onboarding First**: `needs_onboarding = settings.child_age_range is None`. When true, push `OnboardingScreen`. API keys are *never* a blocker — they are optional, collected on a skippable step. See `.agent/onboarding_overhaul.md`.
+3. **Config Dir for persistence**: All settings writes go to `get_config_dir() / ".env"` (`~/.config/netflix-narc/.env`). Never write to a CWD-relative `.env`.
+4. **Dependency restraint**: Do not add heavy parsing libraries (e.g., `pandas`). Use standard library + pydantic.
+5. **Strict Typing**: Use Python 3.13 features. Always prefer typed pydantic models or `TypedDict` over raw dicts.
+6. **Async DB Operations**: Use `aiosqlite` for database calls in `manual_db.py` to ensure the Textual event loop is not blocked during manual data persistence.
 
 ## Testing
 
@@ -137,3 +153,4 @@ Key rules:
 3. **SecretStr in tests**: `pydantic.SecretStr` cannot be created directly from an env var in tests. Use `Settings(omdb_api_key=SecretStr("fake"), _env_file=None)` — or use the `fake_settings` fixture from `conftest.py`.
 4. **`content_rating` is a string**: The CSM API returns age ratings as integers (e.g., `8`), but `NormalizedMetadata.content_rating` is `str | None`. The client converts with `str(int_val)`. The evaluator parses back with `int()`. Keep this conversion chain in mind.
 5. **Ruff version sync**: The ruff version in `pyproject.toml` must stay in sync with `.pre-commit-config.yaml`. The test `test_ruff_version_in_sync` in `tests/test_project.py` enforces this.
+6. **`.env` location**: Settings are read from and written to `~/.config/netflix-narc/.env`. Do NOT assume the file lives in CWD. Use `settings.get_config_dir()` to resolve the path.
