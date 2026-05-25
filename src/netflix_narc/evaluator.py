@@ -90,6 +90,44 @@ def _evaluate_categories(
     return flags
 
 
+def _evaluate_age(content_rating: str | None, criteria: Settings) -> str | None:
+    """Check strict age limit and return flag string if exceeded."""
+    age_val = _get_age_limit(content_rating)
+    if age_val is not None:
+        max_age = (
+            criteria.child_age_range[1] if criteria.child_age_range else criteria.max_age_rating
+        )
+        if age_val > max_age:
+            return f"Age rating ({content_rating}) exceeds maximum target age ({max_age}+)."
+    return None
+
+
+def _evaluate_educational(
+    edu_score: float | None,
+    user_rating: float | None,
+    *,
+    is_low_quality: bool,
+) -> list[str]:
+    """Check Educational Value specific rules."""
+    flags: list[str] = []
+    if edu_score is not None:
+        if edu_score <= 0:
+            flags.append(f"Extremely low Educational Value score ({edu_score}/5).")
+        elif edu_score == 1:
+            if user_rating is None or user_rating < PERFECT_QUALITY_RATING:
+                quality_str = f"{user_rating}/10" if user_rating is not None else "Unknown"
+                flags.append(
+                    f"Low Educational Value score ({edu_score}/5) "
+                    f"relative to overall quality ({quality_str})."
+                )
+        elif edu_score in (2, 3) and is_low_quality:
+            flags.append(
+                f"Medium Educational Value score ({edu_score}/5) "
+                f"combined with low overall quality ({user_rating}/10)."
+            )
+    return flags
+
+
 def evaluate_title(metadata: NormalizedMetadata, criteria: Settings) -> list[str]:
     """Evaluate a title's metadata against user-defined criteria.
 
@@ -104,12 +142,9 @@ def evaluate_title(metadata: NormalizedMetadata, criteria: Settings) -> list[str
     flags: list[str] = []
 
     # 1. Check strict age limit
-    age_val = _get_age_limit(metadata.content_rating)
-    if age_val is not None and age_val > criteria.max_age_rating:
-        flags.append(
-            f"Age rating ({metadata.content_rating}) "
-            f"exceeds maximum allowed ({criteria.max_age_rating}+)."
-        )
+    age_flag = _evaluate_age(metadata.content_rating, criteria)
+    if age_flag:
+        flags.append(age_flag)
 
     # 2. Check general quality threshold (out of 10)
     # The CSMClient now returns a 0-10 user_rating.
@@ -124,29 +159,12 @@ def evaluate_title(metadata: NormalizedMetadata, criteria: Settings) -> list[str
         )
 
     # 3. Check Educational Value specific rules
-    # Flags low educational value relative to overall quality:
-    # - 0 score always flags.
-    # - 1 score flags unless quality is perfect 5/5 stars (10.0/10).
-    # - 2 or 3 score flags if overall quality rating is low.
     scores = metadata.category_scores
     edu_score = scores.get("Educational Value")
-    if edu_score is not None:
-        if edu_score <= 0:
-            flags.append(f"Extremely low Educational Value score ({edu_score}/5).")
-        elif edu_score == 1:
-            if metadata.user_rating is None or metadata.user_rating < PERFECT_QUALITY_RATING:
-                quality_str = (
-                    f"{metadata.user_rating}/10" if metadata.user_rating is not None else "Unknown"
-                )
-                flags.append(
-                    f"Low Educational Value score ({edu_score}/5) "
-                    f"relative to overall quality ({quality_str})."
-                )
-        elif edu_score in (2, 3) and is_low_quality:
-            flags.append(
-                f"Medium Educational Value score ({edu_score}/5) "
-                f"combined with low overall quality ({metadata.user_rating}/10)."
-            )
+    edu_flags = _evaluate_educational(
+        edu_score, metadata.user_rating, is_low_quality=is_low_quality
+    )
+    flags.extend(edu_flags)
 
     # 4. Evaluate weighted specific categories
     category_flags = _evaluate_categories(scores, criteria)
@@ -165,14 +183,29 @@ MEDIUM_DEDUCTION_THRESHOLD: Final = 8
 
 def get_age_suitability_deduction(
     content_rating: str | None,
-    max_age_rating: int,
+    child_age_range: tuple[int, int] | None,
+    max_age_rating: int = 12,
 ) -> float:
-    """Calculate suitability deduction based on age rating."""
+    """Calculate suitability deduction based on age rating distance from child's age range."""
     age_val = _get_age_limit(content_rating)
-    if age_val is not None and age_val > max_age_rating:
-        excess = age_val - max_age_rating
-        return min(5.0, excess * 1.5)
-    return 0.0
+    if age_val is None:
+        return 0.0
+
+    if child_age_range is None:
+        if age_val > max_age_rating:
+            excess = age_val - max_age_rating
+            return min(5.0, excess * 1.5)
+        return 0.0
+
+    min_age, max_age = child_age_range
+    if min_age <= age_val <= max_age:
+        return 0.0
+
+    if age_val > max_age:
+        excess = age_val - max_age
+        return min(5.0, excess * 1.0)
+    deficit = min_age - age_val
+    return min(5.0, deficit * 1.0)
 
 
 def get_quality_suitability_deduction(
@@ -240,7 +273,9 @@ def calculate_suitability(metadata: NormalizedMetadata, criteria: Settings) -> f
     # Start with overall quality rating (0-10 scale). Default to 5.0 if None.
     score = metadata.user_rating if metadata.user_rating is not None else 5.0
 
-    score -= get_age_suitability_deduction(metadata.content_rating, criteria.max_age_rating)
+    score -= get_age_suitability_deduction(
+        metadata.content_rating, criteria.child_age_range, criteria.max_age_rating
+    )
     score -= get_quality_suitability_deduction(metadata.user_rating, criteria.min_quality_rating)
 
     edu_score = metadata.category_scores.get("Educational Value")
@@ -262,7 +297,9 @@ def calculate_sub_suitabilities(
     base_val = metadata.user_rating if metadata.user_rating is not None else 5.0
 
     # 2. Age Rating Suitability
-    age_ded = get_age_suitability_deduction(metadata.content_rating, criteria.max_age_rating)
+    age_ded = get_age_suitability_deduction(
+        metadata.content_rating, criteria.child_age_range, criteria.max_age_rating
+    )
     age_val = max(0.0, 10.0 - age_ded * 2.0)
 
     # 3. Educational Value Suitability
@@ -286,15 +323,33 @@ def calculate_sub_suitabilities(
 
 def _explain_age_suitability(
     content_rating: str | None,
-    max_age_rating: int,
+    child_age_range: tuple[int, int] | None,
+    max_age_rating: int = 12,
 ) -> str | None:
-    """Explain deduction for exceeding age rating."""
+    """Explain deduction for age rating distance."""
     age_val = _get_age_limit(content_rating)
-    if age_val is not None and age_val > max_age_rating:
-        excess = age_val - max_age_rating
-        deduction = min(5.0, excess * 1.5)
-        return f"- Exceeds maximum allowed age ({max_age_rating}): -{deduction:.1f}"
-    return None
+    if age_val is None:
+        return None
+
+    if child_age_range is None:
+        if age_val > max_age_rating:
+            excess = age_val - max_age_rating
+            deduction = min(5.0, excess * 1.5)
+            return f"- Exceeds maximum allowed age ({max_age_rating}): -{deduction:.1f}"
+        return None
+
+    min_age, max_age = child_age_range
+    if min_age <= age_val <= max_age:
+        return None
+
+    range_str = f"{min_age}-{max_age}" if min_age != max_age else str(min_age)
+    if age_val > max_age:
+        excess = age_val - max_age
+        deduction = min(5.0, excess * 1.0)
+        return f"- Exceeds target age range ({range_str}): -{deduction:.1f}"
+    deficit = min_age - age_val
+    deduction = min(5.0, deficit * 1.0)
+    return f"- Below target age range ({range_str}): -{deduction:.1f}"
 
 
 def _explain_quality_suitability(
@@ -367,7 +422,9 @@ def explain_suitability(metadata: NormalizedMetadata, criteria: Settings) -> lis
     base_score = metadata.user_rating if metadata.user_rating is not None else 5.0
     explanations.append(f"Base quality rating: {base_score:.1f}/10")
 
-    age_expl = _explain_age_suitability(metadata.content_rating, criteria.max_age_rating)
+    age_expl = _explain_age_suitability(
+        metadata.content_rating, criteria.child_age_range, criteria.max_age_rating
+    )
     if age_expl:
         explanations.append(age_expl)
 

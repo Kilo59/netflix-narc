@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from netflix_narc.evaluator import (
     calculate_suitability,
@@ -263,6 +264,53 @@ def test_explain_suitability():
     assert any("Exceeds maximum allowed age" in line for line in explanations)
     assert any("Quality is below minimum required" in line for line in explanations)
     assert any("Extremely low Educational Value score" in line for line in explanations)
+
+
+def test_parse_child_age_range():
+    # Test valid single age
+    assert Settings(child_age_range="12").child_age_range == (12, 12)  # type: ignore[arg-type]
+    # Test valid range formats
+    assert Settings(child_age_range="8-12").child_age_range == (8, 12)  # type: ignore[arg-type]
+    assert Settings(child_age_range="8 to 12").child_age_range == (8, 12)  # type: ignore[arg-type]
+    assert Settings(child_age_range="8,12").child_age_range == (8, 12)  # type: ignore[arg-type]
+    assert Settings(child_age_range=(8, 12)).child_age_range == (8, 12)
+    assert Settings(child_age_range=None).child_age_range is None
+
+    # Test invalid format raises ValidationError
+    with pytest.raises(ValidationError):
+        Settings(child_age_range="abc")  # type: ignore[arg-type]
+
+
+def test_age_distance_suitability_symmetric():
+    # child age range is (8, 12)
+    settings = Settings(child_age_range=(8, 12))
+
+    # Title is exact match / inside range -> deduction is 0.0
+    metadata_ok = NormalizedMetadata(
+        title="Exact Match", content_rating="10", user_rating=8.0, provider_name="test"
+    )
+    score_ok = calculate_suitability(metadata_ok, settings)
+    # Expected base score: 8.0 - 0.0 deduction = 8.0
+    expected_ok = 8.0
+    assert score_ok == expected_ok
+
+    # Title is too mature -> deduction excess * 1.0
+    metadata_mature = NormalizedMetadata(
+        title="Mature", content_rating="14", user_rating=8.0, provider_name="test"
+    )
+    score_mature = calculate_suitability(metadata_mature, settings)
+    # Expected deduction: excess = 14 - 12 = 2.0 -> 8.0 - 2.0 = 6.0
+    expected_mature = 6.0
+    assert score_mature == expected_mature
+
+    # Title is too young -> deduction deficit * 1.0 (symmetric!)
+    metadata_young = NormalizedMetadata(
+        title="Young", content_rating="5", user_rating=8.0, provider_name="test"
+    )
+    score_young = calculate_suitability(metadata_young, settings)
+    # Expected deduction: deficit = 8 - 5 = 3.0 -> 8.0 - 3.0 = 5.0
+    expected_young = 5.0
+    assert score_young == expected_young
 
 
 if __name__ == "__main__":

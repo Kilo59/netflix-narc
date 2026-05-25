@@ -7,7 +7,7 @@ import asyncio
 import contextlib
 import pathlib
 import webbrowser
-from typing import TYPE_CHECKING, ClassVar, NamedTuple, override
+from typing import TYPE_CHECKING, ClassVar, NamedTuple, cast, override
 
 from pydantic import SecretStr, TypeAdapter
 from textual.app import App, ComposeResult
@@ -37,7 +37,12 @@ from netflix_narc.interrogation_room import InterrogationRoomScreen
 from netflix_narc.lineup import LineupScreen
 from netflix_narc.manual_db import EvidenceLocker
 from netflix_narc.persistence import load_and_group_history, update_env_file
-from netflix_narc.settings import DEFAULT_CSV_FILENAME, RatingProviderType, Settings
+from netflix_narc.settings import (
+    DEFAULT_CSV_FILENAME,
+    RatingProviderType,
+    Settings,
+    parse_str_age_range,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -53,14 +58,20 @@ class SetupConfig(NamedTuple):
 
     provider: RatingProviderType
     api_key: SecretStr
+    child_age_range: tuple[int, int]
 
 
 class SetupScreen(Screen[SetupConfig | None]):
-    """A screen prompting for initial configuration (Provider, API Key)."""
+    """A screen prompting for initial configuration (Provider, API Key, Target Child Age)."""
 
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         ("escape", "cancel", "Cancel"),
     ]
+
+    @property
+    def narc_app(self) -> NetflixNarcApp:
+        """Type-safe access to the main app."""
+        return cast("NetflixNarcApp", self.app)
 
     @override
     def compose(self) -> ComposeResult:
@@ -68,7 +79,7 @@ class SetupScreen(Screen[SetupConfig | None]):
         yield Container(
             Static("Welcome to Netflix Narc!", classes="title"),
             Static(
-                "Choose your rating provider and enter your API key.",
+                "Configure your rating provider, API key, and target child age.",
                 classes="instructions",
             ),
             Select(
@@ -77,12 +88,35 @@ class SetupScreen(Screen[SetupConfig | None]):
                 id="provider-select",
             ),
             Input(placeholder="Enter API Key...", id="api-key-input", password=True),
+            Input(placeholder="Child's Age or Range (e.g. 10 or 8-12)...", id="child-age-input"),
             Horizontal(
                 Button("Cancel", variant="error", id="cancel-btn"),
                 Button("Save & Continue", variant="primary", id="save-btn"),
             ),
             id="setup-container",
         )
+
+    def on_mount(self) -> None:
+        """Pre-populate fields with current settings."""
+        settings = self.narc_app.settings
+        if settings.child_age_range:
+            min_age, max_age = settings.child_age_range
+            range_str = f"{min_age}-{max_age}" if min_age != max_age else str(min_age)
+            self.query_one("#child-age-input", Input).value = range_str
+
+        self.query_one("#provider-select", Select).value = settings.active_rating_provider
+
+        active_provider = settings.active_rating_provider
+        key_val = ""
+        if active_provider == RatingProviderType.CSM:
+            key_val = settings.csm_api_key.get_secret_value()
+        elif active_provider == RatingProviderType.OMDB:
+            key_val = settings.omdb_api_key.get_secret_value()
+        elif active_provider == RatingProviderType.TMDB:
+            key_val = settings.tmdb_api_key.get_secret_value()
+
+        if key_val:
+            self.query_one("#api-key-input", Input).value = key_val
 
     def on_input_submitted(self, _event: Input.Submitted) -> None:
         """Save settings when Enter is pressed on the Input widget."""
@@ -103,11 +137,29 @@ class SetupScreen(Screen[SetupConfig | None]):
         """Validate and save settings, then dismiss the screen."""
         provider = self.query_one("#provider-select", Select).value
         api_key = self.query_one("#api-key-input", Input).value
-        if provider and api_key and isinstance(provider, RatingProviderType):
-            secret_key = TypeAdapter(SecretStr).validate_python(api_key)
-            self.dismiss(SetupConfig(provider=provider, api_key=secret_key))
-        else:
-            self.notify("Provider and API Key required", severity="warning")
+        child_age = self.query_one("#child-age-input", Input).value.strip()
+
+        if not provider or not isinstance(provider, RatingProviderType):
+            self.notify("Provider is required", severity="warning")
+            return
+        try:
+            parsed_range = parse_str_age_range(child_age)
+        except ValueError:
+            self.notify("Please enter a valid child age (e.g., 10 or 8-12)", severity="warning")
+            return
+
+        if parsed_range is None:
+            self.notify("Please enter a valid child age (e.g., 10 or 8-12)", severity="warning")
+            return
+
+        secret_key = TypeAdapter(SecretStr).validate_python(api_key or "")
+        self.dismiss(
+            SetupConfig(
+                provider=provider,
+                api_key=secret_key,
+                child_age_range=parsed_range,
+            )
+        )
 
 
 class LoadCsvScreen(Screen[str | None]):
@@ -241,23 +293,37 @@ class NetflixNarcApp(App[None]):
         table.add_column("Suitability", key="suitability", width=18)
         table.add_column("Flags", key="flags")
 
-        # Show loading indicator while background worker initializes
-        has_any_key = bool(
-            self.settings.csm_api_key.get_secret_value()
-            or self.settings.omdb_api_key.get_secret_value()
-            or self.settings.tmdb_api_key.get_secret_value()
-        )
-        if has_any_key:
-            try:
-                self.rating_provider = get_rating_provider(
-                    settings=self.settings, cache_dir=self.cache_dir
-                )
-            except (ValueError, NotImplementedError) as e:
-                self.notify(f"Error initializing provider: {e}", severity="error")
+        # Only require child_age_range to be configured to pass onboarding.
+        # An API key is optional.
+        needs_onboarding = self.settings.child_age_range is None
 
-        self._set_loading(state=True)
-        # Yield to the event loop so the loading indicator renders before blocking work
-        self.call_after_refresh(self._startup_sync_sequence)
+        if needs_onboarding:
+            self._set_loading(state=False)
+            self.call_after_refresh(
+                lambda: self.push_screen(SetupScreen(), self.handle_startup_onboarding_complete)
+            )
+        else:
+            # Initialize provider if an API key is available
+            active_provider = self.settings.active_rating_provider
+            active_key = ""
+            if active_provider == RatingProviderType.CSM:
+                active_key = self.settings.csm_api_key.get_secret_value()
+            elif active_provider == RatingProviderType.OMDB:
+                active_key = self.settings.omdb_api_key.get_secret_value()
+            elif active_provider == RatingProviderType.TMDB:
+                active_key = self.settings.tmdb_api_key.get_secret_value()
+
+            if active_key:
+                try:
+                    self.rating_provider = get_rating_provider(
+                        settings=self.settings, cache_dir=self.cache_dir
+                    )
+                except (ValueError, NotImplementedError) as e:
+                    self.notify(f"Error initializing provider: {e}", severity="error")
+
+            self._set_loading(state=True)
+            # Yield to the event loop so the loading indicator renders before blocking work
+            self.call_after_refresh(self._startup_sync_sequence)
 
     def _load_startup_csv(self) -> None:
         """Helper to load and group the CSV data synchronously on startup."""
@@ -297,6 +363,7 @@ class NetflixNarcApp(App[None]):
         if config:
             provider = config.provider
             api_key = config.api_key
+            child_age = config.child_age_range
 
             self.settings.active_rating_provider = provider
             match provider:
@@ -307,14 +374,32 @@ class NetflixNarcApp(App[None]):
                 case RatingProviderType.TMDB:
                     self.settings.tmdb_api_key = api_key
 
+            self.settings.child_age_range = child_age
+
             try:
                 self.rating_provider = get_rating_provider(
                     settings=self.settings, cache_dir=self.cache_dir
                 )
-                update_env_file(provider, api_key, pathlib.Path(".env"))
+                update_env_file(
+                    provider=provider,
+                    api_key=api_key,
+                    env_path=pathlib.Path(".env"),
+                    child_age_range=child_age,
+                )
                 self.notify(f"Settings saved for {provider.upper()}.")
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Initialization error: {e}", severity="error")
+
+    def handle_startup_onboarding_complete(self, config: SetupConfig | None) -> None:
+        """Handle onboarding completion on startup. Exit if cancelled."""
+        if not config:
+            self.exit()
+            return
+
+        self.handle_setup_complete(config)
+
+        self._set_loading(state=True)
+        self.call_after_refresh(self._startup_sync_sequence)
 
     def action_load_csv(self) -> None:
         """Push the Load CSV screen."""
