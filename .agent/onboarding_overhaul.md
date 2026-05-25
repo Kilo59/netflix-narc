@@ -3,7 +3,7 @@
 > **Decisions locked in:**
 > 1. `.env` moves to `~/.config/netflix-narc/` (XDG-compliant, works with `pipx install`)
 > 2. Multi-step wizard uses `ContentSwitcher` (enforced step ordering)
-> 3. Weight range: **1–3** (Low / Medium / High)
+> 3. Weight range: **1–5** (V.Low / Low / Medium / High / V.High) — *[SUPERSEDED by ADR 11's 1-5 expansion]*
 
 ## Problem Statement
 
@@ -36,7 +36,7 @@ onboarding flow and an always-available settings panel. It has several structura
 |---|----------|----------|
 | 1 | Where to store `.env`? | `~/.config/netflix-narc/.env` via `platformdirs.user_config_dir()`. Already a transitive dep via Textual. |
 | 2 | Multi-step wizard navigation? | `ContentSwitcher` — enforces step order, prevents jumping to API keys before age is set. |
-| 3 | Weight range? | `1–3` (Low / Medium / High) for simplicity. |
+| 3 | Weight range? | `1–5` (V.Low / Low / Medium / High / V.High) — *[SUPERSEDED by ADR 11]* |
 
 ---
 
@@ -110,7 +110,7 @@ Each weight row in both `OnboardingScreen` and `PreferencesScreen`:
 Violence & Scariness    [Low]  [■ Med]  [High]   ↺
 ```
 
-- Three `Button` toggles: Low (1) / Med (2) / High (3). Active one renders as `variant="primary"`.
+- Five `Button` toggles: V.Low (1) / Low (2) / Med (3) / High (4) / V.High (5). Active one renders as `variant="primary"`. — *[UPDATED by ADR 11]*
 - `↺` resets that row to its default value.
 - "Reset All Weights" button at the bottom of the section.
 - Implemented as a `WeightRow(Widget)` composite with a `reactive` int value.
