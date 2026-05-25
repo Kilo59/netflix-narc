@@ -75,29 +75,50 @@ async def save_image_from_clipboard(title: str) -> pathlib.Path | None:
     return None
 
 
-async def download_image_to_path(url: str, title: str) -> pathlib.Path | None:
+async def download_image_to_path(
+    url: str,
+    title: str,
+    client: httpx.AsyncClient | None = None,
+) -> pathlib.Path | None:
     """Download an image from a URL and save it locally."""
     ensure_image_dir()
     norm_title = normalize_title_for_filename(title)
 
-    # Try to extract extension from URL, otherwise default to .jpg
-    # Only keep standard image extensions, else default to .jpg
-    ext = ".jpg"
-    match = re.search(r"\.(jpg|jpeg|png|webp|gif)", url, re.IGNORECASE)
-    if match:
-        ext = match.group(0).lower()
-
-    filepath = IMAGE_DIR / f"{norm_title}{ext}"
-
     try:
-        async with httpx.AsyncClient() as client:
+        if client is not None:
             resp = await client.get(url, follow_redirects=True, timeout=10.0)
             resp.raise_for_status()
+        else:
+            async with httpx.AsyncClient() as new_client:
+                resp = await new_client.get(url, follow_redirects=True, timeout=10.0)
+                resp.raise_for_status()
 
-            # Use asyncio.to_thread for non-blocking file IO
-            await asyncio.to_thread(filepath.write_bytes, resp.content)
+        # Validate that Content-Type starts with "image/"
+        content_type = resp.headers.get("content-type", "").lower()
+        if not content_type.startswith("image/"):
+            logger.error("Content type %s is not an image for URL %s", content_type, url)
+            return None
 
-            return filepath
+        # Resolve extension from Content-Type, fallback to URL regex, default to .jpg
+        ext_map = {
+            "image/jpeg": ".jpg",
+            "image/jpg": ".jpg",
+            "image/png": ".png",
+            "image/webp": ".webp",
+            "image/gif": ".gif",
+        }
+        ext = ext_map.get(content_type)
+        if not ext:
+            match = re.search(r"\.(jpg|jpeg|png|webp|gif)", url, re.IGNORECASE)
+            ext = match.group(0).lower() if match else ".jpg"
+
+        filepath = IMAGE_DIR / f"{norm_title}{ext}"
+
+        # Use asyncio.to_thread for non-blocking file IO
+        await asyncio.to_thread(filepath.write_bytes, resp.content)
+
     except Exception:
         logger.exception("Failed to download image from %s", url)
         return None
+    else:
+        return filepath

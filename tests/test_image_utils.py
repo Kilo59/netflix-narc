@@ -137,5 +137,63 @@ async def test_save_image_from_clipboard_failure(
     assert any('custom_\\"images\\"' in arg for arg in captured_args if isinstance(arg, str))
 
 
+@pytest.mark.asyncio
+async def test_download_image_to_path_non_image_content_type(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: LogCaptureFixture,
+) -> None:
+    """Verify that a non-image content type returns None and logs an error."""
+    test_dir = tmp_path / "custom_images"
+    monkeypatch.setattr("netflix_narc.image_utils.IMAGE_DIR", test_dir)
+
+    url = "https://example.com/not-an-image.html"
+
+    with respx.mock:
+        route = respx.get(url).mock(
+            return_value=httpx.Response(
+                status_code=200,
+                content=b"<html>not an image</html>",
+                headers={"Content-Type": "text/html"},
+            )
+        )
+
+        with caplog.at_level("ERROR"):
+            result = await download_image_to_path(url, "My Show")
+
+        assert result is None
+        assert route.called
+        assert any("is not an image" in record.message for record in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_download_image_to_path_client_injection(
+    tmp_path: pathlib.Path, monkeypatch: MonkeyPatch
+) -> None:
+    """Verify that an injected httpx client can be successfully used."""
+    test_dir = tmp_path / "custom_images"
+    monkeypatch.setattr("netflix_narc.image_utils.IMAGE_DIR", test_dir)
+
+    url = "https://example.com/poster.png"
+    image_content = b"fake-png-data"
+
+    async with httpx.AsyncClient() as client:
+        with respx.mock:
+            route = respx.get(url).mock(
+                return_value=httpx.Response(
+                    status_code=200,
+                    content=image_content,
+                    headers={"Content-Type": "image/png"},
+                )
+            )
+
+            result = await download_image_to_path(url, "My Show", client=client)
+            assert result is not None
+            assert result.exists()
+            assert result.read_bytes() == image_content
+            assert result.name == "my_show.png"
+            assert route.called
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

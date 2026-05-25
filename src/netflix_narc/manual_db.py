@@ -9,7 +9,7 @@ import csv
 import json
 import logging
 import pathlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 if TYPE_CHECKING:
     from contextlib import AbstractAsyncContextManager
@@ -21,6 +21,8 @@ from netflix_narc.csm_api import CSMRatingCategory
 from netflix_narc.rating_api import NormalizedMetadata
 
 logger = logging.getLogger(__name__)
+
+MAX_JSON_LOG_LEN: Final = 200
 
 
 class ManualMetadata(BaseModel):
@@ -102,6 +104,34 @@ class EvidenceLocker:
             await db.execute(schema)
             await db.commit()
 
+    def _row_to_manual_metadata(self, row: aiosqlite.Row) -> ManualMetadata:
+        """Convert an aiosqlite Row to a ManualMetadata instance."""
+        raw_json = row["category_scores"]
+        try:
+            category_scores = json.loads(raw_json) if raw_json else {}
+        except json.JSONDecodeError:
+            truncated_raw_json = (
+                f"{raw_json[:MAX_JSON_LOG_LEN]}…"
+                if raw_json and len(raw_json) > MAX_JSON_LOG_LEN
+                else raw_json
+            )
+            logger.warning(
+                "Failed to decode category_scores JSON for title %r: %r",
+                row["title"],
+                truncated_raw_json,
+            )
+            category_scores = {}
+
+        return ManualMetadata(
+            title=row["title"],
+            content_rating=row["content_rating"],
+            user_rating=row["user_rating"],
+            image_url=row["image_url"],
+            flagged_for_followup=bool(row["flagged_for_followup"]),
+            ignored=bool(row["ignored"]),
+            category_scores=category_scores,
+        )
+
     async def get_record(self, title: str) -> ManualMetadata | None:
         """Fetch a specific title's manual metadata from the Evidence Locker."""
         async with self._get_connection() as db:
@@ -114,21 +144,7 @@ class EvidenceLocker:
             if not row:
                 return None
 
-            try:
-                raw_json = row["category_scores"]
-                category_scores = json.loads(raw_json) if raw_json else {}
-            except json.JSONDecodeError:
-                category_scores = {}
-
-            return ManualMetadata(
-                title=row["title"],
-                content_rating=row["content_rating"],
-                user_rating=row["user_rating"],
-                image_url=row["image_url"],
-                flagged_for_followup=bool(row["flagged_for_followup"]),
-                ignored=bool(row["ignored"]),
-                category_scores=category_scores,
-            )
+            return self._row_to_manual_metadata(row)
 
     async def upsert_record(self, metadata: ManualMetadata) -> None:
         """Insert or update a manual metadata record."""
@@ -170,34 +186,16 @@ class EvidenceLocker:
 
     async def get_all_records(self) -> list[ManualMetadata]:
         """Retrieve all records for export."""
-        records = []
         async with self._get_connection() as db:
             db.row_factory = aiosqlite.Row
             async with db.execute("SELECT * FROM evidence_locker") as cursor:
-                async for row in cursor:
-                    try:
-                        raw_cat = row["category_scores"]
-                        scores = json.loads(raw_cat) if raw_cat else {}
-                    except json.JSONDecodeError:
-                        scores = {}
-
-                    records.append(
-                        ManualMetadata(
-                            title=row["title"],
-                            content_rating=row["content_rating"],
-                            user_rating=row["user_rating"],
-                            image_url=row["image_url"],
-                            flagged_for_followup=bool(row["flagged_for_followup"]),
-                            ignored=bool(row["ignored"]),
-                            category_scores=scores,
-                        )
-                    )
-        return records
+                return [self._row_to_manual_metadata(row) async for row in cursor]
 
     async def export_to_json(self, filepath: pathlib.Path) -> None:
         """Export all manual records to a JSON file."""
         records = [r.model_dump() for r in await self.get_all_records()]
         data_str = json.dumps(records, indent=2)
+        await asyncio.to_thread(filepath.parent.mkdir, parents=True, exist_ok=True)
         await asyncio.to_thread(filepath.write_text, data_str, encoding="utf-8")
 
     def _write_csv(self, filepath: pathlib.Path, records: list[ManualMetadata]) -> None:
@@ -233,6 +231,7 @@ class EvidenceLocker:
         records = await self.get_all_records()
         if not records:
             return
+        await asyncio.to_thread(filepath.parent.mkdir, parents=True, exist_ok=True)
         await asyncio.to_thread(self._write_csv, filepath, records)
 
     async def import_from_json(self, filepath: pathlib.Path) -> None:
@@ -247,6 +246,20 @@ class EvidenceLocker:
         with filepath.open("r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             return list(reader)
+
+    def _parse_csv_bool(self, val: str | None) -> bool:
+        """Safely parse boolean fields from a CSV row, handling empty/malformed inputs."""
+        if not val:
+            return False
+        val_stripped = val.strip().lower()
+        if val_stripped in ("1", "true", "yes"):
+            return True
+        if val_stripped in ("0", "false", "no"):
+            return False
+        try:
+            return bool(int(val_stripped))
+        except ValueError:
+            return False
 
     async def import_from_csv(self, filepath: pathlib.Path) -> None:
         """Import records from a CSV file, upserting over existing entries."""
@@ -264,8 +277,8 @@ class EvidenceLocker:
                 content_rating=row.get("content_rating") or None,
                 user_rating=float(row["user_rating"]) if row.get("user_rating") else None,
                 image_url=row.get("image_url") or None,
-                flagged_for_followup=bool(int(row.get("flagged_for_followup", 0))),
-                ignored=bool(int(row.get("ignored", 0))),
+                flagged_for_followup=self._parse_csv_bool(row.get("flagged_for_followup")),
+                ignored=self._parse_csv_bool(row.get("ignored")),
                 category_scores=scores,
             )
             await self.upsert_record(metadata)
