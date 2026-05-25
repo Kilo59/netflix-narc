@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
-import functools
 import pathlib
+import webbrowser
 from typing import TYPE_CHECKING, ClassVar, NamedTuple, override
 
 from pydantic import SecretStr, TypeAdapter
@@ -104,6 +104,61 @@ class SetupScreen(Screen[SetupConfig | None]):
             self.notify("Provider and API Key required", severity="warning")
 
 
+class LoadCsvScreen(Screen[str | None]):
+    """A screen prompting to load or refresh the ViewingHistory.csv."""
+
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        ("escape", "cancel", "Cancel"),
+    ]
+
+    def __init__(self, current_path: pathlib.Path) -> None:
+        """Initialize the screen with the current CSV path."""
+        super().__init__()
+        self.current_path = current_path
+
+    @override
+    def compose(self) -> ComposeResult:
+        yield Container(
+            Static("Load Viewing History", classes="title"),
+            Static(
+                "Need to refresh your data? Download your history from Netflix.",
+                classes="instructions",
+            ),
+            Button("Open Download Instructions", variant="default", id="btn-help"),
+            Static("Place it here or specify the path below:", classes="instructions"),
+            Input(value=str(self.current_path), id="csv-path-input"),
+            Horizontal(
+                Button("Cancel", variant="error", id="cancel-btn"),
+                Button("Load Data", variant="primary", id="load-btn"),
+            ),
+            id="setup-container",
+        )
+
+    def on_input_submitted(self, _event: Input.Submitted) -> None:
+        """Load the given path when Enter is pressed."""
+        self._load()
+
+    def action_cancel(self) -> None:
+        """Handle escape key to cancel."""
+        self.dismiss(None)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button press events."""
+        if event.button.id == "load-btn":
+            self._load()
+        elif event.button.id == "btn-help":
+            webbrowser.open("https://help.netflix.com/en/node/101917")
+        elif event.button.id == "cancel-btn":
+            self.dismiss(None)
+
+    def _load(self) -> None:
+        csv_path = self.query_one("#csv-path-input", Input).value
+        if csv_path:
+            self.dismiss(csv_path)
+        else:
+            self.notify("Please enter a path to the CSV.", severity="warning")
+
+
 class NetflixNarcApp(App[None]):
     """A Textual TUI for viewing and evaluating Netflix history."""
 
@@ -113,6 +168,7 @@ class NetflixNarcApp(App[None]):
         ("ctrl+c", "quit", "Quit"),
         ("f10", "quit", "Quit"),
         ("l", "start_lineup", "The Lineup"),
+        ("c", "load_csv", "Load CSV"),
         ("s", "settings", "Settings"),
         ("e", "evaluate", "Evaluate Titles"),
     ]
@@ -257,11 +313,17 @@ class NetflixNarcApp(App[None]):
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Initialization error: {e}", severity="error")
 
-    async def action_load_csv(self) -> None:
-        """Load the Netflix history from a CSV file."""
-        # Use the configured path, or fall back to the default filename
-        csv_to_load = self.csv_path or DEFAULT_CSV_FILENAME
-        await self.load_data(str(csv_to_load))
+    def action_load_csv(self) -> None:
+        """Push the Load CSV screen."""
+        self.push_screen(
+            LoadCsvScreen(self.csv_path or pathlib.Path(DEFAULT_CSV_FILENAME)),
+            self.handle_load_csv_complete,
+        )
+
+    async def handle_load_csv_complete(self, new_path: str | None) -> None:
+        """Handle the completion of the Load CSV screen."""
+        if new_path:
+            await self.load_data(new_path)
 
     def action_evaluate(self) -> None:
         """Evaluate the loaded history against the active rating provider."""
@@ -271,10 +333,11 @@ class NetflixNarcApp(App[None]):
             return
 
         self.notify("Evaluating displayed titles...")
-        self.run_worker(
-            functools.partial(self._evaluate_titles_worker, cache_only=False),
-            exclusive=True,
-        )
+
+        async def run_eval() -> None:
+            await self._evaluate_titles_worker(cache_only=False)
+
+        self.run_worker(run_eval, exclusive=True)  # type: ignore[arg-type]
 
     async def action_start_lineup(self) -> None:
         """Start the Lineup Screen with the sorted queue."""

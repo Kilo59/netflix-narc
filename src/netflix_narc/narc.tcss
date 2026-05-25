@@ -108,6 +108,11 @@ Input:focus {
     border: none;
 }
 
+#setup-container Button#btn-help {
+    width: 100%;
+    margin-bottom: 2;
+}
+
 #setup-container Button.-primary {
     background: #E50914;
     color: #FFFFFF;
