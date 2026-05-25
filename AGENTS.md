@@ -45,6 +45,8 @@ gh pr checks <number>              # See CI status for a PR
   plan.md
   onboarding_overhaul.md        # Requirements & design for onboarding/settings overhaul
   onboarding_overhaul_plan.md   # Implementation plan for onboarding/settings overhaul
+  weight_impact_preview.md      # Design & algorithm for the live weight impact preview panel
+  weight_impact_preview_mockup.png
 .agents/                        # Agent-specific instructions
   TESTING.md                    # Mandatory testing patterns and rules
   workflows/                    # Step-by-step guides for common tasks

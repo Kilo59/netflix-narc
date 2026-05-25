@@ -117,6 +117,25 @@ Violence & Scariness    [Low]  [■ Med]  [High]   ↺
 
 ---
 
+### Weight Impact Preview Panel
+
+See **[`.agent/weight_impact_preview.md`](.agent/weight_impact_preview.md)** for full spec and mockup.
+
+Shown **beside** the weight controls (side-by-side `Horizontal` layout) in both
+`PreferencesScreen` (Weights section) and `OnboardingScreen` (Step 3 — Weights).
+
+Updates **reactively** every time any `WeightRow` value changes — no save required.
+
+**Graceful hide**: if fewer than 2 `ManualMetadata` records have `completeness_score >= 70`,
+the panel is hidden and replaced with a dim hint line. This applies on `OnboardingScreen` too
+— first-run users will always see the hide state, which is expected and fine.
+
+**Title selection summary** (full algorithm in weight_impact_preview.md):
+1. Filter: `completeness_score >= 70`, `ignored == False`
+2. Score each with `calculate_suitability()` using the **saved** weights as baseline (onboarding falls back to `CategoryWeights()` defaults)
+3. Sort ascending by score
+4. Evenly-spaced index sampling — picks `min(6, n)` titles always including the lowest and highest scoring
+
 ### Return Types
 
 `OnboardingScreen` returns:

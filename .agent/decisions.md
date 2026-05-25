@@ -95,3 +95,22 @@ persist settings.
   for the reset action.
 - All seven `WEIGHTS__*` keys are written to `.env` on every save using pydantic-settings'
   existing `env_nested_delimiter = "__"` — no model changes needed.
+
+## 10. Weight Impact Preview Panel (Live Before/After Score Preview)
+**Date**: 2026-05-25
+**Context**: Category weight adjustments are non-intuitive without concrete feedback. Users
+have no way to know whether changing "Violence" from Med to High will affect 1 title or 20.
+**Decision**:
+- A `WeightImpactPreview` widget is shown beside the weight controls in both `PreferencesScreen`
+  and `OnboardingScreen` Step 3.
+- **Title selection**: filter `ManualMetadata` records with `completeness_score >= 70` and
+  `ignored == False`, sort ascending by suitability score, then pick up to 6 titles using
+  evenly-spaced index sampling (always includes the lowest and highest scoring title).
+- **Reactivity**: `WeightRow` posts a `WeightRow.Changed` message on every button press; the
+  preview panel recomputes all "After" scores in-memory without touching disk.
+- **Baseline**: "Before" scores use the last-saved `CategoryWeights`. On `OnboardingScreen`
+  (no prior save), `CategoryWeights()` defaults are used as the baseline.
+- **Graceful hide**: if fewer than 2 eligible titles exist the panel is hidden entirely and
+  replaced with a dim hint: "Complete more title dossiers (≥70%) to unlock the impact preview."
+  This is the expected state on first run — no special-casing needed.
+**See**: `.agent/weight_impact_preview.md` for full algorithm, rendering spec, and mockup.
