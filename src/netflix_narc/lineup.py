@@ -101,8 +101,8 @@ class LineupScreen(Screen[None]):
         locker = self.narc_app.evidence_locker
         await locker.ignore_title(base_title)
 
-        # Mark as ignored in UI cache so the main table sees it
-        self.narc_app.evaluated_flags[base_title] = "[dim]Ignored[/dim]"
+        # Update the main data table instantly
+        await self.narc_app.refresh_title(base_title)
         self.notify(f"Ignored: {base_title}")
 
         self.current_index += 1

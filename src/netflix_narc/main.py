@@ -266,24 +266,19 @@ class NetflixNarcApp(App[None]):
         """Load CSV and perform initial cache-based evaluation on the main thread."""
         self._load_startup_csv()
 
-        needs_settings = not self.rating_provider
-
         if self.rating_provider:
             for base_title in self.grouped_records:
                 if base_title not in self.evaluated_flags:
                     flags_str = await self._fetch_and_evaluate(base_title, cache_only=True)
                     self.evaluated_flags[base_title] = flags_str
 
-        await self._finish_startup(needs_settings=needs_settings)
+        await self._finish_startup()
 
-    async def _finish_startup(self, *, needs_settings: bool) -> None:
+    async def _finish_startup(self) -> None:
         """Called from the main thread after the startup worker completes."""
         await self.evidence_locker.init()
         await self.rebuild_table(evaluate=False, cache_only=True)
         self._set_loading(state=False)
-        if needs_settings:
-            # We don't need call_after_refresh here because it's already on the main thread
-            self.action_settings()
 
     def action_settings(self) -> None:
         """Push the setup screen to configure API keys."""
@@ -383,6 +378,12 @@ class NetflixNarcApp(App[None]):
             # Row key is the base_title string -- update column index 2 (Flags)
             # Row may not exist if table was rebuilt; safe to ignore.
             table.update_cell(base_title, "flags", flags_str, update_width=False)
+
+    async def refresh_title(self, base_title: str) -> None:
+        """Re-evaluates a single title from cache/manual data and updates the DataTable."""
+        flags_str = await self._fetch_and_evaluate(base_title, cache_only=True)
+        self.evaluated_flags[base_title] = flags_str
+        self._update_row_flags(base_title, flags_str)
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         """Ensure loading indicator is hidden if a worker fails or is cancelled."""

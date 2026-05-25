@@ -136,8 +136,8 @@ class InterrogationRoomScreen(Screen[bool]):
         await self.narc_app.evidence_locker.upsert_record(record)
         self.notify("Evidence Locker updated!")
 
-        # Optionally update evaluated flags cache so we don't need a full rebuild
-        self.narc_app.evaluated_flags.pop(self.base_title, None)
+        # Instantly update the main table with the new manual data flags
+        await self.narc_app.refresh_title(self.base_title)
 
         self.dismiss(True)  # noqa: FBT003
 
