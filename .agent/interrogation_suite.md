@@ -35,7 +35,7 @@ To reduce decision fatigue, the application should offer a "Lineup Mode" that pr
 When the user chooses to interrogate a title, the UI should present a form for the following fields:
 - **Title**: String (pre-filled from viewing history, editable)
 - **Age Rating**: Integer (minimum recommended age)
-- **Quality Rating**: 1-5 stars
+- **Quality Rating**: 1-5 stars. Enforced via input validation and clamped strictly between `1.0` and `5.0`. Stored as the raw `1.0–5.0` value in the SQLite database. Normalized to `0.0 - 10.0` range strictly at the application layer inside `ManualMetadata.to_normalized_metadata()` when converting database entries for the evaluation engine.
 - **Cover Image**: An HTTP URL or local path. Supports a native macOS `pbpaste` OS hook allowing the user to click a "Paste" button to directly rip binary images from their clipboard and automatically download/save them locally, bypassing Textual's text-only clipboard limitations.
 - **Category Scores** (Rated 0 to 5, mirroring CSM):
   - Educational Value
@@ -45,7 +45,10 @@ When the user chooses to interrogate a title, the UI should present a form for t
   - Sexy Stuff
   - Language
   - Drinking, Drugs & Smoking
+  - *Validation*: All category scores must be strictly validated and clamped between `0.0` and `5.0` upon save to prevent database corruption and scale ballooning (e.g. preventing values like 12 or 20).
 - **Follow-up Flag**: A checkbox or toggle to explicitly flag the title for future follow-up.
+- **Suitability Sub-bars**: To avoid user confusion between raw entered ratings and calculated weighted suitability, the screen's dashboard displays calculated scores under clear suitability-focused labels (e.g., "Educational Suitability" and "Safety Suitability") rather than raw names.
+
 
 ### 2.4 Kickstarting Data Gathering
 - **Search Provider Shortcut**: A built-in command (e.g., a hotkey like `ctrl+s` or `F2` or a UI button) that kicks off a search for the currently selected title at the provider's site.

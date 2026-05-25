@@ -158,3 +158,21 @@ have no way to know whether changing "Violence" from Med to High will affect 1 t
 - **Keep additive deduction as primary, derive sub-bars from it**: Sub-bar scores would require complex reverse-mapping of local deductions back onto a 0–10 scale per-component. Error-prone and hard to reason about.
 - **Simple equal-weight average of components**: Weights would only affect the sub-bar score magnitude, not its contribution to the headline. A user setting Violence to V.High would see the Content Safety bar move, but the headline effect would be diluted to 1/5 of that change. Weights would feel ineffective at the headline level.
 - **Fixed weights for Base Quality and Age Suitability**: Removing user control over foundational signals forces an implicit priority judgement on the user's behalf. A user who cares primarily about content safety should be able to reduce the influence of overall quality ratings on the headline score.
+
+## 13. Configurable Scoring Modes & Interrogation Room Rating Scale Defenses
+**Date**: 2026-05-25
+**Context**:
+- Users have different scoring philosophies regarding how "gate" components (Age Rating and Content Safety) should impact suitability:
+  - **Option A (Quality Focus)**: Gate factors should only subtract from a quality-driven base score; perfect gate scores should never inflate a title's overall suitability score.
+  - **Option B (Balanced)**: Gate factors should contribute to a unified weighted average, but should be capped at `GATE_NEUTRAL_CAP = 7.0` to prevent safe but low-quality/boring titles from being artificially inflated.
+- Additionally, a severe usability bug was identified in the Interrogation Room screen: manual ratings and scores were getting corrupted, leading to values exceeding the maximum scale (e.g. 12, 20 etc. instead of 0–5). This was caused by a combination of lacking input validation/capping, scaling bugs, and visual confusion between raw category scores and weighted suitability sub-bars.
+
+**Decision**:
+- Add a new `scoring_mode` setting to `Settings`, supporting:
+  - `ScoringMode.QUALITY_FOCUS`: `overall = max(0.0, weighted_avg(Quality) - weighted_avg(Gate deficits))`.
+  - `ScoringMode.BALANCED`: Unified weighted average where Gate scores are capped at `GATE_NEUTRAL_CAP = 7.0`.
+- Implement a `ScoringMode` dropdown selector with a live mode-sensitive description on both the onboarding weights step and preferences panel.
+- Implement strict validation in the Interrogation Room:
+  - Validate and clamp manually entered category scores strictly between `0.0` and `5.0`.
+  - Enforce raw `1.0–5.0` scale in the SQLite database for quality ratings. Store the exact raw value entered by the user (no doubling in the DB), and perform the `0.0–10.0` normalization (doubling) strictly at the application layer inside `ManualMetadata.to_normalized_metadata()` when converting database entries for the evaluation engine.
+  - Rename the interrogation room sub-bars from raw category names to explicit suitability terms (e.g. "Educational Suitability") to prevent users from mistaking suitability output for raw database values.
