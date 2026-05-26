@@ -157,7 +157,7 @@ async def download_image_to_path(
         # Use asyncio.to_thread for non-blocking file IO
         await asyncio.to_thread(filepath.write_bytes, resp.content)
 
-    except Exception:
+    except (httpx.HTTPError, OSError):
         logger.exception("Failed to download image from %s", url)
         return None
     else:

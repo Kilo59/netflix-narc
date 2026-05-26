@@ -138,6 +138,76 @@ async def test_save_image_from_clipboard_failure(
 
 
 @pytest.mark.asyncio
+async def test_save_image_from_clipboard_non_macos(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: LogCaptureFixture,
+) -> None:
+    """Verify that clipboard image saving is skipped and logged on non-macOS."""
+    test_dir = tmp_path / "custom_images"
+    monkeypatch.setattr("netflix_narc.image_utils.IMAGE_DIR", test_dir)
+
+    create_subprocess_called = False
+
+    async def fake_create_subprocess_exec(
+        *_args: object,
+        **_kwargs: object,
+    ) -> object:
+        nonlocal create_subprocess_called
+        create_subprocess_called = True
+        return None
+
+    monkeypatch.setattr("asyncio.create_subprocess_exec", fake_create_subprocess_exec)
+    monkeypatch.setattr("sys.platform", "linux")
+
+    with caplog.at_level("WARNING"):
+        result = await save_image_from_clipboard("My Show")
+
+    assert result is None
+    assert not create_subprocess_called
+    assert any(
+        "Clipboard image saving is only supported on macOS" in record.message
+        for record in caplog.records
+    )
+
+
+@pytest.mark.asyncio
+async def test_save_image_from_clipboard_success_macos(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Verify success path for macOS clipboard image saving."""
+    test_dir = tmp_path / "custom_images"
+    monkeypatch.setattr("netflix_narc.image_utils.IMAGE_DIR", test_dir)
+
+    class FakeProcess:
+        def __init__(self) -> None:
+            self.returncode = 0
+
+        async def communicate(self) -> tuple[bytes, bytes]:
+            return b"SUCCESS", b""
+
+    subprocess_called = False
+
+    async def fake_create_subprocess_exec(
+        *_args: object,
+        **_kwargs: object,
+    ) -> FakeProcess:
+        nonlocal subprocess_called
+        subprocess_called = True
+        return FakeProcess()
+
+    monkeypatch.setattr("asyncio.create_subprocess_exec", fake_create_subprocess_exec)
+    monkeypatch.setattr("sys.platform", "darwin")
+
+    result = await save_image_from_clipboard("My Show")
+    assert result is not None
+    assert subprocess_called
+    assert result.name == "my_show.png"
+    assert result.parent == test_dir
+
+
+@pytest.mark.asyncio
 async def test_download_image_to_path_non_image_content_type(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,

@@ -243,7 +243,7 @@ class EvidenceLocker:
 
     def _read_csv(self, filepath: pathlib.Path) -> list[dict[str, str]]:
         """Synchronously read rows from a CSV file."""
-        with filepath.open("r", encoding="utf-8") as f:
+        with filepath.open("r", encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
             return list(reader)
 
