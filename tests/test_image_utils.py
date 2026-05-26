@@ -103,7 +103,7 @@ async def test_save_image_from_clipboard_failure(
     monkeypatch: MonkeyPatch,
     caplog: LogCaptureFixture,
 ) -> None:
-    """Verify that a clipboard subprocess failure is handled gracefully and escapes path quotes."""
+    """Verify that clipboard failure is handled gracefully and quotes are handled robustly."""
     test_dir = tmp_path / 'custom_"images"'
     monkeypatch.setattr("netflix_narc.image_utils.IMAGE_DIR", test_dir)
 
@@ -133,8 +133,8 @@ async def test_save_image_from_clipboard_failure(
 
     assert result is None
     assert any("Failed to save clipboard image" in record.message for record in caplog.records)
-    # Check that the path with double quotes is escaped inside AppleScript (POSIX file "...")
-    assert any('custom_\\"images\\"' in arg for arg in captured_args if isinstance(arg, str))
+    # Check that the path with double quotes is passed as-is to the AppleScript argv argument
+    assert any('custom_"images"' in arg for arg in captured_args if isinstance(arg, str))
 
 
 @pytest.mark.asyncio
@@ -191,6 +191,67 @@ async def test_download_image_to_path_client_injection(
             assert result is not None
             assert result.exists()
             assert result.read_bytes() == image_content
+            assert result.name == "my_show.png"
+            assert route.called
+
+
+@pytest.mark.asyncio
+async def test_download_image_to_path_content_type_with_parameters(
+    tmp_path: pathlib.Path, monkeypatch: MonkeyPatch
+) -> None:
+    """Verify that Content-Type parameters (like charset) are stripped correctly."""
+    test_dir = tmp_path / "custom_images"
+    monkeypatch.setattr("netflix_narc.image_utils.IMAGE_DIR", test_dir)
+
+    url = "https://example.com/poster.jpeg"
+    image_content = b"fake-jpeg-data"
+
+    with respx.mock:
+        route = respx.get(url).mock(
+            return_value=httpx.Response(
+                status_code=200,
+                content=image_content,
+                headers={"Content-Type": "image/jpeg; charset=binary"},
+            )
+        )
+
+        result = await download_image_to_path(url, "My Show")
+        assert result is not None
+        assert result.exists()
+        assert result.read_bytes() == image_content
+        assert result.name == "my_show.jpg"
+        assert route.called
+
+
+@pytest.mark.asyncio
+async def test_download_image_to_path_custom_params(
+    tmp_path: pathlib.Path, monkeypatch: MonkeyPatch
+) -> None:
+    """Verify that custom timeout and follow_redirects parameters are passed to httpx."""
+    test_dir = tmp_path / "custom_images"
+    monkeypatch.setattr("netflix_narc.image_utils.IMAGE_DIR", test_dir)
+
+    url = "https://example.com/poster.png"
+    image_content = b"fake-png-data"
+
+    async with httpx.AsyncClient() as client:
+        with respx.mock:
+            route = respx.get(url).mock(
+                return_value=httpx.Response(
+                    status_code=200,
+                    content=image_content,
+                    headers={"Content-Type": "image/png"},
+                )
+            )
+
+            result = await download_image_to_path(
+                url,
+                "My Show",
+                client=client,
+                request_timeout=5.0,
+                follow_redirects=False,
+            )
+            assert result is not None
             assert result.name == "my_show.png"
             assert route.called
 
