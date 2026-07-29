@@ -86,5 +86,75 @@ def test_conflict_resolver_bundle_merge() -> None:
     assert merged.client_id == "client-a"
 
 
+def test_conflict_resolver_dossier_lww_invalid_updated_at_favors_valid() -> None:
+    """Malformed or empty updated_at should lose against a valid timestamp (LWW)."""
+    resolver = ConflictResolver()
+
+    valid_ts = dt.datetime(2026, 1, 2, 12, 0, 0, tzinfo=dt.UTC)
+    invalid_ts = "not-a-timestamp"
+    empty_ts = ""
+
+    local_items = [
+        DossierSyncItem(title="Item A", user_rating=1.0, updated_at=invalid_ts),
+        DossierSyncItem(title="Item B", user_rating=2.0, updated_at=empty_ts),
+    ]
+    remote_items = [
+        DossierSyncItem(title="Item A", user_rating=3.0, updated_at=valid_ts),
+        DossierSyncItem(title="Item B", user_rating=4.0, updated_at=valid_ts),
+    ]
+
+    merged = resolver.merge_dossiers(local_items, remote_items)
+    merged_map = {item.title: item for item in merged}
+
+    assert merged_map["Item A"].user_rating == 3.0
+    assert merged_map["Item B"].user_rating == 4.0
+
+
+def test_conflict_resolver_dossier_lww_naive_timestamps_treated_as_utc() -> None:
+    """Naive datetime strings should be interpreted as UTC for LWW decisions."""
+    resolver = ConflictResolver()
+
+    naive_ts = "2026-01-02T12:00:00"
+    utc_ts = dt.datetime(2026, 1, 2, 12, 0, 0, tzinfo=dt.UTC)
+
+    local_items = [
+        DossierSyncItem(title="Item A", user_rating=1.0, updated_at=naive_ts),
+    ]
+    remote_items = [
+        DossierSyncItem(title="Item A", user_rating=2.0, updated_at=utc_ts),
+    ]
+
+    merged = resolver.merge_dossiers(local_items, remote_items)
+    assert len(merged) == 1
+    assert merged[0].user_rating == 2.0
+
+
+def test_conflict_resolver_settings_lww_with_invalid_timestamps() -> None:
+    """merge_settings should yield deterministic LWW behavior with invalid timestamps."""
+    resolver = ConflictResolver()
+
+    valid_ts = dt.datetime(2026, 1, 3, 12, 0, 0, tzinfo=dt.UTC)
+    malformed_ts = "2026-13-40T25:61:61Z"
+
+    s_local = SettingsSyncItem(
+        active_rating_provider="csm",
+        scoring_mode="balanced",
+        max_age_rating=12,
+        min_quality_rating=3,
+        updated_at=malformed_ts,
+    )
+    s_remote = SettingsSyncItem(
+        active_rating_provider="omdb",
+        scoring_mode="quality_focus",
+        max_age_rating=16,
+        min_quality_rating=4,
+        updated_at=valid_ts,
+    )
+
+    resolved = resolver.merge_settings(s_local, s_remote)
+    assert resolved is not None
+    assert resolved.active_rating_provider == "omdb"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

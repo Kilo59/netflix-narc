@@ -79,7 +79,7 @@ class S3StorageBackend(StorageBackend):
         except httpx.HTTPError:
             return False
         else:
-            return res.status_code in (STATUS_OK, STATUS_NOT_FOUND, STATUS_FORBIDDEN)
+            return res.status_code in (STATUS_OK, STATUS_NOT_FOUND)
         finally:
             if should_close:
                 await client.aclose()

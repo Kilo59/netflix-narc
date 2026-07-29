@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import pathlib
+from typing import override
 
 import pytest
 
 from netflix_narc.manual_db import EvidenceLocker, ManualMetadata
+from netflix_narc.sync.backend import StorageBackendError
 from netflix_narc.sync.engine import SyncEngine
 from netflix_narc.sync.local_folder import LocalStorageBackend
+from netflix_narc.sync.models import SyncBundle, SyncManifest
 
 
 @pytest.mark.asyncio
@@ -45,7 +49,6 @@ async def test_sync_engine_two_client_sync(tmp_path: pathlib.Path) -> None:
     assert result_b.status == "success"
 
     record_b_after = await locker_b.get_record("Arcane")
-    assert record_b_after is None or record_b_after is not None
     assert record_b_after is not None
     assert record_b_after.user_rating == 5.0
 
@@ -60,6 +63,56 @@ async def test_sync_engine_two_client_sync(tmp_path: pathlib.Path) -> None:
     record_a_wednesday = await locker_a.get_record("Wednesday")
     assert record_a_wednesday is not None
     assert record_a_wednesday.user_rating == 4.0
+
+
+@pytest.mark.asyncio
+async def test_sync_engine_initial_upload_when_no_remote_bundle(tmp_path: pathlib.Path) -> None:
+    """Test SyncEngine handles missing remote bundle by uploading local state."""
+    sync_dir = tmp_path / "empty_remote"
+    db_path = tmp_path / "client.sqlite"
+
+    locker = EvidenceLocker(db_path)
+    await locker.init()
+    await locker.upsert_record(ManualMetadata(title="Dark", content_rating="16"))
+
+    backend = LocalStorageBackend(sync_dir)
+    engine = SyncEngine(backend=backend, locker=locker, client_id="initial-client")
+
+    res = await engine.sync()
+    assert res.status == "success"
+    assert res.items_synced >= 1
+    assert "Uploaded initial local bundle" in res.message or "Uploaded" in res.message
+
+
+@pytest.mark.asyncio
+async def test_sync_engine_handles_storage_backend_error(tmp_path: pathlib.Path) -> None:
+    """Test SyncEngine returns error status on StorageBackendError."""
+
+    class FailingBackend(LocalStorageBackend):
+        @override
+        async def download_bundle(self) -> SyncBundle | None:
+            err_msg = "Network unreachable"
+            raise StorageBackendError(err_msg)
+
+        @override
+        async def get_manifest(self) -> SyncManifest | None:
+            return SyncManifest(
+                latest_bundle_id="remote.json",
+                last_updated=dt.datetime(2026, 1, 1, 0, 0, 0, tzinfo=dt.UTC),
+                client_id="other",
+            )
+
+    db_path = tmp_path / "client.sqlite"
+    locker = EvidenceLocker(db_path)
+    await locker.init()
+
+    failing_backend = FailingBackend(tmp_path / "sync")
+    engine = SyncEngine(backend=failing_backend, locker=locker, client_id="fail-client")
+
+    res = await engine.sync()
+    assert res.status == "error"
+    assert res.items_synced == 0
+    assert "Network unreachable" in res.message
 
 
 if __name__ == "__main__":

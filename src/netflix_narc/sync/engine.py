@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from netflix_narc.settings import Settings
 
 from netflix_narc.sync.backend import StorageBackend, StorageBackendError
-from netflix_narc.sync.models import DossierSyncItem, SettingsSyncItem, SyncBundle
+from netflix_narc.sync.models import SettingsSyncItem, SyncBundle
 from netflix_narc.sync.resolver import ConflictResolver
 
 logger = logging.getLogger(__name__)
@@ -48,8 +48,7 @@ class SyncEngine:
 
     async def create_local_bundle(self) -> SyncBundle:
         """Dump local EvidenceLocker dossiers and Settings into a SyncBundle."""
-        dossiers_raw = await self.locker.dump_dossiers()
-        dossier_items = [DossierSyncItem.model_validate(d) for d in dossiers_raw]
+        dossiers = await self.locker.dump_dossiers()
 
         settings_item: SettingsSyncItem | None = None
         if self.settings is not None:
@@ -60,23 +59,21 @@ class SyncEngine:
                 max_age_rating=self.settings.max_age_rating,
                 min_quality_rating=self.settings.min_quality_rating,
                 category_weights=self.settings.weights.model_dump(),
-                updated_at=dt.datetime.now(dt.UTC).isoformat(),
+                updated_at=dt.datetime.now(dt.UTC),
             )
 
-        now_str = dt.datetime.now(dt.UTC).isoformat()
         return SyncBundle(
             client_id=self.client_id,
-            timestamp=now_str,
+            timestamp=dt.datetime.now(dt.UTC),
             settings=settings_item,
-            evidence_locker=dossier_items,
+            evidence_locker=dossiers,
         )
 
     async def apply_bundle_to_local(self, bundle: SyncBundle) -> int:
         """Apply resolved bundle dossiers back into local EvidenceLocker."""
         if not bundle.evidence_locker:
             return 0
-        dossier_dicts = [item.model_dump() for item in bundle.evidence_locker]
-        return await self.locker.load_dossiers(dossier_dicts)
+        return await self.locker.load_dossiers(bundle.evidence_locker)
 
     async def sync(self) -> SyncResult:
         """Perform full two-way synchronization."""

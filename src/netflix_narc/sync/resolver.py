@@ -3,23 +3,21 @@
 from __future__ import annotations
 
 import datetime as dt
-import logging
 
-from netflix_narc.sync.models import DossierSyncItem, SettingsSyncItem, SyncBundle
+from netflix_narc.sync.models import (
+    DossierSyncItem,
+    SettingsSyncItem,
+    SyncBundle,
+    parse_utc_datetime,
+)
 
-logger = logging.getLogger(__name__)
 
-
-def _parse_utc_timestamp(ts_str: str) -> dt.datetime:
-    """Parse ISO timestamp string into a timezone-aware UTC datetime."""
-    try:
-        parsed = dt.datetime.fromisoformat(ts_str)
-        if parsed.tzinfo is None:
-            return parsed.replace(tzinfo=dt.UTC)
-        return parsed.astimezone(dt.UTC)
-    except ValueError:
-        logger.warning("Invalid ISO timestamp format %r; using epoch fallback", ts_str)
-        return dt.datetime.fromtimestamp(0, tz=dt.UTC)
+def _to_utc(ts: dt.datetime | str) -> dt.datetime:
+    if isinstance(ts, dt.datetime):
+        if ts.tzinfo is None:
+            return ts.replace(tzinfo=dt.UTC)
+        return ts.astimezone(dt.UTC)
+    return parse_utc_datetime(ts)
 
 
 class ConflictResolver:
@@ -43,10 +41,7 @@ class ConflictResolver:
                 continue
 
             local_item = merged[title]
-            local_ts = _parse_utc_timestamp(local_item.updated_at)
-            remote_ts = _parse_utc_timestamp(remote_item.updated_at)
-
-            if remote_ts >= local_ts:
+            if _to_utc(remote_item.updated_at) >= _to_utc(local_item.updated_at):
                 merged[title] = remote_item
 
         return list(merged.values())
@@ -62,10 +57,9 @@ class ConflictResolver:
         if remote_settings is None:
             return local_settings
 
-        local_ts = _parse_utc_timestamp(local_settings.updated_at)
-        remote_ts = _parse_utc_timestamp(remote_settings.updated_at)
-
-        return remote_settings if remote_ts >= local_ts else local_settings
+        if _to_utc(remote_settings.updated_at) >= _to_utc(local_settings.updated_at):
+            return remote_settings
+        return local_settings
 
     def merge_bundles(self, local_bundle: SyncBundle, remote_bundle: SyncBundle) -> SyncBundle:
         """Combine local and remote bundles into a unified resolved bundle."""
@@ -78,11 +72,10 @@ class ConflictResolver:
             remote_bundle.settings,
         )
 
-        now_str = dt.datetime.now(dt.UTC).isoformat()
         return SyncBundle(
             version=max(local_bundle.version, remote_bundle.version),
             client_id=local_bundle.client_id,
-            timestamp=now_str,
+            timestamp=dt.datetime.now(dt.UTC),
             settings=merged_settings,
             evidence_locker=merged_dossiers,
         )

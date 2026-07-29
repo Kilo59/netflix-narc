@@ -10,16 +10,17 @@ import datetime as dt
 import json
 import logging
 import pathlib
-from typing import TYPE_CHECKING, Any, ClassVar, Final
+from typing import TYPE_CHECKING, ClassVar, Final
 
 if TYPE_CHECKING:
     from contextlib import AbstractAsyncContextManager
 
 import aiosqlite
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from netflix_narc.csm_api import CSMRatingCategory
 from netflix_narc.rating_api import NormalizedMetadata
+from netflix_narc.sync.models import DossierSyncItem, parse_utc_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,12 @@ class ManualMetadata(BaseModel):
     flagged_for_followup: bool = False
     ignored: bool = False
     category_scores: dict[str, float] = Field(default_factory=dict)
-    updated_at: str = Field(default_factory=lambda: dt.datetime.now(dt.UTC).isoformat())
+    updated_at: dt.datetime | str = Field(default_factory=lambda: dt.datetime.now(dt.UTC))
+
+    @field_validator("updated_at", mode="before")
+    @classmethod
+    def _validate_updated_at(cls, v: object) -> dt.datetime:
+        return parse_utc_datetime(v)
 
     @property
     def completeness_score(self) -> int:
@@ -108,8 +114,11 @@ class EvidenceLocker:
         async with self._get_connection() as db:
             await db.execute(schema)
             # Migration check for existing databases missing updated_at
-            with contextlib.suppress(aiosqlite.OperationalError):
+            try:
                 await db.execute("ALTER TABLE evidence_locker ADD COLUMN updated_at TEXT")
+            except aiosqlite.OperationalError as exc:
+                if "duplicate column name" not in str(exc).lower():
+                    raise
             await db.commit()
 
     def _row_to_manual_metadata(self, row: aiosqlite.Row) -> ManualMetadata:
@@ -188,7 +197,9 @@ class EvidenceLocker:
                     int(metadata.flagged_for_followup),
                     int(metadata.ignored),
                     json.dumps(metadata.category_scores),
-                    metadata.updated_at,
+                    metadata.updated_at.isoformat()
+                    if isinstance(metadata.updated_at, dt.datetime)
+                    else str(metadata.updated_at),
                 ),
             )
             await db.commit()
@@ -202,18 +213,43 @@ class EvidenceLocker:
             record = ManualMetadata(title=title, ignored=True)
         await self.upsert_record(record)
 
-    async def dump_dossiers(self) -> list[dict[str, Any]]:
-        """Dump all evidence locker records as a list of raw dictionaries for sync."""
+    async def dump_dossiers(self) -> list[DossierSyncItem]:
+        """Dump all evidence locker records as DossierSyncItem objects for sync."""
         records = await self.get_all_records()
-        return [r.model_dump(mode="json") for r in records]
+        return [
+            DossierSyncItem(
+                title=r.title,
+                content_rating=r.content_rating,
+                user_rating=r.user_rating,
+                image_url=r.image_url,
+                flagged_for_followup=r.flagged_for_followup,
+                ignored=r.ignored,
+                category_scores=r.category_scores,
+                updated_at=r.updated_at,
+            )
+            for r in records
+        ]
 
-    async def load_dossiers(self, dossiers: list[dict[str, Any]]) -> int:
-        """Load and upsert raw dossier dictionaries from sync into evidence locker."""
+    async def load_dossiers(self, dossiers: list[DossierSyncItem]) -> int:
+        """Load and upsert DossierSyncItem objects from sync into evidence locker."""
         count = 0
-        for data in dossiers:
-            metadata = ManualMetadata.model_validate(data)
-            await self.upsert_record(metadata)
-            count += 1
+        for item in dossiers:
+            existing = await self.get_record(item.title)
+            if existing is None or parse_utc_datetime(item.updated_at) >= parse_utc_datetime(
+                existing.updated_at
+            ):
+                metadata = ManualMetadata(
+                    title=item.title,
+                    content_rating=item.content_rating,
+                    user_rating=item.user_rating,
+                    image_url=item.image_url,
+                    flagged_for_followup=item.flagged_for_followup,
+                    ignored=item.ignored,
+                    category_scores=item.category_scores,
+                    updated_at=item.updated_at,
+                )
+                await self.upsert_record(metadata)
+                count += 1
         return count
 
     async def get_all_records(self) -> list[ManualMetadata]:
@@ -225,7 +261,7 @@ class EvidenceLocker:
 
     async def export_to_json(self, filepath: pathlib.Path) -> None:
         """Export all manual records to a JSON file."""
-        records = [r.model_dump() for r in await self.get_all_records()]
+        records = [r.model_dump(mode="json") for r in await self.get_all_records()]
         data_str = json.dumps(records, indent=2)
         await asyncio.to_thread(filepath.parent.mkdir, parents=True, exist_ok=True)
         await asyncio.to_thread(filepath.write_text, data_str, encoding="utf-8")

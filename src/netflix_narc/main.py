@@ -9,7 +9,7 @@ import pathlib
 from typing import TYPE_CHECKING, ClassVar, override
 
 from pydantic import BaseModel, ConfigDict, SecretStr, TypeAdapter
-from textual import work
+from textual import on, work
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal
 from textual.coordinate import Coordinate
@@ -55,28 +55,28 @@ if TYPE_CHECKING:
     from netflix_narc.rating_api import RatingProvider
 
 
-def create_storage_backend(settings: Settings) -> StorageBackend | None:
-    """Instantiate StorageBackend based on settings."""
-    match settings.sync_backend:
+def create_storage_backend(config: Settings | SetupConfig) -> StorageBackend | None:
+    """Instantiate StorageBackend based on settings or setup config."""
+    match config.sync_backend:
         case SyncBackendType.LOCAL_FOLDER:
-            path = settings.sync_local_path or str(get_config_dir(create=True) / "sync")
+            path = config.sync_local_path or str(get_config_dir(create=True) / "sync")
             return LocalStorageBackend(path)
         case SyncBackendType.S3:
-            if not settings.sync_s3_endpoint_url or not settings.sync_s3_bucket:
+            if not config.sync_s3_endpoint_url or not config.sync_s3_bucket:
                 return None
             return S3StorageBackend(
-                endpoint_url=settings.sync_s3_endpoint_url,
-                bucket_name=settings.sync_s3_bucket,
-                access_key_id=settings.sync_s3_access_key_id,
-                secret_access_key=settings.sync_s3_secret_access_key,
+                endpoint_url=config.sync_s3_endpoint_url,
+                bucket_name=config.sync_s3_bucket,
+                access_key_id=config.sync_s3_access_key_id,
+                secret_access_key=config.sync_s3_secret_access_key,
             )
         case SyncBackendType.WEBDAV:
-            if not settings.sync_webdav_url or not settings.sync_webdav_username:
+            if not config.sync_webdav_url or not config.sync_webdav_username:
                 return None
             return WebDAVStorageBackend(
-                webdav_url=settings.sync_webdav_url,
-                username=settings.sync_webdav_username,
-                password=settings.sync_webdav_password,
+                webdav_url=config.sync_webdav_url,
+                username=config.sync_webdav_username,
+                password=config.sync_webdav_password,
             )
         case _:
             return None
@@ -146,6 +146,22 @@ class SetupScreen(Screen[SetupConfig | None]):
             id="setup-container",
         )
 
+    def _update_sync_test_button_visibility(self) -> None:
+        """Show or hide the sync test button depending on backend support."""
+        backend_type = self.query_one("#sync-backend-select", Select).value
+        test_btn_container = self.query_one("#test-btn-container", Horizontal)
+        test_btn_container.display = backend_type != Select.BLANK
+
+    def on_mount(self) -> None:
+        """Set initial widget states on mount."""
+        self._update_sync_test_button_visibility()
+
+    @on(Select.Changed, "#sync-backend-select")
+    def on_sync_backend_select_changed(self, _event: Select.Changed) -> None:
+        """Handle changes to the sync backend selection."""
+        self._update_sync_test_button_visibility()
+        self.query_one("#sync-test-result", Static).update("")
+
     def on_input_submitted(self, _event: Input.Submitted) -> None:
         """Save settings when Enter is pressed on the Input widget."""
         self._save_settings()
@@ -163,26 +179,60 @@ class SetupScreen(Screen[SetupConfig | None]):
         elif event.button.id == "test-sync-btn":
             self._test_connection()
 
+    def _build_config_from_form(self) -> SetupConfig:
+        """Construct a SetupConfig payload from current form inputs and app settings."""
+        provider = self.query_one("#provider-select", Select).value
+        api_key = self.query_one("#api-key-input", Input).value
+        sync_backend = self.query_one("#sync-backend-select", Select).value
+        local_path = self.query_one("#sync-local-path-input", Input).value
+
+        provider_enum = (
+            provider if isinstance(provider, RatingProviderType) else RatingProviderType.OMDB
+        )
+        secret_key = TypeAdapter(SecretStr).validate_python(api_key or "")
+        backend_enum = (
+            sync_backend if isinstance(sync_backend, SyncBackendType) else SyncBackendType.OFF
+        )
+
+        app_settings = getattr(self.app, "settings", None)
+        s3_url = app_settings.sync_s3_endpoint_url if app_settings else ""
+        s3_bucket = app_settings.sync_s3_bucket if app_settings else ""
+        s3_key = app_settings.sync_s3_access_key_id if app_settings else SecretStr("")
+        s3_secret = app_settings.sync_s3_secret_access_key if app_settings else SecretStr("")
+        webdav_url = app_settings.sync_webdav_url if app_settings else ""
+        webdav_user = app_settings.sync_webdav_username if app_settings else ""
+        webdav_pass = app_settings.sync_webdav_password if app_settings else SecretStr("")
+
+        return SetupConfig(
+            provider=provider_enum,
+            api_key=secret_key,
+            sync_backend=backend_enum,
+            sync_local_path=local_path,
+            sync_s3_endpoint_url=s3_url,
+            sync_s3_bucket=s3_bucket,
+            sync_s3_access_key_id=s3_key,
+            sync_s3_secret_access_key=s3_secret,
+            sync_webdav_url=webdav_url,
+            sync_webdav_username=webdav_user,
+            sync_webdav_password=webdav_pass,
+        )
+
     @work
     async def _test_connection(self) -> None:
         """Asynchronously test the configured storage backend connection."""
         result_label = self.query_one("#sync-test-result", Static)
         result_label.update("[yellow]Testing connection...[/yellow]")
 
-        backend_type = self.query_one("#sync-backend-select", Select).value
-        local_path = self.query_one("#sync-local-path-input", Input).value
-
-        if backend_type == SyncBackendType.OFF:
+        config = self._build_config_from_form()
+        if config.sync_backend == SyncBackendType.OFF:
             result_label.update("[green]🟢 Local storage active (Sync disabled).[/green]")
             return
 
-        backend: StorageBackend | None = None
-        if backend_type == SyncBackendType.LOCAL_FOLDER:
-            target_path = local_path or str(get_config_dir(create=True) / "sync")
-            backend = LocalStorageBackend(target_path)
-
+        backend = create_storage_backend(config)
         if backend is None:
-            result_label.update("[red]🔴 Storage provider configuration incomplete.[/red]")
+            result_label.update(
+                "[red]🔴 Storage configuration incomplete (Check URL/Bucket/Credentials).[/red]"
+            )
             return
 
         try:
@@ -190,7 +240,9 @@ class SetupScreen(Screen[SetupConfig | None]):
             if ok:
                 result_label.update("[green]🟢 Connection verified successfully![/green]")
             else:
-                result_label.update("[red]🔴 Connection test failed (Check write access).[/red]")
+                result_label.update(
+                    "[red]🔴 Connection test failed (Check access/permissions).[/red]"
+                )
         except StorageBackendError as exc:
             result_label.update(f"[red]🔴 Connection error: {exc}[/red]")
 
@@ -198,22 +250,10 @@ class SetupScreen(Screen[SetupConfig | None]):
         """Validate and save settings, then dismiss the screen."""
         provider = self.query_one("#provider-select", Select).value
         api_key = self.query_one("#api-key-input", Input).value
-        sync_backend = self.query_one("#sync-backend-select", Select).value
-        local_path = self.query_one("#sync-local-path-input", Input).value
 
         if provider and api_key and isinstance(provider, RatingProviderType):
-            secret_key = TypeAdapter(SecretStr).validate_python(api_key)
-            backend_enum = (
-                sync_backend if isinstance(sync_backend, SyncBackendType) else SyncBackendType.OFF
-            )
-            self.dismiss(
-                SetupConfig(
-                    provider=provider,
-                    api_key=secret_key,
-                    sync_backend=backend_enum,
-                    sync_local_path=local_path,
-                )
-            )
+            config = self._build_config_from_form()
+            self.dismiss(config)
         else:
             self.notify("Provider and API Key required", severity="warning")
 

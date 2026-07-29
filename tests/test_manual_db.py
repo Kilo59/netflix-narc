@@ -230,5 +230,60 @@ async def test_exports_create_parent_directory(
     assert csv_file.exists()
 
 
+@pytest.mark.asyncio
+async def test_dump_and_load_dossiers(temp_db: EvidenceLocker) -> None:
+    """Test dump_dossiers and load_dossiers sync helper methods."""
+    await temp_db.upsert_record(
+        ManualMetadata(title="Show X", content_rating="16", user_rating=4.5)
+    )
+
+    dossiers = await temp_db.dump_dossiers()
+    assert len(dossiers) == 1
+    assert dossiers[0].title == "Show X"
+    assert dossiers[0].user_rating == 4.5
+    assert dossiers[0].updated_at is not None
+
+    # Load into another empty DB
+    db2_file = temp_db.db_path.parent / "db_dump_load.sqlite"
+    db2 = EvidenceLocker(db2_file)
+    await db2.init()
+
+    loaded_count = await db2.load_dossiers(dossiers)
+    assert loaded_count == 1
+    rec2 = await db2.get_record("Show X")
+    assert rec2 is not None
+    assert rec2.user_rating == 4.5
+
+
+@pytest.mark.asyncio
+async def test_db_migration_backfills_updated_at(tmp_path: pathlib.Path) -> None:
+    """Test initializing an older database schema without updated_at column."""
+    db_file = tmp_path / "legacy.sqlite"
+    async with aiosqlite.connect(db_file) as db:
+        await db.execute(
+            """
+            CREATE TABLE evidence_locker (
+                title TEXT PRIMARY KEY,
+                content_rating TEXT,
+                user_rating REAL,
+                image_url TEXT,
+                flagged_for_followup INTEGER DEFAULT 0,
+                ignored INTEGER DEFAULT 0,
+                category_scores TEXT
+            );
+            """
+        )
+        await db.execute("INSERT INTO evidence_locker (title) VALUES ('Legacy Show')")
+        await db.commit()
+
+    locker = EvidenceLocker(db_file)
+    await locker.init()  # Triggers migration check
+
+    record = await locker.get_record("Legacy Show")
+    assert record is not None
+    assert record.title == "Legacy Show"
+    assert record.updated_at is not None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])
