@@ -6,9 +6,9 @@ import argparse
 import contextlib
 import functools
 import pathlib
-from typing import TYPE_CHECKING, ClassVar, NamedTuple, override
+from typing import TYPE_CHECKING, ClassVar, override
 
-from pydantic import SecretStr, TypeAdapter
+from pydantic import BaseModel, SecretStr, TypeAdapter
 from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal
@@ -82,8 +82,8 @@ def create_storage_backend(settings: Settings) -> StorageBackend | None:
             return None
 
 
-class SetupConfig(NamedTuple):
-    """Configuration result from the setup screen."""
+class SetupConfig(BaseModel):
+    """Configuration result payload from the setup screen."""
 
     provider: RatingProviderType
     api_key: SecretStr
