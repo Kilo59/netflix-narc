@@ -6,10 +6,11 @@ import argparse
 import asyncio
 import contextlib
 import csv
+import datetime as dt
 import json
 import logging
 import pathlib
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Any, Final
 
 if TYPE_CHECKING:
     from contextlib import AbstractAsyncContextManager
@@ -35,6 +36,7 @@ class ManualMetadata(BaseModel):
     flagged_for_followup: bool = False
     ignored: bool = False
     category_scores: dict[str, float] = Field(default_factory=dict)
+    updated_at: str = Field(default_factory=lambda: dt.datetime.now(dt.UTC).isoformat())
 
     @property
     def completeness_score(self) -> int:
@@ -97,11 +99,15 @@ class EvidenceLocker:
             image_url TEXT,
             flagged_for_followup INTEGER DEFAULT 0,
             ignored INTEGER DEFAULT 0,
-            category_scores TEXT
+            category_scores TEXT,
+            updated_at TEXT
         );
         """
         async with self._get_connection() as db:
             await db.execute(schema)
+            # Migration check for existing databases missing updated_at
+            with contextlib.suppress(aiosqlite.OperationalError):
+                await db.execute("ALTER TABLE evidence_locker ADD COLUMN updated_at TEXT")
             await db.commit()
 
     def _row_to_manual_metadata(self, row: aiosqlite.Row) -> ManualMetadata:
@@ -122,6 +128,13 @@ class EvidenceLocker:
             )
             category_scores = {}
 
+        row_keys = row.keys()
+        updated_at = (
+            row["updated_at"]
+            if "updated_at" in row_keys and row["updated_at"]
+            else dt.datetime.now(dt.UTC).isoformat()
+        )
+
         return ManualMetadata(
             title=row["title"],
             content_rating=row["content_rating"],
@@ -130,6 +143,7 @@ class EvidenceLocker:
             flagged_for_followup=bool(row["flagged_for_followup"]),
             ignored=bool(row["ignored"]),
             category_scores=category_scores,
+            updated_at=updated_at,
         )
 
     async def get_record(self, title: str) -> ManualMetadata | None:
@@ -153,15 +167,16 @@ class EvidenceLocker:
                 """
                 INSERT INTO evidence_locker (
                     title, content_rating, user_rating, image_url,
-                    flagged_for_followup, ignored, category_scores
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    flagged_for_followup, ignored, category_scores, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(title) DO UPDATE SET
                     content_rating=excluded.content_rating,
                     user_rating=excluded.user_rating,
                     image_url=excluded.image_url,
                     flagged_for_followup=excluded.flagged_for_followup,
                     ignored=excluded.ignored,
-                    category_scores=excluded.category_scores
+                    category_scores=excluded.category_scores,
+                    updated_at=excluded.updated_at
                 """,
                 (
                     metadata.title,
@@ -171,6 +186,7 @@ class EvidenceLocker:
                     int(metadata.flagged_for_followup),
                     int(metadata.ignored),
                     json.dumps(metadata.category_scores),
+                    metadata.updated_at,
                 ),
             )
             await db.commit()
@@ -183,6 +199,20 @@ class EvidenceLocker:
         else:
             record = ManualMetadata(title=title, ignored=True)
         await self.upsert_record(record)
+
+    async def dump_dossiers(self) -> list[dict[str, Any]]:
+        """Dump all evidence locker records as a list of raw dictionaries for sync."""
+        records = await self.get_all_records()
+        return [r.model_dump(mode="json") for r in records]
+
+    async def load_dossiers(self, dossiers: list[dict[str, Any]]) -> int:
+        """Load and upsert raw dossier dictionaries from sync into evidence locker."""
+        count = 0
+        for data in dossiers:
+            metadata = ManualMetadata.model_validate(data)
+            await self.upsert_record(metadata)
+            count += 1
+        return count
 
     async def get_all_records(self) -> list[ManualMetadata]:
         """Retrieve all records for export."""

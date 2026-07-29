@@ -41,6 +41,15 @@ class ScoringMode(StrEnum):
     BALANCED = "balanced"
 
 
+class SyncBackendType(StrEnum):
+    """Supported storage and sync backends (BYOS)."""
+
+    OFF = "off"
+    LOCAL_FOLDER = "local_folder"
+    S3 = "s3"
+    WEBDAV = "webdav"
+
+
 SCORING_MODE_LABELS: Final[dict[ScoringMode, str]] = {
     ScoringMode.QUALITY_FOCUS: "Option A: Quality Focus",
     ScoringMode.BALANCED: "Option B: Balanced",
@@ -93,6 +102,17 @@ class Settings(BaseSettings):
     min_quality_rating: int = 3
     max_records: int = 200
     merge_manual_data: bool = True
+
+    # Storage & Sync Settings (BYOS)
+    sync_backend: SyncBackendType = SyncBackendType.OFF
+    sync_local_path: str = ""
+    sync_s3_endpoint_url: str = ""
+    sync_s3_bucket: str = ""
+    sync_s3_access_key_id: SecretStr = SecretStr("")
+    sync_s3_secret_access_key: SecretStr = SecretStr("")
+    sync_webdav_url: str = ""
+    sync_webdav_username: str = ""
+    sync_webdav_password: SecretStr = SecretStr("")
 
     weights: CategoryWeights = CategoryWeights()
 

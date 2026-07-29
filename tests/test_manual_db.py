@@ -45,7 +45,7 @@ async def test_upsert_and_get_record(temp_db: EvidenceLocker) -> None:
     assert record is not None
     assert record.title == "Breaking Bad"
     assert record.content_rating == "18"
-    assert record.user_rating == 5.0  # noqa: PLR2004
+    assert record.user_rating == 5.0
     assert record.image_url == "http://example.com/image.jpg"
     assert record.flagged_for_followup is True
     assert record.ignored is False
@@ -56,7 +56,7 @@ async def test_upsert_and_get_record(temp_db: EvidenceLocker) -> None:
     await temp_db.upsert_record(metadata)
     record2 = await temp_db.get_record("Breaking Bad")
     assert record2 is not None
-    assert record2.user_rating == 4.0  # noqa: PLR2004
+    assert record2.user_rating == 4.0
 
 
 @pytest.mark.asyncio
@@ -101,7 +101,7 @@ async def test_export_import_json(temp_db: EvidenceLocker, tmp_path: pathlib.Pat
     await db2.import_from_json(json_file)
     record = await db2.get_record("JSON Show")
     assert record is not None
-    assert record.user_rating == 4.2  # noqa: PLR2004
+    assert record.user_rating == 4.2
 
 
 @pytest.mark.asyncio
@@ -129,9 +129,9 @@ async def test_export_import_csv(temp_db: EvidenceLocker, tmp_path: pathlib.Path
     assert record is not None
     assert record.title == "CSV Show"
     assert record.content_rating == "PG-13"
-    assert record.user_rating == 3.5  # noqa: PLR2004
+    assert record.user_rating == 3.5
     assert record.flagged_for_followup is True
-    assert record.category_scores["Violence & Scariness"] == 3.0  # noqa: PLR2004
+    assert record.category_scores["Violence & Scariness"] == 3.0
     assert record.category_scores["Language"] == 1.0
 
 
@@ -145,10 +145,10 @@ def test_manual_metadata_normalization_scaling() -> None:
         user_rating=4.5,
         category_scores={"Violence & Scariness": 3.0},
     )
-    assert metadata.user_rating == 4.5  # noqa: PLR2004
+    assert metadata.user_rating == 4.5
 
     normalized = metadata.to_normalized_metadata()
-    assert normalized.user_rating == 9.0  # noqa: PLR2004
+    assert normalized.user_rating == 9.0
     assert normalized.category_scores == {"Violence & Scariness": 3.0}
 
 
