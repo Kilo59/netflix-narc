@@ -7,7 +7,11 @@ import pathlib
 import uuid
 from typing import override
 
-from netflix_narc.sync.backend import StorageBackend, StorageBackendError
+from netflix_narc.sync.backend import (
+    StorageBackend,
+    StorageBackendError,
+    StorageConnectionError,
+)
 from netflix_narc.sync.models import SyncBundle, SyncManifest
 
 
@@ -35,7 +39,7 @@ class LocalStorageBackend(StorageBackend):
             self.sync_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
             msg = f"Failed to create sync directory {self.sync_dir}: {exc}"
-            raise StorageBackendError(msg) from exc
+            raise StorageConnectionError(msg) from exc
 
     @override
     async def test_connection(self) -> bool:

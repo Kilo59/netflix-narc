@@ -10,12 +10,19 @@ if TYPE_CHECKING:
 
 import httpx
 
-from netflix_narc.sync.backend import StorageBackend, StorageBackendError
+from netflix_narc.sync.backend import (
+    StorageAuthError,
+    StorageBackend,
+    StorageBackendError,
+    StorageConnectionError,
+)
 from netflix_narc.sync.models import SyncBundle, SyncManifest
 
 STATUS_NOT_FOUND = 404
 STATUS_CREATED = 201
 STATUS_METHOD_NOT_ALLOWED = 405
+STATUS_UNAUTHORIZED = 401
+STATUS_FORBIDDEN = 403
 
 
 class WebDAVStorageBackend(StorageBackend):
@@ -57,21 +64,30 @@ class WebDAVStorageBackend(StorageBackend):
         should_close = self._client is None
         try:
             res = await client.request("PROPFIND", url, headers={"Depth": "0"})
+            mk_res: httpx.Response | None = None
             if res.status_code == STATUS_NOT_FOUND:
-                # Attempt MKCOL to create folder
                 mk_res = await client.request("MKCOL", url)
-                if mk_res.status_code not in (STATUS_CREATED, STATUS_METHOD_NOT_ALLOWED):
-                    msg = f"Failed to create WebDAV directory: {mk_res.status_code}"
-                    raise StorageBackendError(msg)
-            elif res.status_code not in (200, 207):
-                msg = f"WebDAV endpoint returned unexpected status: {res.status_code}"
-                raise StorageBackendError(msg)
         except httpx.HTTPError as exc:
             msg = f"Failed to connect to WebDAV endpoint: {exc}"
-            raise StorageBackendError(msg) from exc
+            raise StorageConnectionError(msg) from exc
         finally:
             if should_close:
                 await client.aclose()
+
+        if res.status_code in (STATUS_UNAUTHORIZED, STATUS_FORBIDDEN):
+            msg = f"WebDAV authorization failed ({res.status_code}): Invalid credentials"
+            raise StorageAuthError(msg)
+
+        if mk_res is not None and mk_res.status_code not in (
+            STATUS_CREATED,
+            STATUS_METHOD_NOT_ALLOWED,
+        ):
+            msg = f"Failed to create WebDAV directory: {mk_res.status_code}"
+            raise StorageBackendError(msg)
+
+        if res.status_code not in (200, 207, STATUS_NOT_FOUND):
+            msg = f"WebDAV endpoint returned unexpected status: {res.status_code}"
+            raise StorageBackendError(msg)
 
     @override
     async def test_connection(self) -> bool:

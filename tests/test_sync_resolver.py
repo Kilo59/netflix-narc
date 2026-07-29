@@ -156,5 +156,19 @@ def test_conflict_resolver_settings_lww_with_invalid_timestamps() -> None:
     assert resolved.active_rating_provider == "omdb"
 
 
+def test_conflict_resolver_exact_timestamp_tie_prefers_remote() -> None:
+    """On exact timestamp ties, remote side should win (remote.updated_at >= local.updated_at)."""
+    resolver = ConflictResolver()
+
+    ts = dt.datetime(2026, 1, 2, 12, 0, 0, tzinfo=dt.UTC)
+
+    local_items = [DossierSyncItem(title="Tie Item", user_rating=3.0, updated_at=ts)]
+    remote_items = [DossierSyncItem(title="Tie Item", user_rating=4.5, updated_at=ts)]
+
+    merged = resolver.merge_dossiers(local_items, remote_items)
+    assert len(merged) == 1
+    assert merged[0].user_rating == 4.5
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

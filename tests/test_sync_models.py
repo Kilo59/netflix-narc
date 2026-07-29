@@ -9,7 +9,13 @@ from pydantic import ValidationError
 
 from netflix_narc.manual_db import ManualMetadata
 from netflix_narc.rating_api import NormalizedMetadata
-from netflix_narc.sync.models import DossierSyncItem, SettingsSyncItem, SyncBundle, SyncManifest
+from netflix_narc.sync.models import (
+    CURRENT_SCHEMA_VERSION,
+    DossierSyncItem,
+    SettingsSyncItem,
+    SyncBundle,
+    SyncManifest,
+)
 
 
 def test_dossier_sync_item_serialization() -> None:
@@ -64,6 +70,11 @@ def test_sync_bundle_and_manifest() -> None:
     dumped = bundle.model_dump(mode="json")
     assert dumped["client_id"] == "test-client-1"
     assert len(dumped["evidence_locker"]) == 1
+    assert dumped["version"] == CURRENT_SCHEMA_VERSION
+
+    bundle_ts = dt.datetime.fromisoformat(dumped["timestamp"])
+    assert bundle_ts.tzinfo is not None
+    assert bundle_ts.tzinfo.utcoffset(bundle_ts) == dt.timedelta(0)
 
     manifest = SyncManifest(
         latest_bundle_id="bundle.json",
@@ -72,6 +83,11 @@ def test_sync_bundle_and_manifest() -> None:
     )
     m_dumped = manifest.model_dump(mode="json")
     assert m_dumped["latest_bundle_id"] == "bundle.json"
+    assert m_dumped["version"] == CURRENT_SCHEMA_VERSION
+
+    manifest_ts = dt.datetime.fromisoformat(m_dumped["last_updated"])
+    assert manifest_ts.tzinfo is not None
+    assert manifest_ts.tzinfo.utcoffset(manifest_ts) == dt.timedelta(0)
 
 
 def test_dossier_sync_item_ignores_extra_fields() -> None:

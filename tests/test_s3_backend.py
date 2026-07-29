@@ -7,7 +7,7 @@ import pytest
 import respx
 from pydantic import SecretStr
 
-from netflix_narc.sync.backend import StorageBackendError
+from netflix_narc.sync.backend import StorageAuthError, StorageBackendError, StorageConnectionError
 from netflix_narc.sync.models import DossierSyncItem, SyncBundle
 from netflix_narc.sync.s3 import S3StorageBackend
 
@@ -60,46 +60,80 @@ async def test_s3_backend_upload_and_download() -> None:
 
 
 @pytest.mark.asyncio
-async def test_s3_backend_test_connection_and_errors() -> None:
-    """Test test_connection and error handling for S3StorageBackend."""
+async def test_s3_backend_sigv4_auth_header_injection() -> None:
+    """Verify S3SigV4Auth adds AWS4-HMAC-SHA256 Authorization header when client is auto-created."""
+    backend = S3StorageBackend(
+        endpoint_url="https://r2.cloudflarestorage.com",
+        bucket_name="my-bucket",
+        access_key_id=SecretStr("my-access-key"),
+        secret_access_key=SecretStr("my-secret-key"),
+    )
+    url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/.test_ping"
+
+    with respx.mock(assert_all_called=False) as respx_mock:
+        route = respx_mock.head(url).respond(status_code=200)
+        assert await backend.test_connection() is True
+        assert route.called
+        last_req = route.calls.last.request
+        auth_header = last_req.headers["authorization"]
+        assert auth_header.startswith("AWS4-HMAC-SHA256 Credential=my-access-key/")
+
+
+@pytest.mark.asyncio
+async def test_s3_backend_raises_storage_auth_error_on_403() -> None:
+    """initialize() should raise StorageAuthError when S3 returns 403 Forbidden."""
     backend = S3StorageBackend(
         endpoint_url="https://r2.cloudflarestorage.com",
         bucket_name="my-bucket",
         access_key_id=SecretStr("key"),
         secret_access_key=SecretStr("secret"),
     )
-
-    ping_url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/.test_ping"
     manifest_url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/manifest.json"
 
-    # 1. Successful connection test (200)
     with respx.mock(assert_all_called=False) as respx_mock:
-        respx_mock.head(ping_url).respond(status_code=200)
+        respx_mock.head(manifest_url).respond(status_code=403)
         async with httpx.AsyncClient() as client:
             backend._client = client
-            assert await backend.test_connection() is True
+            with pytest.raises(StorageAuthError):
+                await backend.initialize()
 
-    # 2. Forbidden connection test (403)
+
+@pytest.mark.asyncio
+async def test_s3_backend_raises_storage_connection_error() -> None:
+    """initialize() should raise StorageConnectionError on network connection failure."""
+    backend = S3StorageBackend(
+        endpoint_url="https://r2.cloudflarestorage.com",
+        bucket_name="my-bucket",
+        access_key_id=SecretStr("key"),
+        secret_access_key=SecretStr("secret"),
+    )
+    manifest_url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/manifest.json"
+
     with respx.mock(assert_all_called=False) as respx_mock:
-        respx_mock.head(ping_url).respond(status_code=403)
+        respx_mock.head(manifest_url).side_effect = httpx.ConnectError("Failed to connect")
         async with httpx.AsyncClient() as client:
             backend._client = client
-            assert await backend.test_connection() is False
+            with pytest.raises(StorageConnectionError):
+                await backend.initialize()
 
-    # 3. Connection network failure returns False
-    with respx.mock(assert_all_called=False) as respx_mock:
-        respx_mock.head(ping_url).side_effect = httpx.ConnectError("Connection refused")
-        async with httpx.AsyncClient() as client:
-            backend._client = client
-            assert await backend.test_connection() is False
 
-    # 4. initialize() handling 404 vs 500 error
+@pytest.mark.asyncio
+async def test_s3_backend_download_bundle_raises_on_malformed_json() -> None:
+    """download_bundle() should raise StorageBackendError when response body is not valid JSON."""
+    backend = S3StorageBackend(
+        endpoint_url="https://r2.cloudflarestorage.com",
+        bucket_name="my-bucket",
+        access_key_id=SecretStr("key"),
+        secret_access_key=SecretStr("secret"),
+    )
+    bundle_url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/bundle.json"
+
     with respx.mock(assert_all_called=False) as respx_mock:
-        respx_mock.head(manifest_url).respond(status_code=500)
+        respx_mock.get(bundle_url).respond(status_code=200, text="not valid json")
         async with httpx.AsyncClient() as client:
             backend._client = client
             with pytest.raises(StorageBackendError):
-                await backend.initialize()
+                await backend.download_bundle()
 
 
 if __name__ == "__main__":
