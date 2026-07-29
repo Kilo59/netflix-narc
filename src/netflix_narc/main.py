@@ -9,6 +9,7 @@ import pathlib
 from typing import TYPE_CHECKING, ClassVar, NamedTuple, override
 
 from pydantic import SecretStr, TypeAdapter
+from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal
 from textual.coordinate import Coordinate
@@ -27,8 +28,23 @@ from textual.worker import Worker, WorkerState
 
 from netflix_narc.evaluator import evaluate_title
 from netflix_narc.factory import get_rating_provider
+from netflix_narc.manual_db import EvidenceLocker
 from netflix_narc.persistence import load_and_group_history, update_env_file
-from netflix_narc.settings import DEFAULT_CSV_FILENAME, RatingProviderType, Settings
+from netflix_narc.settings import (
+    DEFAULT_CSV_FILENAME,
+    RatingProviderType,
+    Settings,
+    SyncBackendType,
+    get_config_dir,
+)
+from netflix_narc.sync import (
+    LocalStorageBackend,
+    S3StorageBackend,
+    StorageBackend,
+    StorageBackendError,
+    SyncEngine,
+    WebDAVStorageBackend,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -39,11 +55,47 @@ if TYPE_CHECKING:
     from netflix_narc.rating_api import RatingProvider
 
 
+def create_storage_backend(settings: Settings) -> StorageBackend | None:
+    """Instantiate StorageBackend based on settings."""
+    match settings.sync_backend:
+        case SyncBackendType.LOCAL_FOLDER:
+            path = settings.sync_local_path or str(get_config_dir(create=True) / "sync")
+            return LocalStorageBackend(path)
+        case SyncBackendType.S3:
+            if not settings.sync_s3_endpoint_url or not settings.sync_s3_bucket:
+                return None
+            return S3StorageBackend(
+                endpoint_url=settings.sync_s3_endpoint_url,
+                bucket_name=settings.sync_s3_bucket,
+                access_key_id=settings.sync_s3_access_key_id,
+                secret_access_key=settings.sync_s3_secret_access_key,
+            )
+        case SyncBackendType.WEBDAV:
+            if not settings.sync_webdav_url or not settings.sync_webdav_username:
+                return None
+            return WebDAVStorageBackend(
+                webdav_url=settings.sync_webdav_url,
+                username=settings.sync_webdav_username,
+                password=settings.sync_webdav_password,
+            )
+        case _:
+            return None
+
+
 class SetupConfig(NamedTuple):
     """Configuration result from the setup screen."""
 
     provider: RatingProviderType
     api_key: SecretStr
+    sync_backend: SyncBackendType = SyncBackendType.OFF
+    sync_local_path: str = ""
+    sync_s3_endpoint_url: str = ""
+    sync_s3_bucket: str = ""
+    sync_s3_access_key_id: SecretStr = SecretStr("")
+    sync_s3_secret_access_key: SecretStr = SecretStr("")
+    sync_webdav_url: str = ""
+    sync_webdav_username: str = ""
+    sync_webdav_password: SecretStr = SecretStr("")
 
 
 class SetupScreen(Screen[SetupConfig | None]):
@@ -68,6 +120,23 @@ class SetupScreen(Screen[SetupConfig | None]):
                 id="provider-select",
             ),
             Input(placeholder="Enter API Key...", id="api-key-input", password=True),
+            Static("Storage & Sync (BYOS)", classes="instructions"),
+            Select(
+                [
+                    ("Off (Local Only)", SyncBackendType.OFF),
+                    ("Local Folder / iCloud", SyncBackendType.LOCAL_FOLDER),
+                    ("Cloudflare R2 / S3", SyncBackendType.S3),
+                    ("Nextcloud / WebDAV", SyncBackendType.WEBDAV),
+                ],
+                value=SyncBackendType.OFF,
+                id="sync-backend-select",
+            ),
+            Input(placeholder="Sync Folder Path (Optional)...", id="sync-local-path-input"),
+            Horizontal(
+                Button("Test Connection ⚡", id="test-sync-btn"),
+                id="test-btn-container",
+            ),
+            Static("", id="sync-test-result"),
             Horizontal(
                 Button("Cancel", variant="error", id="cancel-btn"),
                 Button("Save & Continue", variant="primary", id="save-btn"),
@@ -89,14 +158,60 @@ class SetupScreen(Screen[SetupConfig | None]):
             self._save_settings()
         elif event.button.id == "cancel-btn":
             self.dismiss(None)
+        elif event.button.id == "test-sync-btn":
+            self._test_connection()
+
+    @work
+    async def _test_connection(self) -> None:
+        """Asynchronously test the configured storage backend connection."""
+        result_label = self.query_one("#sync-test-result", Static)
+        result_label.update("[yellow]Testing connection...[/yellow]")
+
+        backend_type = self.query_one("#sync-backend-select", Select).value
+        local_path = self.query_one("#sync-local-path-input", Input).value
+
+        if backend_type == SyncBackendType.OFF:
+            result_label.update("[green]🟢 Local storage active (Sync disabled).[/green]")
+            return
+
+        backend: StorageBackend | None = None
+        if backend_type == SyncBackendType.LOCAL_FOLDER:
+            target_path = local_path or str(get_config_dir(create=True) / "sync")
+            backend = LocalStorageBackend(target_path)
+
+        if backend is None:
+            result_label.update("[red]🔴 Storage provider configuration incomplete.[/red]")
+            return
+
+        try:
+            ok = await backend.test_connection()
+            if ok:
+                result_label.update("[green]🟢 Connection verified successfully![/green]")
+            else:
+                result_label.update("[red]🔴 Connection test failed (Check write access).[/red]")
+        except StorageBackendError as exc:
+            result_label.update(f"[red]🔴 Connection error: {exc}[/red]")
 
     def _save_settings(self) -> None:
         """Validate and save settings, then dismiss the screen."""
         provider = self.query_one("#provider-select", Select).value
         api_key = self.query_one("#api-key-input", Input).value
+        sync_backend = self.query_one("#sync-backend-select", Select).value
+        local_path = self.query_one("#sync-local-path-input", Input).value
+
         if provider and api_key and isinstance(provider, RatingProviderType):
             secret_key = TypeAdapter(SecretStr).validate_python(api_key)
-            self.dismiss(SetupConfig(provider=provider, api_key=secret_key))
+            backend_enum = (
+                sync_backend if isinstance(sync_backend, SyncBackendType) else SyncBackendType.OFF
+            )
+            self.dismiss(
+                SetupConfig(
+                    provider=provider,
+                    api_key=secret_key,
+                    sync_backend=backend_enum,
+                    sync_local_path=local_path,
+                )
+            )
         else:
             self.notify("Provider and API Key required", severity="warning")
 
@@ -134,6 +249,8 @@ class NetflixNarcApp(App[None]):
         self.csv_path = csv_path
         self.cache_dir = cache_dir
         self.rating_provider: RatingProvider | None = None
+        self.manual_db = EvidenceLocker(get_config_dir(create=True) / "evidence_locker.sqlite")
+        self.sync_engine: SyncEngine | None = None
 
         # State for grouping history
         self.grouped_records: dict[str, list[ViewingRecord]] = {}
@@ -157,6 +274,16 @@ class NetflixNarcApp(App[None]):
         """Close the rating provider when the app exits."""
         if self.rating_provider:
             self.rating_provider.close()
+
+    @work(exclusive=True)
+    async def run_background_sync(self) -> None:
+        """Run two-way synchronization in the background without blocking UI."""
+        if not self.sync_engine:
+            return
+        await self.manual_db.init()
+        res = await self.sync_engine.sync()
+        if res.status == "success" and res.items_synced > 0:
+            self.notify(f"☁️ Synced {res.items_synced} item(s) with storage.")
 
     def on_mount(self) -> None:
         """Configure the data table on mount."""
@@ -221,6 +348,12 @@ class NetflixNarcApp(App[None]):
         """Called from the main thread after the startup worker completes."""
         self.rebuild_table(evaluate=False, cache_only=True)
         self._set_loading(state=False)
+
+        backend = create_storage_backend(self.settings)
+        if backend is not None:
+            self.sync_engine = SyncEngine(backend, self.manual_db, self.settings)
+            self.run_background_sync()
+
         if needs_settings:
             # We don't need call_after_refresh here because it's already on the main thread
             self.action_settings()
@@ -236,6 +369,9 @@ class NetflixNarcApp(App[None]):
             api_key = config.api_key
 
             self.settings.active_rating_provider = provider
+            self.settings.sync_backend = config.sync_backend
+            self.settings.sync_local_path = config.sync_local_path
+
             match provider:
                 case RatingProviderType.CSM:
                     self.settings.csm_api_key = api_key
@@ -248,7 +384,22 @@ class NetflixNarcApp(App[None]):
                 self.rating_provider = get_rating_provider(
                     settings=self.settings, cache_dir=self.cache_dir
                 )
-                update_env_file(provider, api_key, pathlib.Path(".env"))
+                extra_env = {
+                    "SYNC_BACKEND": str(config.sync_backend),
+                    "SYNC_LOCAL_PATH": config.sync_local_path,
+                }
+                update_env_file(
+                    provider,
+                    api_key,
+                    pathlib.Path(".env"),
+                    extra_env=extra_env,
+                )
+
+                backend = create_storage_backend(self.settings)
+                if backend is not None:
+                    self.sync_engine = SyncEngine(backend, self.manual_db, self.settings)
+                    self.run_background_sync()
+
                 self.notify(f"Settings saved for {provider.upper()}.")
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Initialization error: {e}", severity="error")

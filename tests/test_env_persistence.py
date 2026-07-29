@@ -8,7 +8,7 @@ import pytest
 from pydantic import SecretStr
 
 from netflix_narc.persistence import update_env_file
-from netflix_narc.settings import RatingProviderType
+from netflix_narc.settings import RatingProviderType, SyncBackendType
 
 if TYPE_CHECKING:
     import pathlib
@@ -65,6 +65,28 @@ def test_update_env_file_with_child_age_range(tmp_path: pathlib.Path) -> None:
 
     content = env_file.read_text()
     assert "CHILD_AGE_RANGE=8,12" in content
+
+
+def test_update_env_file_with_sync_settings(tmp_path: pathlib.Path) -> None:
+    """Test that update_env_file persists sync backend and sync settings correctly."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("ACTIVE_RATING_PROVIDER=omdb\nOMDB_API_KEY=my-key\n")
+
+    sync_path = str(tmp_path / "my_sync_dir")
+    extra_env = {
+        "SYNC_BACKEND": str(SyncBackendType.LOCAL_FOLDER),
+        "SYNC_LOCAL_PATH": sync_path,
+    }
+    update_env_file(
+        RatingProviderType.OMDB,
+        SecretStr("my-key"),
+        env_path=env_file,
+        extra_env=extra_env,
+    )
+
+    content = env_file.read_text()
+    assert "SYNC_BACKEND=local_folder" in content
+    assert f"SYNC_LOCAL_PATH={sync_path}" in content
 
 
 if __name__ == "__main__":
