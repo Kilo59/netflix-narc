@@ -13,6 +13,7 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 - **🍿 Netflix Integration**: Easily ingest your profile's `NetflixViewingHistory.csv`.
 - **🧠 Common Sense Intel**: Automatically fetches age ratings, quality scores, and granular category breakdowns (Violence, Language, Educational Value, etc.) from Common Sense Media.
 - **⚖️ Weighted Justice**: Customize how strictly you want to judge different content categories.
+- **☁️ Storage & Sync (BYOS)**: Sync preferences and Evidence Locker manual ratings across devices using your own cloud storage (iCloud/Local Folder, Cloudflare R2, AWS S3, Nextcloud/WebDAV).
 - **🖥️ Beautiful TUI**: A gorgeous, reactive terminal interface powered by Textual.
 - **⚡️ Fast & Polite**: Intelligent caching ensures we don't spam the API or get rate-limited.
 

@@ -176,3 +176,18 @@ have no way to know whether changing "Violence" from Med to High will affect 1 t
   - Validate and clamp manually entered category scores strictly between `0.0` and `5.0`.
   - Enforce raw `1.0–5.0` scale in the SQLite database for quality ratings. Store the exact raw value entered by the user (no doubling in the DB), and perform the `0.0–10.0` normalization (doubling) strictly at the application layer inside `ManualMetadata.to_normalized_metadata()` when converting database entries for the evaluation engine.
   - Rename the interrogation room sub-bars from raw category names to explicit suitability terms (e.g. "Educational Suitability") to prevent users from mistaking suitability output for raw database values.
+
+## 14. Bring-Your-Own-Storage (BYOS) Data Persistence & Synchronization Architecture
+**Date**: 2026-07-29
+**Context**:
+- Users need a way to store, backup, and synchronize their preferences and Evidence Locker manual data across multiple devices.
+- Netflix Narc operates strictly as a local-first application and must **never act as a central data hosting platform**, preserving user privacy and zero server maintenance costs.
+
+**Decision**:
+- Implement a **Bring-Your-Own-Storage (BYOS)** architecture using structural typing (`typing.Protocol` with `@runtime_checkable`).
+- Provide concrete backends for:
+  1. `LocalStorageBackend`: Syncing via local filesystem directories (iCloud Drive, Dropbox, Syncthing, shared network shares).
+  2. `S3StorageBackend`: Syncing via S3-compatible object storage (Cloudflare R2, AWS S3, MinIO) using `httpx`.
+  3. `WebDAVStorageBackend`: Syncing via Nextcloud and ownCloud endpoints using `httpx`.
+- Use a **Last-Write-Wins (LWW)** per-title dossier conflict resolution strategy based on ISO 8601 UTC `updated_at` timestamps.
+- Integrate background auto-sync into `NetflixNarcApp` via non-blocking Textual async workers (`@work`), running transparently on startup and configuration update.
