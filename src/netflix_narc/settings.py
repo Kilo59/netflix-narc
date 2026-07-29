@@ -69,6 +69,10 @@ class CategoryWeights(BaseSettings):
     contribute to the final weighted-average suitability score (see ADR 12).
     """
 
+    model_config: ClassVar[SettingsConfigDict] = {
+        "extra": "forbid",
+    }
+
     # Overall-signal weights
     base_quality: int = 4
     age_suitability: int = 4
@@ -90,6 +94,7 @@ class Settings(BaseSettings):
         "env_file": str(get_config_dir(create=False) / ".env"),
         "env_file_encoding": "utf-8",
         "env_nested_delimiter": "__",
+        "extra": "ignore",
     }
 
     active_rating_provider: RatingProviderType = RatingProviderType.OMDB

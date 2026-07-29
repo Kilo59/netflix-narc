@@ -10,13 +10,13 @@ import datetime as dt
 import json
 import logging
 import pathlib
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, ClassVar, Final
 
 if TYPE_CHECKING:
     from contextlib import AbstractAsyncContextManager
 
 import aiosqlite
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from netflix_narc.csm_api import CSMRatingCategory
 from netflix_narc.rating_api import NormalizedMetadata
@@ -28,6 +28,8 @@ MAX_JSON_LOG_LEN: Final = 200
 
 class ManualMetadata(BaseModel):
     """Extended metadata model for manually ingested titles in The Evidence Locker."""
+
+    model_config: ClassVar[ConfigDict] = {"extra": "forbid"}
 
     title: str
     content_rating: str | None = None

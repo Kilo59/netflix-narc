@@ -8,7 +8,7 @@ import functools
 import pathlib
 from typing import TYPE_CHECKING, ClassVar, override
 
-from pydantic import BaseModel, SecretStr, TypeAdapter
+from pydantic import BaseModel, ConfigDict, SecretStr, TypeAdapter
 from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal
@@ -84,6 +84,8 @@ def create_storage_backend(settings: Settings) -> StorageBackend | None:
 
 class SetupConfig(BaseModel):
     """Configuration result payload from the setup screen."""
+
+    model_config: ClassVar[ConfigDict] = {"extra": "forbid"}
 
     provider: RatingProviderType
     api_key: SecretStr

@@ -5,7 +5,10 @@ from __future__ import annotations
 import datetime as dt
 
 import pytest
+from pydantic import ValidationError
 
+from netflix_narc.manual_db import ManualMetadata
+from netflix_narc.rating_api import NormalizedMetadata
 from netflix_narc.sync.models import DossierSyncItem, SettingsSyncItem, SyncBundle, SyncManifest
 
 
@@ -69,6 +72,38 @@ def test_sync_bundle_and_manifest() -> None:
     )
     m_dumped = manifest.model_dump(mode="json")
     assert m_dumped["latest_bundle_id"] == "bundle.json"
+
+
+def test_dossier_sync_item_ignores_extra_fields() -> None:
+    """Test that DossierSyncItem ignores extra fields for forward compatibility."""
+    payload = {
+        "title": "Breaking Bad",
+        "content_rating": "18",
+        "future_field_from_newer_app_version": "some_value",
+    }
+    item = DossierSyncItem.model_validate(payload)
+    assert item.title == "Breaking Bad"
+    assert not hasattr(item, "future_field_from_newer_app_version")
+
+
+def test_internal_models_forbid_extra_fields() -> None:
+    """Test that internal models strictly forbid unknown extra fields."""
+    with pytest.raises(ValidationError):
+        NormalizedMetadata.model_validate(
+            {
+                "title": "The Matrix",
+                "provider_name": "omdb",
+                "unsupported_extra_attribute": "error",
+            }
+        )
+
+    with pytest.raises(ValidationError):
+        ManualMetadata.model_validate(
+            {
+                "title": "The Matrix",
+                "typo_attribute_name": "error",
+            }
+        )
 
 
 if __name__ == "__main__":

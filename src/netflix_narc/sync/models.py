@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Final
+from typing import ClassVar, Final
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 CURRENT_SCHEMA_VERSION: Final[int] = 1
 
 
 class DossierSyncItem(BaseModel):
     """Serializable record for an Evidence Locker title dossier."""
+
+    model_config: ClassVar[ConfigDict] = {"extra": "ignore"}
 
     title: str
     content_rating: str | None = None
@@ -26,6 +28,8 @@ class DossierSyncItem(BaseModel):
 class SettingsSyncItem(BaseModel):
     """Serializable snapshot of user preferences (excluding local secrets)."""
 
+    model_config: ClassVar[ConfigDict] = {"extra": "ignore"}
+
     active_rating_provider: str
     scoring_mode: str
     child_age_range: tuple[int, int] | None = None
@@ -38,6 +42,8 @@ class SettingsSyncItem(BaseModel):
 class SyncBundle(BaseModel):
     """Atomic snapshot payload transferred during sync operations."""
 
+    model_config: ClassVar[ConfigDict] = {"extra": "ignore"}
+
     version: int = CURRENT_SCHEMA_VERSION
     client_id: str
     timestamp: str = Field(default_factory=lambda: dt.datetime.now(dt.UTC).isoformat())
@@ -47,6 +53,8 @@ class SyncBundle(BaseModel):
 
 class SyncManifest(BaseModel):
     """Metadata manifest of remote storage state."""
+
+    model_config: ClassVar[ConfigDict] = {"extra": "ignore"}
 
     latest_bundle_id: str
     last_updated: str
