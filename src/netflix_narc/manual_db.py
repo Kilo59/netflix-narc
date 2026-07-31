@@ -231,22 +231,19 @@ class EvidenceLocker:
         ]
 
     async def get_records_by_titles(self, titles: list[str]) -> dict[str, ManualMetadata]:
-        """Fetch multiple records by title in a single batch query."""
+        """Fetch multiple records by title in a single query using json_each."""
         if not titles:
             return {}
 
         results: dict[str, ManualMetadata] = {}
-        chunk_size = 500
+        titles_json = json.dumps(titles)
+        query = "SELECT * FROM evidence_locker WHERE title IN (SELECT value FROM json_each(?))"
         async with self._get_connection() as db:
             db.row_factory = aiosqlite.Row
-            for i in range(0, len(titles), chunk_size):
-                chunk = titles[i : i + chunk_size]
-                placeholders = ",".join("?" for _ in chunk)
-                query = f"SELECT * FROM evidence_locker WHERE title IN ({placeholders})"  # noqa: S608
-                async with db.execute(query, chunk) as cursor:
-                    async for row in cursor:
-                        metadata = self._row_to_manual_metadata(row)
-                        results[metadata.title] = metadata
+            async with db.execute(query, (titles_json,)) as cursor:
+                async for row in cursor:
+                    metadata = self._row_to_manual_metadata(row)
+                    results[metadata.title] = metadata
         return results
 
     async def load_dossiers(self, dossiers: list[DossierSyncItem]) -> int:
