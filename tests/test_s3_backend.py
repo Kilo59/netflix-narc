@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import httpx
 import pytest
 import respx
@@ -11,24 +13,32 @@ from netflix_narc.sync.backend import StorageAuthError, StorageBackendError, Sto
 from netflix_narc.sync.models import DossierSyncItem, SyncBundle
 from netflix_narc.sync.s3 import S3StorageBackend
 
+S3BackendFactory = Callable[[httpx.AsyncClient | None, str, str], S3StorageBackend]
 
-def _make_backend(
-    client: httpx.AsyncClient | None = None,
-    prefix: str = "narc-data",
-    bucket_name: str = "my-sync-bucket",
-) -> S3StorageBackend:
-    return S3StorageBackend(
-        endpoint_url="https://r2.cloudflarestorage.com",
-        bucket_name=bucket_name,
-        access_key_id=SecretStr("fake-access-key"),
-        secret_access_key=SecretStr("fake-secret-key"),
-        prefix=prefix,
-        client=client,
-    )
+
+@pytest.fixture()
+def make_s3_backend() -> S3BackendFactory:
+    """Factory fixture for creating S3StorageBackend instances in tests."""
+
+    def _factory(
+        client: httpx.AsyncClient | None = None,
+        prefix: str = "narc-data",
+        bucket_name: str = "my-sync-bucket",
+    ) -> S3StorageBackend:
+        return S3StorageBackend(
+            endpoint_url="https://r2.cloudflarestorage.com",
+            bucket_name=bucket_name,
+            access_key_id=SecretStr("fake-access-key"),
+            secret_access_key=SecretStr("fake-secret-key"),
+            prefix=prefix,
+            client=client,
+        )
+
+    return _factory
 
 
 @pytest.mark.asyncio
-async def test_s3_backend_upload_and_download() -> None:
+async def test_s3_backend_upload_and_download(make_s3_backend: S3BackendFactory) -> None:
     """Test S3StorageBackend upload and download using respx HTTP mocking."""
     bundle_url = "https://r2.cloudflarestorage.com/my-sync-bucket/narc-data/bundle.json"
     manifest_url = "https://r2.cloudflarestorage.com/my-sync-bucket/narc-data/manifest.json"
@@ -45,7 +55,7 @@ async def test_s3_backend_upload_and_download() -> None:
         respx_mock.put(manifest_url).respond(status_code=200)
 
         async with httpx.AsyncClient() as client:
-            backend = _make_backend(client=client)
+            backend = make_s3_backend(client, "narc-data", "my-sync-bucket")
             await backend.upload_bundle(bundle)
 
         assert respx_mock.calls.call_count == 2
@@ -56,7 +66,7 @@ async def test_s3_backend_upload_and_download() -> None:
         respx_mock.get(bundle_url).respond(status_code=200, json=bundle_data)
 
         async with httpx.AsyncClient() as client:
-            backend = _make_backend(client=client)
+            backend = make_s3_backend(client, "narc-data", "my-sync-bucket")
             downloaded = await backend.download_bundle()
 
         assert downloaded is not None
@@ -65,9 +75,9 @@ async def test_s3_backend_upload_and_download() -> None:
 
 
 @pytest.mark.asyncio
-async def test_s3_backend_sigv4_auth_header_injection() -> None:
+async def test_s3_backend_sigv4_auth_header_injection(make_s3_backend: S3BackendFactory) -> None:
     """Verify S3SigV4Auth adds AWS4-HMAC-SHA256 Authorization header when client is auto-created."""
-    backend = _make_backend(prefix="netflix-narc", bucket_name="my-bucket")
+    backend = make_s3_backend(None, "netflix-narc", "my-bucket")
     url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/.test_ping"
 
     with respx.mock(assert_all_called=False) as respx_mock:
@@ -80,40 +90,46 @@ async def test_s3_backend_sigv4_auth_header_injection() -> None:
 
 
 @pytest.mark.asyncio
-async def test_s3_backend_raises_storage_auth_error_on_403() -> None:
+async def test_s3_backend_raises_storage_auth_error_on_403(
+    make_s3_backend: S3BackendFactory,
+) -> None:
     """initialize() should raise StorageAuthError when S3 returns 403 Forbidden."""
     manifest_url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/manifest.json"
 
     with respx.mock(assert_all_called=False) as respx_mock:
         respx_mock.head(manifest_url).respond(status_code=403)
         async with httpx.AsyncClient() as client:
-            backend = _make_backend(client=client, prefix="netflix-narc", bucket_name="my-bucket")
+            backend = make_s3_backend(client, "netflix-narc", "my-bucket")
             with pytest.raises(StorageAuthError):
                 await backend.initialize()
 
 
 @pytest.mark.asyncio
-async def test_s3_backend_raises_storage_connection_error() -> None:
+async def test_s3_backend_raises_storage_connection_error(
+    make_s3_backend: S3BackendFactory,
+) -> None:
     """initialize() should raise StorageConnectionError on network connection failure."""
     manifest_url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/manifest.json"
 
     with respx.mock(assert_all_called=False) as respx_mock:
         respx_mock.head(manifest_url).side_effect = httpx.ConnectError("Failed to connect")
         async with httpx.AsyncClient() as client:
-            backend = _make_backend(client=client, prefix="netflix-narc", bucket_name="my-bucket")
+            backend = make_s3_backend(client, "netflix-narc", "my-bucket")
             with pytest.raises(StorageConnectionError):
                 await backend.initialize()
 
 
 @pytest.mark.asyncio
-async def test_s3_backend_download_bundle_raises_on_malformed_json() -> None:
+async def test_s3_backend_download_bundle_raises_on_malformed_json(
+    make_s3_backend: S3BackendFactory,
+) -> None:
     """download_bundle() should raise StorageBackendError when response body is not valid JSON."""
     bundle_url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/bundle.json"
 
     with respx.mock(assert_all_called=False) as respx_mock:
         respx_mock.get(bundle_url).respond(status_code=200, text="not valid json")
         async with httpx.AsyncClient() as client:
-            backend = _make_backend(client=client, prefix="netflix-narc", bucket_name="my-bucket")
+            backend = make_s3_backend(client, "netflix-narc", "my-bucket")
             with pytest.raises(StorageBackendError):
                 await backend.download_bundle()
 
