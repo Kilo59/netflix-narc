@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-import pathlib
 import uuid
 from typing import TYPE_CHECKING
 
@@ -54,11 +53,9 @@ class SyncEngine:
         if self.settings is None:
             return dt.datetime.fromtimestamp(0, tz=dt.UTC)
 
-        env_file_path = self.settings.model_config.get("env_file")
-        if env_file_path:
-            p = pathlib.Path(str(env_file_path))
-            if p.exists():
-                return dt.datetime.fromtimestamp(p.stat().st_mtime, tz=dt.UTC)
+        p = self.settings.get_env_file_path()
+        if p.exists():
+            return dt.datetime.fromtimestamp(p.stat().st_mtime, tz=dt.UTC)
         return dt.datetime.fromtimestamp(0, tz=dt.UTC)
 
     async def create_local_bundle(self) -> SyncBundle:
@@ -146,13 +143,10 @@ class SyncEngine:
             else self.settings.csm_api_key
         )
 
-        env_file_path = self.settings.model_config.get("env_file")
-        resolved_env_path = pathlib.Path(str(env_file_path)) if env_file_path else None
-
         update_env_file(
             provider=self.settings.active_rating_provider,
             api_key=api_key,
-            env_path=resolved_env_path,
+            env_path=self.settings.get_env_file_path(),
             child_age_range=self.settings.child_age_range,
             weights=self.settings.weights,
             extra_env=extra_env,

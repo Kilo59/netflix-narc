@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 
     from pydantic import SecretStr
 
+import urllib.parse
+
 import httpx
 
 from netflix_narc.sync.backend import (
@@ -22,6 +24,20 @@ from netflix_narc.sync.backend import (
     StorageConnectionError,
 )
 from netflix_narc.sync.models import SyncBundle, SyncManifest
+
+
+def _canonicalize_query(query_bytes: bytes) -> str:
+    """Construct AWS SigV4 canonical query string by sorting and RFC 3986 encoding parameters."""
+    if not query_bytes:
+        return ""
+    query_str = query_bytes.decode("utf-8")
+    params = urllib.parse.parse_qsl(query_str, keep_blank_values=True)
+    encoded_params = [
+        (urllib.parse.quote(k, safe="~"), urllib.parse.quote(v, safe="~")) for k, v in params
+    ]
+    encoded_params.sort(key=lambda pair: (pair[0], pair[1]))
+    return "&".join(f"{k}={v}" for k, v in encoded_params)
+
 
 STATUS_NOT_FOUND = 404
 STATUS_OK = 200
@@ -74,7 +90,7 @@ class S3SigV4Auth(httpx.Auth):
         signed_headers = ";".join(signed_headers_list)
 
         canonical_uri = url.raw_path.decode("ascii").split("?")[0] or "/"
-        canonical_query = url.query.decode("ascii")
+        canonical_query = _canonicalize_query(url.query)
 
         canonical_request = (
             f"{request.method}\n{canonical_uri}\n{canonical_query}\n"

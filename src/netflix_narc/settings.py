@@ -121,6 +121,15 @@ class Settings(BaseSettings):
 
     weights: CategoryWeights = CategoryWeights()
 
+    def get_env_file_path(self) -> pathlib.Path:
+        """Return the authoritative .env path used by this Settings instance."""
+        if hasattr(self, "_env_file") and self._env_file is not None:
+            return pathlib.Path(str(self._env_file))
+        env_file = self.model_config.get("env_file")
+        if env_file:
+            return pathlib.Path(str(env_file))
+        return get_config_dir(create=True) / ".env"
+
     @field_validator("child_age_range", mode="before")
     @classmethod
     def parse_child_age_range(cls, v: object) -> tuple[int, int] | None:

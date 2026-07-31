@@ -100,6 +100,40 @@ class SetupConfig(BaseModel):
     sync_webdav_password: SecretStr = SecretStr("")
 
 
+def apply_setup_config(settings: Settings, config: SetupConfig) -> dict[str, str]:
+    """Apply SetupConfig to in-memory Settings and return all sync env vars for persistence."""
+    settings.active_rating_provider = config.provider
+    settings.sync_backend = config.sync_backend
+    settings.sync_local_path = config.sync_local_path
+    settings.sync_s3_endpoint_url = config.sync_s3_endpoint_url
+    settings.sync_s3_bucket = config.sync_s3_bucket
+    settings.sync_s3_access_key_id = config.sync_s3_access_key_id
+    settings.sync_s3_secret_access_key = config.sync_s3_secret_access_key
+    settings.sync_webdav_url = config.sync_webdav_url
+    settings.sync_webdav_username = config.sync_webdav_username
+    settings.sync_webdav_password = config.sync_webdav_password
+
+    match config.provider:
+        case RatingProviderType.CSM:
+            settings.csm_api_key = config.api_key
+        case RatingProviderType.OMDB:
+            settings.omdb_api_key = config.api_key
+        case RatingProviderType.TMDB:
+            settings.tmdb_api_key = config.api_key
+
+    return {
+        "SYNC_BACKEND": str(config.sync_backend),
+        "SYNC_LOCAL_PATH": config.sync_local_path,
+        "SYNC_S3_ENDPOINT_URL": config.sync_s3_endpoint_url,
+        "SYNC_S3_BUCKET": config.sync_s3_bucket,
+        "SYNC_S3_ACCESS_KEY_ID": config.sync_s3_access_key_id.get_secret_value(),
+        "SYNC_S3_SECRET_ACCESS_KEY": config.sync_s3_secret_access_key.get_secret_value(),
+        "SYNC_WEBDAV_URL": config.sync_webdav_url,
+        "SYNC_WEBDAV_USERNAME": config.sync_webdav_username,
+        "SYNC_WEBDAV_PASSWORD": config.sync_webdav_password.get_secret_value(),
+    }
+
+
 class SetupScreen(Screen[SetupConfig | None]):
     """A screen prompting for initial configuration (Provider, API Key)."""
 
@@ -407,33 +441,15 @@ class NetflixNarcApp(App[None]):
     def handle_setup_complete(self, config: SetupConfig | None) -> None:
         """Handle the completion of the setup screen."""
         if config:
-            provider = config.provider
-            api_key = config.api_key
-
-            self.settings.active_rating_provider = provider
-            self.settings.sync_backend = config.sync_backend
-            self.settings.sync_local_path = config.sync_local_path
-
-            match provider:
-                case RatingProviderType.CSM:
-                    self.settings.csm_api_key = api_key
-                case RatingProviderType.OMDB:
-                    self.settings.omdb_api_key = api_key
-                case RatingProviderType.TMDB:
-                    self.settings.tmdb_api_key = api_key
-
             try:
                 self.rating_provider = get_rating_provider(
                     settings=self.settings, cache_dir=self.cache_dir
                 )
-                extra_env = {
-                    "SYNC_BACKEND": str(config.sync_backend),
-                    "SYNC_LOCAL_PATH": config.sync_local_path,
-                }
+                extra_env = apply_setup_config(self.settings, config)
                 update_env_file(
-                    provider,
-                    api_key,
-                    pathlib.Path(".env"),
+                    config.provider,
+                    config.api_key,
+                    env_path=self.settings.get_env_file_path(),
                     extra_env=extra_env,
                 )
 
@@ -442,7 +458,7 @@ class NetflixNarcApp(App[None]):
                     self.sync_engine = SyncEngine(backend, self.manual_db, self.settings)
                     self.run_background_sync()
 
-                self.notify(f"Settings saved for {provider.upper()}.")
+                self.notify(f"Settings saved for {config.provider.upper()}.")
             except (ValueError, NotImplementedError) as e:
                 self.notify(f"Initialization error: {e}", severity="error")
 

@@ -11,7 +11,7 @@ from pydantic import SecretStr
 
 from netflix_narc.sync.backend import StorageAuthError, StorageBackendError, StorageConnectionError
 from netflix_narc.sync.models import DossierSyncItem, SyncBundle
-from netflix_narc.sync.s3 import S3StorageBackend
+from netflix_narc.sync.s3 import S3StorageBackend, _canonicalize_query
 
 S3BackendFactory = Callable[[httpx.AsyncClient | None, str, str], S3StorageBackend]
 
@@ -132,6 +132,13 @@ async def test_s3_backend_download_bundle_raises_on_malformed_json(
             backend = make_s3_backend(client, "netflix-narc", "my-bucket")
             with pytest.raises(StorageBackendError):
                 await backend.download_bundle()
+
+
+def test_s3_canonical_query_sorting() -> None:
+    """Verify _canonicalize_query RFC 3986 encodes and sorts query parameters."""
+    raw = b"b=2&a=1&prefix=foo%2Fbar&empty="
+    canonical = _canonicalize_query(raw)
+    assert canonical == "a=1&b=2&empty=&prefix=foo%2Fbar"
 
 
 if __name__ == "__main__":
