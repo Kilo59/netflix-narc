@@ -23,7 +23,9 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 
 ## 🚀 Getting Started
 
-Netflix Narc requires `uv` to run.
+### Prerequisites
+- **Python 3.13+**
+- **`uv`** (recommended for package management and local development; optional if installing via `pipx` or `pip`)
 
 ### Quick Install (recommended)
 
