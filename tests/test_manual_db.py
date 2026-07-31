@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -12,6 +13,7 @@ import pytest
 import pytest_asyncio
 
 from netflix_narc.manual_db import EvidenceLocker, ManualMetadata
+from netflix_narc.sync.models import DossierSyncItem
 
 
 @pytest_asyncio.fixture
@@ -45,7 +47,7 @@ async def test_upsert_and_get_record(temp_db: EvidenceLocker) -> None:
     assert record is not None
     assert record.title == "Breaking Bad"
     assert record.content_rating == "18"
-    assert record.user_rating == 5.0  # noqa: PLR2004
+    assert record.user_rating == 5.0
     assert record.image_url == "http://example.com/image.jpg"
     assert record.flagged_for_followup is True
     assert record.ignored is False
@@ -56,7 +58,7 @@ async def test_upsert_and_get_record(temp_db: EvidenceLocker) -> None:
     await temp_db.upsert_record(metadata)
     record2 = await temp_db.get_record("Breaking Bad")
     assert record2 is not None
-    assert record2.user_rating == 4.0  # noqa: PLR2004
+    assert record2.user_rating == 4.0
 
 
 @pytest.mark.asyncio
@@ -101,7 +103,7 @@ async def test_export_import_json(temp_db: EvidenceLocker, tmp_path: pathlib.Pat
     await db2.import_from_json(json_file)
     record = await db2.get_record("JSON Show")
     assert record is not None
-    assert record.user_rating == 4.2  # noqa: PLR2004
+    assert record.user_rating == 4.2
 
 
 @pytest.mark.asyncio
@@ -129,9 +131,9 @@ async def test_export_import_csv(temp_db: EvidenceLocker, tmp_path: pathlib.Path
     assert record is not None
     assert record.title == "CSV Show"
     assert record.content_rating == "PG-13"
-    assert record.user_rating == 3.5  # noqa: PLR2004
+    assert record.user_rating == 3.5
     assert record.flagged_for_followup is True
-    assert record.category_scores["Violence & Scariness"] == 3.0  # noqa: PLR2004
+    assert record.category_scores["Violence & Scariness"] == 3.0
     assert record.category_scores["Language"] == 1.0
 
 
@@ -145,10 +147,10 @@ def test_manual_metadata_normalization_scaling() -> None:
         user_rating=4.5,
         category_scores={"Violence & Scariness": 3.0},
     )
-    assert metadata.user_rating == 4.5  # noqa: PLR2004
+    assert metadata.user_rating == 4.5
 
     normalized = metadata.to_normalized_metadata()
-    assert normalized.user_rating == 9.0  # noqa: PLR2004
+    assert normalized.user_rating == 9.0
     assert normalized.category_scores == {"Violence & Scariness": 3.0}
 
 
@@ -228,6 +230,99 @@ async def test_exports_create_parent_directory(
 
     await temp_db.export_to_csv(csv_file)
     assert csv_file.exists()
+
+
+@pytest.mark.asyncio
+async def test_dump_and_load_dossiers(temp_db: EvidenceLocker) -> None:
+    """Test dump_dossiers and load_dossiers sync helper methods."""
+    await temp_db.upsert_record(
+        ManualMetadata(title="Show X", content_rating="16", user_rating=4.5)
+    )
+
+    dossiers = await temp_db.dump_dossiers()
+    assert len(dossiers) == 1
+    assert dossiers[0].title == "Show X"
+    assert dossiers[0].user_rating == 4.5
+    assert dossiers[0].updated_at is not None
+
+    # Load into another empty DB
+    db2_file = temp_db.db_path.parent / "db_dump_load.sqlite"
+    db2 = EvidenceLocker(db2_file)
+    await db2.init()
+
+    loaded_count = await db2.load_dossiers(dossiers)
+    assert loaded_count == 1
+    rec2 = await db2.get_record("Show X")
+    assert rec2 is not None
+    assert rec2.user_rating == 4.5
+
+
+@pytest.mark.asyncio
+async def test_load_dossiers_lww_newer_incoming_overwrites(temp_db: EvidenceLocker) -> None:
+    """load_dossiers should overwrite local record when incoming updated_at is newer."""
+    old_time = dt.datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt.UTC)
+    new_time = dt.datetime(2026, 1, 2, 12, 0, 0, tzinfo=dt.UTC)
+
+    await temp_db.upsert_record(
+        ManualMetadata(title="LWW Show", user_rating=3.0, updated_at=old_time)
+    )
+
+    incoming = [DossierSyncItem(title="LWW Show", user_rating=5.0, updated_at=new_time)]
+    updated_count = await temp_db.load_dossiers(incoming)
+    assert updated_count == 1
+
+    record = await temp_db.get_record("LWW Show")
+    assert record is not None
+    assert record.user_rating == 5.0
+
+
+@pytest.mark.asyncio
+async def test_load_dossiers_lww_older_incoming_ignored(temp_db: EvidenceLocker) -> None:
+    """load_dossiers should NOT overwrite local record when incoming updated_at is older."""
+    new_time = dt.datetime(2026, 1, 2, 12, 0, 0, tzinfo=dt.UTC)
+    old_time = dt.datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt.UTC)
+
+    await temp_db.upsert_record(
+        ManualMetadata(title="LWW Show", user_rating=5.0, updated_at=new_time)
+    )
+
+    incoming = [DossierSyncItem(title="LWW Show", user_rating=1.0, updated_at=old_time)]
+    updated_count = await temp_db.load_dossiers(incoming)
+    assert updated_count == 0
+
+    record = await temp_db.get_record("LWW Show")
+    assert record is not None
+    assert record.user_rating == 5.0
+
+
+@pytest.mark.asyncio
+async def test_db_migration_backfills_updated_at(tmp_path: pathlib.Path) -> None:
+    """Test initializing an older database schema without updated_at column."""
+    db_file = tmp_path / "legacy.sqlite"
+    async with aiosqlite.connect(db_file) as db:
+        await db.execute(
+            """
+            CREATE TABLE evidence_locker (
+                title TEXT PRIMARY KEY,
+                content_rating TEXT,
+                user_rating REAL,
+                image_url TEXT,
+                flagged_for_followup INTEGER DEFAULT 0,
+                ignored INTEGER DEFAULT 0,
+                category_scores TEXT
+            );
+            """
+        )
+        await db.execute("INSERT INTO evidence_locker (title) VALUES ('Legacy Show')")
+        await db.commit()
+
+    locker = EvidenceLocker(db_file)
+    await locker.init()  # Triggers migration check
+
+    record = await locker.get_record("Legacy Show")
+    assert record is not None
+    assert record.title == "Legacy Show"
+    assert record.updated_at is not None
 
 
 if __name__ == "__main__":

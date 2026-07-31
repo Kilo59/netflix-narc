@@ -6,7 +6,7 @@ import pathlib
 from typing import TYPE_CHECKING
 
 from netflix_narc.parser import parse_netflix_history
-from netflix_narc.settings import RatingProviderType, ScoringMode, get_config_dir
+from netflix_narc.settings import RatingProviderType, get_config_dir
 
 if TYPE_CHECKING:
     from pydantic import SecretStr
@@ -30,12 +30,25 @@ def _parse_env_line(raw_line: str, new_values: dict[str, str], seen_keys: set[st
     return line
 
 
+def _append_weight_values(vals: dict[str, str], weights: CategoryWeights) -> None:
+    """Append weight configuration values to the environment dictionary."""
+    vals["WEIGHTS__BASE_QUALITY"] = str(weights.base_quality)
+    vals["WEIGHTS__AGE_SUITABILITY"] = str(weights.age_suitability)
+    vals["WEIGHTS__EDUCATIONAL_VALUE"] = str(weights.educational_value)
+    vals["WEIGHTS__POSITIVE_MESSAGES"] = str(weights.positive_messages)
+    vals["WEIGHTS__POSITIVE_ROLE_MODELS"] = str(weights.positive_role_models)
+    vals["WEIGHTS__VIOLENCE"] = str(weights.violence)
+    vals["WEIGHTS__SEXY_STUFF"] = str(weights.sexy_stuff)
+    vals["WEIGHTS__LANGUAGE"] = str(weights.language)
+    vals["WEIGHTS__DRINKING_DRUGS"] = str(weights.drinking_drugs)
+
+
 def _get_env_values(
     provider: RatingProviderType,
     api_key: SecretStr,
     child_age_range: tuple[int, int] | None,
     weights: CategoryWeights | None = None,
-    scoring_mode: ScoringMode | None = None,
+    extra_env: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Build the dictionary of configuration values to persist in .env."""
     vals = {
@@ -49,19 +62,11 @@ def _get_env_values(
     if child_age_range is not None:
         vals["CHILD_AGE_RANGE"] = f"{child_age_range[0]},{child_age_range[1]}"
 
-    if scoring_mode is not None:
-        vals["SCORING_MODE"] = str(scoring_mode)
+    if extra_env:
+        vals.update(extra_env)
 
     if weights is not None:
-        vals["WEIGHTS__BASE_QUALITY"] = str(weights.base_quality)
-        vals["WEIGHTS__AGE_SUITABILITY"] = str(weights.age_suitability)
-        vals["WEIGHTS__EDUCATIONAL_VALUE"] = str(weights.educational_value)
-        vals["WEIGHTS__POSITIVE_MESSAGES"] = str(weights.positive_messages)
-        vals["WEIGHTS__POSITIVE_ROLE_MODELS"] = str(weights.positive_role_models)
-        vals["WEIGHTS__VIOLENCE"] = str(weights.violence)
-        vals["WEIGHTS__SEXY_STUFF"] = str(weights.sexy_stuff)
-        vals["WEIGHTS__LANGUAGE"] = str(weights.language)
-        vals["WEIGHTS__DRINKING_DRUGS"] = str(weights.drinking_drugs)
+        _append_weight_values(vals, weights)
 
     return vals
 
@@ -72,7 +77,7 @@ def update_env_file(
     env_path: pathlib.Path | None = None,
     child_age_range: tuple[int, int] | None = None,
     weights: CategoryWeights | None = None,
-    scoring_mode: ScoringMode | None = None,
+    extra_env: dict[str, str] | None = None,
 ) -> None:
     """Update the .env file with new provider settings, deduplicating keys.
 
@@ -91,7 +96,13 @@ def update_env_file(
     if resolved_path.exists():
         env_lines = resolved_path.read_text(encoding="utf-8").splitlines()
 
-    new_values = _get_env_values(provider, api_key, child_age_range, weights, scoring_mode)
+    new_values = _get_env_values(
+        provider,
+        api_key,
+        child_age_range,
+        weights,
+        extra_env,
+    )
 
     # Process existing lines, updating matches
     updated_lines: list[str] = []

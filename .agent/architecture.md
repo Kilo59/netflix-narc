@@ -29,7 +29,8 @@ A CLI/TUI application that ingests Netflix viewing history, fetches metadata and
 - `src/netflix_narc/lineup.py`: The "Lineup Screen" TUI component for iterating through the queue of flagged or un-scored titles.
 - `src/netflix_narc/interrogation_room.py`: The "Interrogation Room Screen" for manual entry of CSM criteria for titles missing API data.
 - `src/netflix_narc/image_utils.py`: Native macOS utilities (osascript/pbpaste equivalents) to bypass TUI limitations for binary clipboard access and image downloading.
-- `src/netflix_narc/main.py`: The Textual app entrypoint (`NetflixNarcApp`). Orchestrates onboarding, the data table, and pushing the manual entry screens.
+- `src/netflix_narc/sync/`: Storage and synchronization package (`backend.py`, `models.py`, `resolver.py`, `engine.py`, `local_folder.py`, `s3.py`, `webdav.py`).
+- `src/netflix_narc/main.py`: The Textual app entrypoint (`NetflixNarcApp`). Orchestrates onboarding, the data table, background sync, and pushing the manual entry screens.
 
 ## AI Agent Rules for this Project
 1. **Never mock the cache logic**: When working on `csm_api.py`, ensure `hishel` is always correctly intercepting and returning cached HTTP responses to avoid rate limits.

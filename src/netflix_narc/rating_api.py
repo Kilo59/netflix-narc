@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import ClassVar, Protocol, runtime_checkable
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class NormalizedMetadata(BaseModel):
     """Standardized metadata model representing the common denominator across all APIs."""
+
+    model_config: ClassVar[ConfigDict] = {"extra": "forbid"}
 
     title: str
     content_rating: str | None = Field(

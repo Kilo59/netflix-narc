@@ -6,19 +6,21 @@ import argparse
 import asyncio
 import contextlib
 import csv
+import datetime as dt
 import json
 import logging
 import pathlib
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, ClassVar, Final
 
 if TYPE_CHECKING:
     from contextlib import AbstractAsyncContextManager
 
 import aiosqlite
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from netflix_narc.csm_api import CSMRatingCategory
 from netflix_narc.rating_api import NormalizedMetadata
+from netflix_narc.sync.models import DossierSyncItem, ensure_utc
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,8 @@ MAX_JSON_LOG_LEN: Final = 200
 class ManualMetadata(BaseModel):
     """Extended metadata model for manually ingested titles in The Evidence Locker."""
 
+    model_config: ClassVar[ConfigDict] = {"extra": "forbid"}
+
     title: str
     content_rating: str | None = None
     user_rating: float | None = None
@@ -35,6 +39,12 @@ class ManualMetadata(BaseModel):
     flagged_for_followup: bool = False
     ignored: bool = False
     category_scores: dict[str, float] = Field(default_factory=dict)
+    updated_at: dt.datetime | str = Field(default_factory=lambda: dt.datetime.now(dt.UTC))
+
+    @field_validator("updated_at", mode="before")
+    @classmethod
+    def _validate_updated_at(cls, v: object) -> dt.datetime:
+        return ensure_utc(v)
 
     @property
     def completeness_score(self) -> int:
@@ -97,11 +107,18 @@ class EvidenceLocker:
             image_url TEXT,
             flagged_for_followup INTEGER DEFAULT 0,
             ignored INTEGER DEFAULT 0,
-            category_scores TEXT
+            category_scores TEXT,
+            updated_at TEXT
         );
         """
         async with self._get_connection() as db:
             await db.execute(schema)
+            # Migration check for existing databases missing updated_at
+            try:
+                await db.execute("ALTER TABLE evidence_locker ADD COLUMN updated_at TEXT")
+            except aiosqlite.OperationalError as exc:
+                if "duplicate column name" not in str(exc).lower():
+                    raise
             await db.commit()
 
     def _row_to_manual_metadata(self, row: aiosqlite.Row) -> ManualMetadata:
@@ -122,6 +139,13 @@ class EvidenceLocker:
             )
             category_scores = {}
 
+        row_keys = row.keys()
+        updated_at = (
+            row["updated_at"]
+            if "updated_at" in row_keys and row["updated_at"]
+            else dt.datetime.now(dt.UTC).isoformat()
+        )
+
         return ManualMetadata(
             title=row["title"],
             content_rating=row["content_rating"],
@@ -130,6 +154,7 @@ class EvidenceLocker:
             flagged_for_followup=bool(row["flagged_for_followup"]),
             ignored=bool(row["ignored"]),
             category_scores=category_scores,
+            updated_at=updated_at,
         )
 
     async def get_record(self, title: str) -> ManualMetadata | None:
@@ -153,15 +178,16 @@ class EvidenceLocker:
                 """
                 INSERT INTO evidence_locker (
                     title, content_rating, user_rating, image_url,
-                    flagged_for_followup, ignored, category_scores
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    flagged_for_followup, ignored, category_scores, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(title) DO UPDATE SET
                     content_rating=excluded.content_rating,
                     user_rating=excluded.user_rating,
                     image_url=excluded.image_url,
                     flagged_for_followup=excluded.flagged_for_followup,
                     ignored=excluded.ignored,
-                    category_scores=excluded.category_scores
+                    category_scores=excluded.category_scores,
+                    updated_at=excluded.updated_at
                 """,
                 (
                     metadata.title,
@@ -171,6 +197,9 @@ class EvidenceLocker:
                     int(metadata.flagged_for_followup),
                     int(metadata.ignored),
                     json.dumps(metadata.category_scores),
+                    metadata.updated_at.isoformat()
+                    if isinstance(metadata.updated_at, dt.datetime)
+                    else str(metadata.updated_at),
                 ),
             )
             await db.commit()
@@ -184,6 +213,106 @@ class EvidenceLocker:
             record = ManualMetadata(title=title, ignored=True)
         await self.upsert_record(record)
 
+    async def dump_dossiers(self) -> list[DossierSyncItem]:
+        """Dump all evidence locker records as DossierSyncItem objects for sync."""
+        records = await self.get_all_records()
+        return [
+            DossierSyncItem(
+                title=r.title,
+                content_rating=r.content_rating,
+                user_rating=r.user_rating,
+                image_url=r.image_url,
+                flagged_for_followup=r.flagged_for_followup,
+                ignored=r.ignored,
+                category_scores=r.category_scores,
+                updated_at=r.updated_at,
+            )
+            for r in records
+        ]
+
+    async def get_records_by_titles(self, titles: list[str]) -> dict[str, ManualMetadata]:
+        """Fetch multiple records by title in a single query using json_each."""
+        if not titles:
+            return {}
+
+        results: dict[str, ManualMetadata] = {}
+        titles_json = json.dumps(titles)
+        query = "SELECT * FROM evidence_locker WHERE title IN (SELECT value FROM json_each(?))"
+        async with self._get_connection() as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(query, (titles_json,)) as cursor:
+                async for row in cursor:
+                    metadata = self._row_to_manual_metadata(row)
+                    results[metadata.title] = metadata
+        return results
+
+    async def load_dossiers(self, dossiers: list[DossierSyncItem]) -> int:
+        """Load and upsert DossierSyncItem objects from sync into evidence locker."""
+        if not dossiers:
+            return 0
+
+        titles = [item.title for item in dossiers]
+        existing_map = await self.get_records_by_titles(titles)
+
+        to_upsert: list[ManualMetadata] = []
+        for item in dossiers:
+            existing = existing_map.get(item.title)
+            if existing is None or ensure_utc(item.updated_at) >= ensure_utc(existing.updated_at):
+                to_upsert.append(
+                    ManualMetadata(
+                        title=item.title,
+                        content_rating=item.content_rating,
+                        user_rating=item.user_rating,
+                        image_url=item.image_url,
+                        flagged_for_followup=item.flagged_for_followup,
+                        ignored=item.ignored,
+                        category_scores=item.category_scores,
+                        updated_at=item.updated_at,
+                    )
+                )
+
+        if not to_upsert:
+            return 0
+
+        async with self._get_connection() as db:
+            await db.execute("BEGIN IMMEDIATE")
+            try:
+                for metadata in to_upsert:
+                    scores_json = json.dumps(metadata.category_scores)
+                    updated_at_str = ensure_utc(metadata.updated_at).isoformat()
+                    await db.execute(
+                        """
+                        INSERT INTO evidence_locker (
+                            title, content_rating, user_rating, image_url,
+                            flagged_for_followup, ignored, category_scores, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(title) DO UPDATE SET
+                            content_rating=excluded.content_rating,
+                            user_rating=excluded.user_rating,
+                            image_url=excluded.image_url,
+                            flagged_for_followup=excluded.flagged_for_followup,
+                            ignored=excluded.ignored,
+                            category_scores=excluded.category_scores,
+                            updated_at=excluded.updated_at;
+                        """,
+                        (
+                            metadata.title,
+                            metadata.content_rating,
+                            metadata.user_rating,
+                            metadata.image_url,
+                            int(metadata.flagged_for_followup),
+                            int(metadata.ignored),
+                            scores_json,
+                            updated_at_str,
+                        ),
+                    )
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                raise
+
+        return len(to_upsert)
+
     async def get_all_records(self) -> list[ManualMetadata]:
         """Retrieve all records for export."""
         async with self._get_connection() as db:
@@ -193,7 +322,7 @@ class EvidenceLocker:
 
     async def export_to_json(self, filepath: pathlib.Path) -> None:
         """Export all manual records to a JSON file."""
-        records = [r.model_dump() for r in await self.get_all_records()]
+        records = [r.model_dump(mode="json") for r in await self.get_all_records()]
         data_str = json.dumps(records, indent=2)
         await asyncio.to_thread(filepath.parent.mkdir, parents=True, exist_ok=True)
         await asyncio.to_thread(filepath.write_text, data_str, encoding="utf-8")

@@ -41,6 +41,15 @@ class ScoringMode(StrEnum):
     BALANCED = "balanced"
 
 
+class SyncBackendType(StrEnum):
+    """Supported storage and sync backends (BYOS)."""
+
+    OFF = "off"
+    LOCAL_FOLDER = "local_folder"
+    S3 = "s3"
+    WEBDAV = "webdav"
+
+
 SCORING_MODE_LABELS: Final[dict[ScoringMode, str]] = {
     ScoringMode.QUALITY_FOCUS: "Option A: Quality Focus",
     ScoringMode.BALANCED: "Option B: Balanced",
@@ -59,6 +68,10 @@ class CategoryWeights(BaseSettings):
     base_quality and age_suitability control how much those headline components
     contribute to the final weighted-average suitability score (see ADR 12).
     """
+
+    model_config: ClassVar[SettingsConfigDict] = {
+        "extra": "forbid",
+    }
 
     # Overall-signal weights
     base_quality: int = 4
@@ -81,6 +94,7 @@ class Settings(BaseSettings):
         "env_file": str(get_config_dir(create=False) / ".env"),
         "env_file_encoding": "utf-8",
         "env_nested_delimiter": "__",
+        "extra": "ignore",
     }
 
     active_rating_provider: RatingProviderType = RatingProviderType.OMDB
@@ -94,7 +108,27 @@ class Settings(BaseSettings):
     max_records: int = 200
     merge_manual_data: bool = True
 
+    # Storage & Sync Settings (BYOS)
+    sync_backend: SyncBackendType = SyncBackendType.OFF
+    sync_local_path: str = ""
+    sync_s3_endpoint_url: str = ""
+    sync_s3_bucket: str = ""
+    sync_s3_access_key_id: SecretStr = SecretStr("")
+    sync_s3_secret_access_key: SecretStr = SecretStr("")
+    sync_webdav_url: str = ""
+    sync_webdav_username: str = ""
+    sync_webdav_password: SecretStr = SecretStr("")
+
     weights: CategoryWeights = CategoryWeights()
+
+    def get_env_file_path(self) -> pathlib.Path:
+        """Return the authoritative .env path used by this Settings instance."""
+        if hasattr(self, "_env_file") and self._env_file is not None:
+            return pathlib.Path(str(self._env_file))
+        env_file = self.model_config.get("env_file")
+        if env_file:
+            return pathlib.Path(str(env_file))
+        return get_config_dir(create=True) / ".env"
 
     @field_validator("child_age_range", mode="before")
     @classmethod

@@ -13,6 +13,7 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 - **🍿 Netflix Integration**: Easily ingest your profile's `NetflixViewingHistory.csv`.
 - **🧠 Common Sense Intel**: Automatically fetches age ratings, quality scores, and granular category breakdowns (Violence, Language, Educational Value, etc.) from Common Sense Media.
 - **⚖️ Weighted Justice**: Customize how strictly you want to judge different content categories.
+- **☁️ Storage & Sync (BYOS)**: Sync preferences and Evidence Locker manual ratings across devices using your own cloud storage (iCloud/Local Folder, Cloudflare R2, AWS S3, Nextcloud/WebDAV).
 - **🖥️ Beautiful TUI**: A gorgeous, reactive terminal interface powered by Textual.
 - **⚡️ Fast & Polite**: Intelligent caching ensures we don't spam the API or get rate-limited.
 
@@ -53,7 +54,44 @@ uv run netflix-narc --csv /path/to/NetflixViewingHistory.csv
 uv run netflix-narc
 ```
 
-On first launch, press `s` to open Settings and enter your API key.
+On first launch, press `s` to open Settings and enter your API key or configure cloud sync.
+
+### ☁️ Storage & Multi-Device Sync (BYOS)
+
+Netflix Narc operates **100% local-first** with zero central tracking. If you want to synchronize your Evidence Locker dossiers and preference settings across multiple computers, you can enable **Bring-Your-Own-Storage (BYOS)**:
+
+#### 1. Setup via TUI (Recommended)
+1. Press `s` in the app to open **Settings & Storage Configuration**.
+2. Choose your preferred **Sync Storage Backend** dropdown.
+3. Fill in your credentials/paths and click **Test Connection**.
+4. Click **Save Settings** to persist your setup.
+
+#### 2. Setup via Environment Variables (`~/.config/netflix-narc/.env`)
+
+You can also configure sync directly in your environment or `~/.config/netflix-narc/.env`:
+
+- **Local Folder / Cloud Drive** (iCloud Drive, Dropbox, Syncthing, shared network drive):
+  ```env
+  SYNC_BACKEND=local_folder
+  SYNC_LOCAL_PATH=/Users/username/Library/Mobile Documents/com~apple~CloudDocs/netflix-narc-sync
+  ```
+
+- **S3-Compatible Object Storage** (Cloudflare R2, AWS S3, MinIO, Wasabi):
+  ```env
+  SYNC_BACKEND=s3
+  SYNC_S3_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com
+  SYNC_S3_BUCKET=my-narc-bucket
+  SYNC_S3_ACCESS_KEY_ID=your_access_key_id
+  SYNC_S3_SECRET_ACCESS_KEY=your_secret_access_key
+  ```
+
+- **WebDAV / Nextcloud / ownCloud**:
+  ```env
+  SYNC_BACKEND=webdav
+  SYNC_WEBDAV_URL=https://nextcloud.example.com/remote.php/dav/files/username/netflix-narc
+  SYNC_WEBDAV_USERNAME=your_username
+  SYNC_WEBDAV_PASSWORD=your_app_password
+  ```
 
 ### ⌨️ Keybindings
 

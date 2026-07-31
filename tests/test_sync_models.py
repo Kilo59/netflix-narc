@@ -1,0 +1,126 @@
+"""Unit tests for storage & sync Pydantic models."""
+
+from __future__ import annotations
+
+import datetime as dt
+
+import pytest
+from pydantic import ValidationError
+
+from netflix_narc.manual_db import ManualMetadata
+from netflix_narc.rating_api import NormalizedMetadata
+from netflix_narc.sync.models import (
+    CURRENT_SCHEMA_VERSION,
+    DossierSyncItem,
+    SettingsSyncItem,
+    SyncBundle,
+    SyncManifest,
+)
+
+
+def test_dossier_sync_item_serialization() -> None:
+    """Test DossierSyncItem serialization and default timestamp generation."""
+    item = DossierSyncItem(
+        title="Breaking Bad",
+        content_rating="18",
+        user_rating=4.5,
+        flagged_for_followup=True,
+        category_scores={"violence": 5.0, "language": 4.0},
+    )
+    dumped = item.model_dump(mode="json")
+    assert dumped["title"] == "Breaking Bad"
+    assert dumped["content_rating"] == "18"
+    assert dumped["user_rating"] == 4.5
+    assert dumped["flagged_for_followup"] is True
+    assert dumped["category_scores"] == {"violence": 5.0, "language": 4.0}
+    assert "updated_at" in dumped
+
+    reloaded = DossierSyncItem.model_validate(dumped)
+    assert reloaded.title == item.title
+    assert reloaded.user_rating == item.user_rating
+
+
+def test_settings_sync_item_serialization() -> None:
+    """Test SettingsSyncItem serialization."""
+    item = SettingsSyncItem(
+        active_rating_provider="omdb",
+        scoring_mode="balanced",
+        child_age_range=(10, 15),
+        max_age_rating=16,
+        min_quality_rating=3,
+        category_weights={"violence": 4, "sexy_stuff": 3},
+    )
+    dumped = item.model_dump(mode="json")
+    assert dumped["active_rating_provider"] == "omdb"
+    assert dumped["child_age_range"] == [10, 15]
+
+    reloaded = SettingsSyncItem.model_validate(dumped)
+    assert reloaded.child_age_range == (10, 15)
+    assert reloaded.category_weights["violence"] == 4
+
+
+def test_sync_bundle_and_manifest() -> None:
+    """Test full SyncBundle assembly and SyncManifest creation."""
+    bundle = SyncBundle(
+        client_id="test-client-1",
+        evidence_locker=[
+            DossierSyncItem(title="Inception", content_rating="13"),
+        ],
+    )
+    dumped = bundle.model_dump(mode="json")
+    assert dumped["client_id"] == "test-client-1"
+    assert len(dumped["evidence_locker"]) == 1
+    assert dumped["version"] == CURRENT_SCHEMA_VERSION
+
+    bundle_ts = dt.datetime.fromisoformat(dumped["timestamp"])
+    assert bundle_ts.tzinfo is not None
+    assert bundle_ts.tzinfo.utcoffset(bundle_ts) == dt.timedelta(0)
+
+    manifest = SyncManifest(
+        latest_bundle_id="bundle.json",
+        last_updated=dt.datetime.now(dt.UTC).isoformat(),
+        client_id="test-client-1",
+    )
+    m_dumped = manifest.model_dump(mode="json")
+    assert m_dumped["latest_bundle_id"] == "bundle.json"
+    assert m_dumped["version"] == CURRENT_SCHEMA_VERSION
+
+    manifest_ts = dt.datetime.fromisoformat(m_dumped["last_updated"])
+    assert manifest_ts.tzinfo is not None
+    assert manifest_ts.tzinfo.utcoffset(manifest_ts) == dt.timedelta(0)
+
+
+def test_dossier_sync_item_ignores_extra_fields() -> None:
+    """Test that DossierSyncItem ignores extra fields for forward compatibility."""
+    payload = {
+        "title": "Breaking Bad",
+        "content_rating": "18",
+        "future_field_from_newer_app_version": "some_value",
+    }
+    item = DossierSyncItem.model_validate(payload)
+    assert item.title == "Breaking Bad"
+    assert not hasattr(item, "future_field_from_newer_app_version")
+
+
+def test_internal_models_forbid_extra_fields() -> None:
+    """Test that internal models strictly forbid unknown extra fields."""
+    with pytest.raises(ValidationError):
+        NormalizedMetadata.model_validate(
+            {
+                "title": "The Matrix",
+                "provider_name": "omdb",
+                "unsupported_extra_attribute": "error",
+            }
+        )
+
+    with pytest.raises(ValidationError):
+        ManualMetadata.model_validate(
+            {
+                "title": "The Matrix",
+                "typo_attribute_name": "error",
+            }
+        )
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-vv"])
