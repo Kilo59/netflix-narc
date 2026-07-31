@@ -6,7 +6,7 @@ import pathlib
 
 import pytest
 
-from netflix_narc.sync.backend import StorageBackendError
+from netflix_narc.sync.backend import StorageBackendError, StorageConnectionError
 from netflix_narc.sync.local_folder import LocalStorageBackend
 from netflix_narc.sync.models import DossierSyncItem, SyncBundle
 
@@ -56,12 +56,12 @@ async def test_local_folder_backend_lifecycle(tmp_path: pathlib.Path) -> None:
 async def test_local_folder_backend_initialize_fails_when_path_is_file(
     tmp_path: pathlib.Path,
 ) -> None:
-    """initialize() should raise StorageBackendError when target path is a file."""
+    """initialize() should raise StorageConnectionError when target path is a file."""
     file_path = tmp_path / "not_a_dir"
     file_path.write_text("I am a file", encoding="utf-8")
 
     backend = LocalStorageBackend(file_path)
-    with pytest.raises(StorageBackendError):
+    with pytest.raises(StorageConnectionError, match="exists and is a file"):
         await backend.initialize()
 
 

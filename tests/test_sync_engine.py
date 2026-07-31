@@ -9,6 +9,8 @@ from typing import override
 import pytest
 
 from netflix_narc.manual_db import EvidenceLocker, ManualMetadata
+from netflix_narc.persistence import update_env_file
+from netflix_narc.settings import ScoringMode, Settings
 from netflix_narc.sync.backend import StorageBackendError
 from netflix_narc.sync.engine import SyncEngine
 from netflix_narc.sync.local_folder import LocalStorageBackend
@@ -63,6 +65,53 @@ async def test_sync_engine_two_client_sync(tmp_path: pathlib.Path) -> None:
     record_a_wednesday = await locker_a.get_record("Wednesday")
     assert record_a_wednesday is not None
     assert record_a_wednesday.user_rating == 4.0
+
+
+@pytest.mark.asyncio
+async def test_sync_engine_settings_synced_across_devices(tmp_path: pathlib.Path) -> None:
+    """Settings updated on Client A should synchronize to Client B's in-memory Settings."""
+    shared_sync_dir = tmp_path / "settings_sync_folder"
+    env_a = tmp_path / "env_a.env"
+    env_b = tmp_path / "env_b.env"
+
+    settings_a = Settings(_env_file=str(env_a))  # type: ignore[call-arg]
+    settings_a.child_age_range = (6, 10)
+    settings_a.max_age_rating = 14
+    settings_a.scoring_mode = ScoringMode.QUALITY_FOCUS
+
+    # Save Client A's settings so env_a has a recent file timestamp
+    update_env_file(
+        provider=settings_a.active_rating_provider,
+        api_key=settings_a.omdb_api_key,
+        env_path=env_a,
+        child_age_range=settings_a.child_age_range,
+        extra_env={"SCORING_MODE": str(settings_a.scoring_mode), "MAX_AGE_RATING": "14"},
+    )
+
+    settings_b = Settings(_env_file=str(env_b))  # type: ignore[call-arg]
+
+    locker_a = EvidenceLocker(tmp_path / "a.sqlite")
+    await locker_a.init()
+    locker_b = EvidenceLocker(tmp_path / "b.sqlite")
+    await locker_b.init()
+
+    backend_a = LocalStorageBackend(shared_sync_dir)
+    backend_b = LocalStorageBackend(shared_sync_dir)
+
+    engine_a = SyncEngine(backend=backend_a, locker=locker_a, settings=settings_a, client_id="a")
+    engine_b = SyncEngine(backend=backend_b, locker=locker_b, settings=settings_b, client_id="b")
+
+    # Client A syncs settings
+    res_a = await engine_a.sync()
+    assert res_a.status == "success"
+
+    # Client B syncs and receives Client A's updated settings
+    res_b = await engine_b.sync()
+    assert res_b.status == "success"
+
+    assert settings_b.child_age_range == (6, 10)
+    assert settings_b.max_age_rating == 14
+    assert settings_b.scoring_mode == ScoringMode.QUALITY_FOCUS
 
 
 @pytest.mark.asyncio

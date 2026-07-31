@@ -35,6 +35,9 @@ class LocalStorageBackend(StorageBackend):
     @override
     async def initialize(self) -> None:
         """Create sync directory if needed."""
+        if self.sync_dir.exists() and not self.sync_dir.is_dir():
+            msg = f"Target sync path exists and is a file, not a directory: {self.sync_dir}"
+            raise StorageConnectionError(msg)
         try:
             self.sync_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
