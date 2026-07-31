@@ -14,7 +14,9 @@ from netflix_narc.evaluator import (
     evaluate_title,
     explain_suitability,
     get_suitability_bar,
+    merge_metadata,
 )
+from netflix_narc.manual_db import ManualMetadata
 from netflix_narc.rating_api import NormalizedMetadata
 from netflix_narc.settings import ScoringMode, Settings
 
@@ -475,6 +477,44 @@ def test_calculate_suitability_balanced() -> None:
     # Expected: (9.0 * 3 + 6.0 * 3 + 10.0 * 3 + 10.0 * 3 + 7.0 * 3) / 15 = 126 / 15 = 8.4
     # (Age Rating sub-score is 6.0 uncapped, Safety is capped at 7.0)
     assert abs(score - 8.4) < _FLOAT_EPSILON
+
+
+def test_merge_metadata_none_manual():
+    api_meta = NormalizedMetadata(
+        title="Test", content_rating="PG", user_rating=8.0, provider_name="omdb"
+    )
+    result = merge_metadata(api_meta, None)
+    assert result == api_meta
+
+
+def test_merge_metadata_override():
+    api_meta = NormalizedMetadata(
+        title="Test", content_rating="PG", user_rating=6.0, provider_name="omdb"
+    )
+    manual = ManualMetadata(
+        title="Test", content_rating="PG-13", user_rating=4.5, category_scores={"Violence": 3.0}
+    )
+
+    merged = merge_metadata(api_meta, manual, merge_manual_data=True)
+    assert merged is not None
+    assert merged.content_rating == "PG-13"
+    assert merged.user_rating == 9.0  # scaled 4.5 * 2.0
+    assert merged.category_scores["Violence"] == 3.0
+
+
+def test_merge_metadata_no_merge_manual_takes_precedence():
+    api_meta = NormalizedMetadata(
+        title="Test", content_rating="PG", user_rating=6.0, provider_name="omdb"
+    )
+    manual = ManualMetadata(
+        title="Test", content_rating="G", user_rating=5.0, category_scores={"Language": 1.0}
+    )
+
+    merged = merge_metadata(api_meta, manual, merge_manual_data=False)
+    assert merged is not None
+    assert merged.content_rating == "G"
+    assert merged.user_rating == 10.0  # scaled 5.0 * 2.0
+    assert merged.category_scores == {"Language": 1.0}
 
 
 if __name__ == "__main__":

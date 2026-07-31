@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Final
 from netflix_narc.settings import ScoringMode
 
 if TYPE_CHECKING:
+    from netflix_narc.manual_db import ManualMetadata
     from netflix_narc.rating_api import NormalizedMetadata
     from netflix_narc.settings import Settings
 
@@ -630,3 +631,31 @@ def get_suitability_bar(score: float, width: int = 10) -> str:
         color = "red"
 
     return f"[{color}]{bar_str}[/{color}] {score:.1f}/10"
+
+
+def merge_metadata(
+    api_metadata: NormalizedMetadata | None,
+    manual_record: ManualMetadata | None,
+    *,
+    merge_manual_data: bool = True,
+) -> NormalizedMetadata | None:
+    """Merge manual metadata into API metadata based on configuration settings.
+
+    If merge_manual_data is True, manual ratings and category scores override
+    or supplement the API metadata. If merge_manual_data is False, manual
+    metadata takes precedence over API metadata completely if present.
+    """
+    if manual_record is None:
+        return api_metadata
+
+    if not merge_manual_data or api_metadata is None:
+        return manual_record.to_normalized_metadata()
+
+    merged = api_metadata.model_copy(deep=True)
+    if manual_record.content_rating is not None:
+        merged.content_rating = manual_record.content_rating
+    if manual_record.user_rating is not None:
+        merged.user_rating = manual_record.user_rating * 2.0
+    for cat, val in manual_record.category_scores.items():
+        merged.category_scores[cat] = val
+    return merged

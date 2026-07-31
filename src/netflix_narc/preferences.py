@@ -191,7 +191,7 @@ class PreferencesScreen(Screen[None]):
             self.dismiss()
             # Launch onboarding relaunch in the main app context
             narc_app = cast("NetflixNarcApp", self.app)
-            narc_app.call_after_refresh(narc_app.push_onboarding_relaunch)
+            narc_app.call_after_refresh(narc_app.relaunch_onboarding)
         elif btn_id == "pref-reset-weights":
             self._reset_weights()
 

@@ -35,6 +35,7 @@ from netflix_narc.evaluator import (
     calculate_suitability,
     evaluate_title,
     get_suitability_bar,
+    merge_metadata,
 )
 from netflix_narc.factory import get_rating_provider
 from netflix_narc.help_screen import HelpScreen
@@ -516,7 +517,7 @@ class NetflixNarcApp(App[None]):
 
         if needs_onboarding:
             self._set_loading(state=False)
-            self.call_after_refresh(self._push_onboarding)
+            self.call_after_refresh(self.run_push_onboarding)
         else:
             # Initialize provider if an API key is available
             active_provider = self.settings.active_rating_provider
@@ -538,7 +539,19 @@ class NetflixNarcApp(App[None]):
 
             self._set_loading(state=True)
             # Yield to the event loop so the loading indicator renders before blocking work
-            self.call_after_refresh(self._startup_sync_sequence)
+            self.call_after_refresh(self.run_startup_sync)
+
+    def run_push_onboarding(self) -> None:
+        """Schedule initial onboarding worker."""
+        self.run_worker(self._push_onboarding())
+
+    def run_startup_sync(self) -> None:
+        """Schedule startup sync sequence worker."""
+        self.run_worker(self._startup_sync_sequence())
+
+    def relaunch_onboarding(self) -> None:
+        """Schedule onboarding relaunch worker."""
+        self.run_worker(self._push_onboarding())
 
     def _load_startup_csv(self) -> None:
         """Helper to load and group the CSV data synchronously on startup."""
@@ -581,24 +594,6 @@ class NetflixNarcApp(App[None]):
 
     async def _push_onboarding(self) -> None:
         """Fetch preview records and push the OnboardingScreen."""
-        try:
-            all_records = await self.evidence_locker.get_all_records()
-            preview = WeightImpactPreview.select_preview_records(all_records, self.settings)
-            all_eligible = WeightImpactPreview.get_eligible_records(all_records, self.settings)
-        except Exception:  # noqa: BLE001
-            preview = []
-            all_eligible = []
-        self.push_screen(
-            OnboardingScreen(
-                preview_records=preview,
-                baseline_settings=self.settings,
-                all_eligible=all_eligible,
-            ),
-            self.handle_onboarding_complete,
-        )
-
-    async def push_onboarding_relaunch(self) -> None:
-        """Fetch preview records and push the OnboardingScreen as a relaunch."""
         try:
             all_records = await self.evidence_locker.get_all_records()
             preview = WeightImpactPreview.select_preview_records(all_records, self.settings)
@@ -660,7 +655,7 @@ class NetflixNarcApp(App[None]):
 
         self.notify("Welcome to Netflix Narc!", severity="information")
         self._set_loading(state=True)
-        self.call_after_refresh(self._startup_sync_sequence)
+        self.call_after_refresh(self.run_startup_sync)
 
     def action_load_csv(self) -> None:
         """Push the Load CSV screen."""
@@ -696,7 +691,13 @@ class NetflixNarcApp(App[None]):
         all_records = await self.evidence_locker.get_all_records()
         completeness_map = {r.title: r.completeness_score for r in all_records}
 
-        self.push_screen(LineupScreen(queue=queue, completeness_map=completeness_map))
+        self.push_screen(
+            LineupScreen(
+                queue=queue,
+                grouped_records=self.grouped_records,
+                completeness_map=completeness_map,
+            )
+        )
 
     async def _evaluate_titles_worker(self, *, cache_only: bool) -> None:
         """Worker: evaluate all ungrouped titles.
@@ -765,29 +766,22 @@ class NetflixNarcApp(App[None]):
                 return pruned
         return full_title
 
-    async def _get_merged_metadata(self, base_title: str) -> NormalizedMetadata | None:
+    async def _get_merged_metadata(
+        self, base_title: str, *, cache_only: bool = True
+    ) -> NormalizedMetadata | None:
         """Fetch and merge metadata from cache/database without network requests."""
         manual_record = await self.evidence_locker.get_record(base_title)
         api_metadata = None
         if self.rating_provider:
             api_metadata = await asyncio.to_thread(
-                self.rating_provider.search_title, base_title, cache_only=True
+                self.rating_provider.search_title, base_title, cache_only=cache_only
             )
 
-        if self.settings.merge_manual_data and manual_record:
-            if api_metadata is None:
-                api_metadata = manual_record.to_normalized_metadata()
-            else:
-                if manual_record.content_rating is not None:
-                    api_metadata.content_rating = manual_record.content_rating
-                if manual_record.user_rating is not None:
-                    api_metadata.user_rating = manual_record.user_rating
-                for cat, val in manual_record.category_scores.items():
-                    api_metadata.category_scores[cat] = val
-        elif manual_record and not self.settings.merge_manual_data:
-            api_metadata = manual_record.to_normalized_metadata()
-
-        return api_metadata
+        return merge_metadata(
+            api_metadata,
+            manual_record,
+            merge_manual_data=self.settings.merge_manual_data,
+        )
 
     async def rebuild_table(
         self,
@@ -894,7 +888,7 @@ class NetflixNarcApp(App[None]):
         if base_title in self.grouped_records:
             self.push_screen(InterrogationRoomScreen(base_title=base_title))
 
-    async def _fetch_and_evaluate(self, base_title: str, *, cache_only: bool) -> str:  # noqa: C901
+    async def _fetch_and_evaluate(self, base_title: str, *, cache_only: bool) -> str:
         """Fetch metadata, merge manual data, and evaluate."""
         manual_record = await self.evidence_locker.get_record(base_title)
 
@@ -902,25 +896,7 @@ class NetflixNarcApp(App[None]):
             self.evaluated_suitability[base_title] = "[dim]N/A[/dim]"
             return "[dim]Ignored[/dim]"
 
-        api_metadata = None
-        if self.rating_provider:
-            api_metadata = await asyncio.to_thread(
-                self.rating_provider.search_title, base_title, cache_only=cache_only
-            )
-
-        # Merge strategy
-        if self.settings.merge_manual_data and manual_record:
-            if api_metadata is None:
-                api_metadata = manual_record.to_normalized_metadata()
-            else:
-                if manual_record.content_rating is not None:
-                    api_metadata.content_rating = manual_record.content_rating
-                if manual_record.user_rating is not None:
-                    api_metadata.user_rating = manual_record.user_rating
-                for cat, val in manual_record.category_scores.items():
-                    api_metadata.category_scores[cat] = val
-        elif manual_record and not self.settings.merge_manual_data:
-            api_metadata = manual_record.to_normalized_metadata()
+        api_metadata = await self._get_merged_metadata(base_title, cache_only=cache_only)
 
         if api_metadata:
             score = calculate_suitability(api_metadata, self.settings)

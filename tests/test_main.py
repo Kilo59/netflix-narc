@@ -98,5 +98,25 @@ async def test_onboarding_pushed_when_age_missing(tmp_path: pathlib.Path) -> Non
         assert any(isinstance(s, OnboardingScreen) for s in screens)
 
 
+async def test_preferences_screen_relaunch_button_pushes_onboarding_screen(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Clicking 'Re-launch Setup Wizard' in PreferencesScreen should open OnboardingScreen."""
+    fake_settings.child_age_range = (8, 12)
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test(size=(120, 140)) as pilot:
+        await pilot.pause()
+        await pilot.press("s")
+        await pilot.pause()
+
+        assert any(isinstance(s, PreferencesScreen) for s in pilot.app.screen_stack)
+
+        await pilot.click("#pref-relaunch")
+        await pilot.pause()
+        await pilot.pause()
+
+        assert any(isinstance(s, OnboardingScreen) for s in pilot.app.screen_stack)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])
