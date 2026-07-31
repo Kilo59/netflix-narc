@@ -23,13 +23,31 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 
 ## 🚀 Getting Started
 
-Netflix Narc requires `uv` to run.
+### Prerequisites
+- **Python 3.13+**
+- **`uv`** (recommended for package management and local development; optional if installing via `pipx` or `pip`)
 
 ### Quick Install (recommended)
 
+#### Via `uv` tool (PyPI)
+
+```bash
+uv tool install netflix-narc
+netflix-narc --help
+```
+
+#### Via `pipx` or `pip`
+
+```bash
+pipx install netflix-narc
+# or
+pip install netflix-narc
+```
+
+#### From GitHub
+
 ```bash
 uv tool install git+https://github.com/Kilo59/netflix-narc
-netflix-narc --help
 ```
 
 ### Development Install

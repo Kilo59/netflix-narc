@@ -75,16 +75,63 @@ We use `mypy` in strict mode.
 uv run mypy .
 ```
 
-## Pull Request Guidelines
+## Release Process & Versioning Strategy
 
-1.  **Create a branch**: Use descriptive names like `feat/add-tmdb-provider` or `fix/csv-parsing-bug`.
-2.  **Add tests**: Every new feature or fix must include unit tests. Use `tmp_path` for file operations and `respx` for network mocking.
-3.  **Validate**: Ensure all linting, formatting, type checking, and tests pass before submitting.
-4.  **Changelog**: Add a brief entry to the `[Unreleased]` section of `CHANGELOG.md`.
+This project follows [Semantic Versioning (SemVer 2.0.0)](https://semver.org/spec/v2.0.0.html) and uses PEP 440 compliant version strings (e.g., `0.1.0a1`, `0.1.0`, `1.0.0`).
 
-## Project Structure
+### Versioning Rules
 
-- `src/netflix_narc/`: Core application logic.
-- `tests/`: Unit and integration tests.
-- `.agent/`: Internal design and planning documents.
-- `assets/`: Images, screenshots, and visual assets.
+- **Pre-releases (`0.1.0a1`, `0.1.0b1`, `0.1.0rc1`)**: Use alpha (`aN`), beta (`bN`), or release candidate (`rcN`) suffixes while features are stabilizing or in pre-alpha/alpha status.
+- **Patch releases (`x.y.Z`)**: Bug fixes, non-breaking performance updates, or dependency bumps that maintain backward compatibility.
+- **Minor releases (`x.Y.0`)**: New features, new rating providers, or new UI components added in a backward-compatible manner.
+- **Major releases (`X.0.0`)**: Breaking changes to CLI options, settings schemas, or sync protocols.
+
+### Release Steps
+
+When preparing a new release for PyPI and GitHub:
+
+1. **Verify Local Quality Checks**:
+   Ensure all checks pass locally:
+   ```bash
+   uv run ruff check .
+   uv run ruff format --check .
+   uv run mypy .
+   uv run pytest -vv
+   ```
+
+2. **Bump Version Number**:
+   Use `uv version` to bump the project version in `pyproject.toml` (e.g. `uv version patch`, `uv version minor`, `uv version 0.1.0`):
+   ```bash
+   uv version minor
+   # or explicitly:
+   uv version 0.1.0
+   ```
+
+3. **Update `CHANGELOG.md`**:
+   - Move entries from `[Unreleased]` to a new version header with today's date (e.g. `## [0.1.0] - YYYY-MM-DD`).
+   - Add a fresh empty `## [Unreleased]` section at the top.
+
+4. **Verify Build Package**:
+   Test building the wheel and source distribution:
+   ```bash
+   uv build
+   ```
+
+5. **Commit and Tag**:
+   Commit the version bump and create an annotated git tag prefixed with `v`:
+   ```bash
+   git commit -am "chore: release v0.1.0"
+   git tag -a v0.1.0 -m "Release v0.1.0"
+   ```
+
+6. **Push Tag to Trigger Publishing**:
+   Push the main branch and the release tag to GitHub:
+   ```bash
+   git push origin main --tags
+   ```
+
+7. **Automated CI/CD Release**:
+   Pushing a `v*` tag triggers the [.github/workflows/release.yml](file:///.github/workflows/release.yml) GitHub Actions workflow, which will automatically:
+   - Build the package distribution using `uv build`.
+   - Publish the artifacts to [PyPI](https://pypi.org/project/netflix-narc/) via PyPI Trusted Publishing.
+   - Create a GitHub Release with dist assets and generated release notes.
