@@ -78,5 +78,8 @@ jobs:
       - name: Set up Python
         run: uv python install 3.13
 
+      - name: Validate pyproject metadata
+        run: uvx --with "validate-pyproject[all]" validate-pyproject pyproject.toml
+
       - name: Build package
         run: uv build
