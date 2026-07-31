@@ -27,9 +27,25 @@ Netflix Narc requires `uv` to run.
 
 ### Quick Install (recommended)
 
+#### Via `uv` tool (PyPI)
+
+```bash
+uv tool install netflix-narc
+netflix-narc --help
+```
+
+#### Via `pipx` or `pip`
+
+```bash
+pipx install netflix-narc
+# or
+pip install netflix-narc
+```
+
+#### From GitHub
+
 ```bash
 uv tool install git+https://github.com/Kilo59/netflix-narc
-netflix-narc --help
 ```
 
 ### Development Install
