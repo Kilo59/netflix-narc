@@ -10,6 +10,8 @@ Create a Terminal User Interface (TUI) for easily and manually ingesting metadat
 - **Workflow**: Leverage the user's parsed Netflix viewing history as a queue. The user can iterate through their viewing history and provide data for titles sequentially or on-demand.
 - **Gold Standard**: The data model and fields expected for entry should mirror Common Sense Media (CSM), as it represents the highest standard for the application's evaluation logic.
 
+![The Interrogation Suite & Lineup Mockup](pr5_interrogation_suite_mockup.jpg)
+
 ## 2. Core Features & User Workflow
 
 ### 2.1 The Lineup (Priority Queue Workflow)

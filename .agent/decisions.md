@@ -191,3 +191,28 @@ have no way to know whether changing "Violence" from Med to High will affect 1 t
   3. `WebDAVStorageBackend`: Syncing via Nextcloud and ownCloud endpoints using `httpx`.
 - Use a **Last-Write-Wins (LWW)** per-title dossier conflict resolution strategy based on ISO 8601 UTC `updated_at` timestamps.
 - Integrate background auto-sync into `NetflixNarcApp` via non-blocking Textual async workers (`@work`), running transparently on startup and configuration update.
+
+## 15. The Interrogation Suite: Manual Curation, Queueing, & Evidence Locker
+**Date**: 2026-07-31
+**Context**:
+- Automated API backends (OMDb, CSM, TMDB) may fail to return data for niche titles or require API keys.
+- Users need an interactive TUI workflow to manually curate metadata, score titles across Common Sense Media categories, and review titles in priority order without leaving the terminal.
+
+**Decision**:
+- Add `LineupScreen`: A prioritized discovery queue (`l` key) sorting titles by dossier completeness score, follow-up flags, low quality, and recency.
+- Add `InterrogationRoomScreen`: A focused manual data entry form (`i` key) allowing 0–5 category scoring, cover image pasting via macOS clipboard hook (`image_utils.py`), and live suitability preview bars.
+- Store all manual curation entries in `EvidenceLocker` (`manual_db.py`, async `aiosqlite`).
+
+![Interrogation Suite Design & Mockup](pr5_interrogation_suite_mockup.jpg)
+
+## 16. Contextual Help Overlay & Rich Visual Suitability Sub-bars
+**Date**: 2026-07-31
+**Context**:
+- Complex TUI navigation and multi-component suitability calculations can be intimidating to new users without in-app guidance.
+- Users need immediate visual feedback explaining *why* a title received a specific suitability score or flag.
+
+**Decision**:
+- Add `HelpScreen`: Accessible via `h` or `?` keybindings across the app and modal contexts, displaying keyboard shortcuts, scoring mode explanations, and workflow guides.
+- Add expandable Suitability sub-bars to the main `DataTable`: Expanding a row renders sub-bars for Base Quality, Age Suitability, Educational Suitability, Positive Content, and Content Safety.
+
+![Help Overlay & Suitability Sub-bars Mockup](pr9_help_evaluator_mockup.jpg)
