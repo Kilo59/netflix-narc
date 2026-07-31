@@ -83,6 +83,8 @@ def update_env_file(
 
     Defaults to the XDG config dir (~/.config/netflix-narc/.env).
     If an existing CWD .env is found on first run it is migrated to the config dir.
+
+    Pass ``SCORING_MODE`` via ``extra_env`` if you need to persist it.
     """
     resolved_path = env_path if env_path is not None else get_config_dir(create=True) / ".env"
 

@@ -10,12 +10,15 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 
 ## ✨ Features
 
-- **🍿 Netflix Integration**: Easily ingest your profile's `NetflixViewingHistory.csv`.
-- **🧠 Common Sense Intel**: Automatically fetches age ratings, quality scores, and granular category breakdowns (Violence, Language, Educational Value, etc.) from Common Sense Media.
+- **🍿 Netflix History Integration**: Ingest your profile's `NetflixViewingHistory.csv` to analyze watching habits.
+- **📋 Onboarding Wizard**: First-run setup to configure child age ranges, content weightings, and scoring modes with a live **Weight Impact Preview**.
+- **🔍 The Lineup & Interrogation Room**: A Steam-inspired priority review queue (`l`) and manual data entry room (`i`) to score niche titles across Common Sense Media categories (0–5), attach cover art via macOS clipboard, and track dossier completeness.
+- **🧠 Common Sense Intel**: Automatically fetches age ratings, quality scores, and granular category breakdowns (Violence, Language, Educational Value, etc.) from API providers (OMDb, CSM, TMDB) or your local Evidence Locker.
+- **📊 Suitability Sub-bars & Scoring Modes**: Expand any show to view rich sub-bar breakdowns across Base Quality, Age Suitability, Educational Suitability, Positive Content, and Content Safety under **Quality Focus** or **Balanced** scoring modes.
 - **⚖️ Weighted Justice**: Customize how strictly you want to judge different content categories.
-- **☁️ Storage & Sync (BYOS)**: Sync preferences and Evidence Locker manual ratings across devices using your own cloud storage (iCloud/Local Folder, Cloudflare R2, AWS S3, Nextcloud/WebDAV).
-- **🖥️ Beautiful TUI**: A gorgeous, reactive terminal interface powered by Textual.
-- **⚡️ Fast & Polite**: Intelligent caching ensures we don't spam the API or get rate-limited.
+- **☁️ Storage & Sync (BYOS)**: Sync preferences and Evidence Locker manual dossiers across devices using your own local drive, Cloudflare R2, AWS S3, or Nextcloud/WebDAV.
+- **❓ Contextual Help Screen**: Built-in keyboard shortcut reference and scoring mode guide available anywhere via `h` or `?`.
+- **🖥️ Reactive TUI**: A responsive, modern terminal UI built with Textual.
 
 ## 📸 App in Action
 
@@ -56,31 +59,31 @@ uv tool install git+https://github.com/Kilo59/netflix-narc
 2. Install dependencies with `uv sync`.
 3. Run via `uv run netflix-narc`.
 
-### Prerequisites
+### Prerequisites & Setup
 - Python 3.13+
-- An **OMDb API Key** (recommended) — grab a free key at [omdbapi.com](https://www.omdbapi.com/apikey.aspx)
 - Your exported `NetflixViewingHistory.csv`
    *(Netflix Account Settings → Profile & Parental Controls → Viewing activity → Download all)*
+- *(Optional)* An **OMDb API Key** — grab a free key at [omdbapi.com](https://www.omdbapi.com/apikey.aspx)
 
-### Installation & Usage
+### Running the Application
 
 ```bash
 # Point to your history file explicitly (recommended)
 uv run netflix-narc --csv /path/to/NetflixViewingHistory.csv
 
-# Or drop the file in the current directory and run without arguments
+# Or drop the file in the current directory as NetflixViewingHistory.csv and run
 uv run netflix-narc
 ```
 
-On first launch, press `s` to open Settings and enter your API key or configure cloud sync.
+On first launch, Netflix Narc automatically starts the **Onboarding Wizard** to configure child age targets and content weightings. At any time, press `s` to open **Preferences** or `h` / `?` for **Help**.
 
 ### ☁️ Storage & Multi-Device Sync (BYOS)
 
 Netflix Narc operates **100% local-first** with zero central tracking. If you want to synchronize your Evidence Locker dossiers and preference settings across multiple computers, you can enable **Bring-Your-Own-Storage (BYOS)**:
 
 #### 1. Setup via TUI (Recommended)
-1. Press `s` in the app to open **Settings & Storage Configuration**.
-2. Choose your preferred **Sync Storage Backend** dropdown.
+1. Press `s` in the app to open **Preferences & Storage Configuration**.
+2. Select your preferred **Sync Storage Backend** from the dropdown.
 3. Fill in your credentials/paths and click **Test Connection**.
 4. Click **Save Settings** to persist your setup.
 
@@ -113,17 +116,20 @@ You can also configure sync directly in your environment or `~/.config/netflix-n
 
 ### ⌨️ Keybindings
 
-- `l`: Load CSV File
-- `e`: Evaluate CSM Data
-- `s`: Settings & API Key
-- `Enter`: Expand/Collapse a show's episodes
+- `l`: Open **The Lineup** (priority review queue)
+- `i`: Open **Interrogation Room** (manual data entry for selected title)
+- `s`: Open **Preferences** (settings, weights, API provider & BYOS sync)
+- `a`: Open **Advanced Options** (Load CSV, Evaluate API)
+- `h` / `?`: Contextual **Help Overlay**
+- `Enter`: Expand/Collapse show episodes and suitability sub-bars
 - `q`: Quit Application
 
 ## 📜 How it Works
-1. You provide your Netflix viewing history.
-2. The UI groups your watches by Show/Movie.
-3. You press `e` to trigger an evaluation sweep.
-4. Netflix Narc cross-references the history against Common Sense Media and highlights exactly where things went wrong based on the `Settings` thresholds.
+1. You provide your Netflix viewing history CSV.
+2. The Onboarding Wizard aligns your target child age and content sensitivity thresholds.
+3. Netflix Narc cross-references titles against API metadata or your local Evidence Locker.
+4. Use **The Lineup** (`l`) and **Interrogation Room** (`i`) to manually score missing or unrated titles.
+5. Expand any row in the main table to inspect granular suitability sub-bars and exact violation flags.
 
 ---
 
