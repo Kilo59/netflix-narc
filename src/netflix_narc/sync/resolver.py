@@ -8,16 +8,8 @@ from netflix_narc.sync.models import (
     DossierSyncItem,
     SettingsSyncItem,
     SyncBundle,
-    parse_utc_datetime,
+    ensure_utc,
 )
-
-
-def _to_utc(ts: dt.datetime | str) -> dt.datetime:
-    if isinstance(ts, dt.datetime):
-        if ts.tzinfo is None:
-            return ts.replace(tzinfo=dt.UTC)
-        return ts.astimezone(dt.UTC)
-    return parse_utc_datetime(ts)
 
 
 class ConflictResolver:
@@ -41,7 +33,7 @@ class ConflictResolver:
                 continue
 
             local_item = merged[title]
-            if _to_utc(remote_item.updated_at) >= _to_utc(local_item.updated_at):
+            if ensure_utc(remote_item.updated_at) >= ensure_utc(local_item.updated_at):
                 merged[title] = remote_item
 
         return list(merged.values())
@@ -57,7 +49,7 @@ class ConflictResolver:
         if remote_settings is None:
             return local_settings
 
-        if _to_utc(remote_settings.updated_at) >= _to_utc(local_settings.updated_at):
+        if ensure_utc(remote_settings.updated_at) >= ensure_utc(local_settings.updated_at):
             return remote_settings
         return local_settings
 

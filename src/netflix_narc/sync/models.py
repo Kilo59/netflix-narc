@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-import contextlib
 import datetime as dt
+import logging
 from typing import ClassVar, Final
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+logger = logging.getLogger(__name__)
+
 CURRENT_SCHEMA_VERSION: Final[int] = 1
 
 
-def parse_utc_datetime(v: object) -> dt.datetime:
+def ensure_utc(v: object) -> dt.datetime:
     """Validate and convert flexible inputs into a timezone-aware UTC datetime."""
     res: dt.datetime | None = None
     if isinstance(v, dt.datetime):
@@ -19,11 +21,14 @@ def parse_utc_datetime(v: object) -> dt.datetime:
     elif isinstance(v, (int, float)):
         res = dt.datetime.fromtimestamp(v, tz=dt.UTC)
     elif isinstance(v, str) and v.strip():
-        with contextlib.suppress(ValueError):
+        try:
             res = dt.datetime.fromisoformat(v.strip())
-
-    if res is None:
+        except (ValueError, TypeError):
+            logger.warning("Failed to parse ISO datetime from '%s', falling back to epoch UTC", v)
+            return dt.datetime.fromtimestamp(0, tz=dt.UTC)
+    else:
         return dt.datetime.fromtimestamp(0, tz=dt.UTC)
+
     if res.tzinfo is None:
         return res.replace(tzinfo=dt.UTC)
     return res.astimezone(dt.UTC)
@@ -46,7 +51,7 @@ class DossierSyncItem(BaseModel):
     @field_validator("updated_at", mode="before")
     @classmethod
     def _validate_updated_at(cls, v: object) -> dt.datetime:
-        return parse_utc_datetime(v)
+        return ensure_utc(v)
 
 
 class SettingsSyncItem(BaseModel):
@@ -65,7 +70,7 @@ class SettingsSyncItem(BaseModel):
     @field_validator("updated_at", mode="before")
     @classmethod
     def _validate_updated_at(cls, v: object) -> dt.datetime:
-        return parse_utc_datetime(v)
+        return ensure_utc(v)
 
 
 class SyncBundle(BaseModel):
@@ -82,7 +87,7 @@ class SyncBundle(BaseModel):
     @field_validator("timestamp", mode="before")
     @classmethod
     def _validate_timestamp(cls, v: object) -> dt.datetime:
-        return parse_utc_datetime(v)
+        return ensure_utc(v)
 
 
 class SyncManifest(BaseModel):
@@ -98,4 +103,4 @@ class SyncManifest(BaseModel):
     @field_validator("last_updated", mode="before")
     @classmethod
     def _validate_last_updated(cls, v: object) -> dt.datetime:
-        return parse_utc_datetime(v)
+        return ensure_utc(v)

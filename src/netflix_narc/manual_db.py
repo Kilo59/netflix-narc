@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from netflix_narc.csm_api import CSMRatingCategory
 from netflix_narc.rating_api import NormalizedMetadata
-from netflix_narc.sync.models import DossierSyncItem, parse_utc_datetime
+from netflix_narc.sync.models import DossierSyncItem, ensure_utc
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class ManualMetadata(BaseModel):
     @field_validator("updated_at", mode="before")
     @classmethod
     def _validate_updated_at(cls, v: object) -> dt.datetime:
-        return parse_utc_datetime(v)
+        return ensure_utc(v)
 
     @property
     def completeness_score(self) -> int:
@@ -230,27 +230,91 @@ class EvidenceLocker:
             for r in records
         ]
 
+    async def get_records_by_titles(self, titles: list[str]) -> dict[str, ManualMetadata]:
+        """Fetch multiple records by title in a single batch query."""
+        if not titles:
+            return {}
+
+        results: dict[str, ManualMetadata] = {}
+        chunk_size = 500
+        async with self._get_connection() as db:
+            db.row_factory = aiosqlite.Row
+            for i in range(0, len(titles), chunk_size):
+                chunk = titles[i : i + chunk_size]
+                placeholders = ",".join("?" for _ in chunk)
+                query = f"SELECT * FROM evidence_locker WHERE title IN ({placeholders})"  # noqa: S608
+                async with db.execute(query, chunk) as cursor:
+                    async for row in cursor:
+                        metadata = self._row_to_manual_metadata(row)
+                        results[metadata.title] = metadata
+        return results
+
     async def load_dossiers(self, dossiers: list[DossierSyncItem]) -> int:
         """Load and upsert DossierSyncItem objects from sync into evidence locker."""
-        count = 0
+        if not dossiers:
+            return 0
+
+        titles = [item.title for item in dossiers]
+        existing_map = await self.get_records_by_titles(titles)
+
+        to_upsert: list[ManualMetadata] = []
         for item in dossiers:
-            existing = await self.get_record(item.title)
-            if existing is None or parse_utc_datetime(item.updated_at) >= parse_utc_datetime(
-                existing.updated_at
-            ):
-                metadata = ManualMetadata(
-                    title=item.title,
-                    content_rating=item.content_rating,
-                    user_rating=item.user_rating,
-                    image_url=item.image_url,
-                    flagged_for_followup=item.flagged_for_followup,
-                    ignored=item.ignored,
-                    category_scores=item.category_scores,
-                    updated_at=item.updated_at,
+            existing = existing_map.get(item.title)
+            if existing is None or ensure_utc(item.updated_at) >= ensure_utc(existing.updated_at):
+                to_upsert.append(
+                    ManualMetadata(
+                        title=item.title,
+                        content_rating=item.content_rating,
+                        user_rating=item.user_rating,
+                        image_url=item.image_url,
+                        flagged_for_followup=item.flagged_for_followup,
+                        ignored=item.ignored,
+                        category_scores=item.category_scores,
+                        updated_at=item.updated_at,
+                    )
                 )
-                await self.upsert_record(metadata)
-                count += 1
-        return count
+
+        if not to_upsert:
+            return 0
+
+        async with self._get_connection() as db:
+            await db.execute("BEGIN IMMEDIATE")
+            try:
+                for metadata in to_upsert:
+                    scores_json = json.dumps(metadata.category_scores)
+                    updated_at_str = ensure_utc(metadata.updated_at).isoformat()
+                    await db.execute(
+                        """
+                        INSERT INTO evidence_locker (
+                            title, content_rating, user_rating, image_url,
+                            flagged_for_followup, ignored, category_scores, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(title) DO UPDATE SET
+                            content_rating=excluded.content_rating,
+                            user_rating=excluded.user_rating,
+                            image_url=excluded.image_url,
+                            flagged_for_followup=excluded.flagged_for_followup,
+                            ignored=excluded.ignored,
+                            category_scores=excluded.category_scores,
+                            updated_at=excluded.updated_at;
+                        """,
+                        (
+                            metadata.title,
+                            metadata.content_rating,
+                            metadata.user_rating,
+                            metadata.image_url,
+                            int(metadata.flagged_for_followup),
+                            int(metadata.ignored),
+                            scores_json,
+                            updated_at_str,
+                        ),
+                    )
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                raise
+
+        return len(to_upsert)
 
     async def get_all_records(self) -> list[ManualMetadata]:
         """Retrieve all records for export."""

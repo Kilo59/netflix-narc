@@ -180,7 +180,7 @@ have no way to know whether changing "Violence" from Med to High will affect 1 t
 ## 14. Bring-Your-Own-Storage (BYOS) Data Persistence & Synchronization Architecture
 **Date**: 2026-07-29
 **Context**:
-- Users need a way to store, backup, and synchronize their preferences and Evidence Locker manual data across multiple devices.
+- Users need a way to store, back up, and synchronize their preferences and Evidence Locker manual data across multiple devices.
 - Netflix Narc operates strictly as a local-first application and must **never act as a central data hosting platform**, preserving user privacy and zero server maintenance costs.
 
 **Decision**:

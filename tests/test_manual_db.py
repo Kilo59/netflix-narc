@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -12,6 +13,7 @@ import pytest
 import pytest_asyncio
 
 from netflix_narc.manual_db import EvidenceLocker, ManualMetadata
+from netflix_narc.sync.models import DossierSyncItem
 
 
 @pytest_asyncio.fixture
@@ -253,6 +255,44 @@ async def test_dump_and_load_dossiers(temp_db: EvidenceLocker) -> None:
     rec2 = await db2.get_record("Show X")
     assert rec2 is not None
     assert rec2.user_rating == 4.5
+
+
+@pytest.mark.asyncio
+async def test_load_dossiers_lww_newer_incoming_overwrites(temp_db: EvidenceLocker) -> None:
+    """load_dossiers should overwrite local record when incoming updated_at is newer."""
+    old_time = dt.datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt.UTC)
+    new_time = dt.datetime(2026, 1, 2, 12, 0, 0, tzinfo=dt.UTC)
+
+    await temp_db.upsert_record(
+        ManualMetadata(title="LWW Show", user_rating=3.0, updated_at=old_time)
+    )
+
+    incoming = [DossierSyncItem(title="LWW Show", user_rating=5.0, updated_at=new_time)]
+    updated_count = await temp_db.load_dossiers(incoming)
+    assert updated_count == 1
+
+    record = await temp_db.get_record("LWW Show")
+    assert record is not None
+    assert record.user_rating == 5.0
+
+
+@pytest.mark.asyncio
+async def test_load_dossiers_lww_older_incoming_ignored(temp_db: EvidenceLocker) -> None:
+    """load_dossiers should NOT overwrite local record when incoming updated_at is older."""
+    new_time = dt.datetime(2026, 1, 2, 12, 0, 0, tzinfo=dt.UTC)
+    old_time = dt.datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt.UTC)
+
+    await temp_db.upsert_record(
+        ManualMetadata(title="LWW Show", user_rating=5.0, updated_at=new_time)
+    )
+
+    incoming = [DossierSyncItem(title="LWW Show", user_rating=1.0, updated_at=old_time)]
+    updated_count = await temp_db.load_dossiers(incoming)
+    assert updated_count == 0
+
+    record = await temp_db.get_record("LWW Show")
+    assert record is not None
+    assert record.user_rating == 5.0
 
 
 @pytest.mark.asyncio

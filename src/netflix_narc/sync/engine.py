@@ -84,15 +84,38 @@ class SyncEngine:
             evidence_locker=dossiers,
         )
 
+    def _update_provider_and_mode(self, item: SettingsSyncItem) -> None:
+        """Update active rating provider and scoring mode if valid."""
+        if self.settings is None:
+            return
+
+        if item.active_rating_provider:
+            try:
+                self.settings.active_rating_provider = RatingProviderType(
+                    item.active_rating_provider
+                )
+            except ValueError:
+                logger.warning(
+                    "Ignoring invalid active_rating_provider in sync item: %s",
+                    item.active_rating_provider,
+                )
+
+        if item.scoring_mode:
+            try:
+                self.settings.scoring_mode = ScoringMode(item.scoring_mode)
+            except ValueError:
+                logger.warning(
+                    "Ignoring invalid scoring_mode in sync item: %s",
+                    item.scoring_mode,
+                )
+
     def _apply_settings(self, item: SettingsSyncItem) -> None:
         """Update in-memory Settings object and persist to .env file."""
         if self.settings is None:
             return
 
-        if item.active_rating_provider:
-            self.settings.active_rating_provider = RatingProviderType(item.active_rating_provider)
-        if item.scoring_mode:
-            self.settings.scoring_mode = ScoringMode(item.scoring_mode)
+        self._update_provider_and_mode(item)
+
         if item.child_age_range is not None:
             self.settings.child_age_range = item.child_age_range
         if item.max_age_rating is not None:
@@ -100,7 +123,17 @@ class SyncEngine:
         if item.min_quality_rating is not None:
             self.settings.min_quality_rating = item.min_quality_rating
         if item.category_weights:
-            self.settings.weights = CategoryWeights.model_validate(item.category_weights)
+            try:
+                self.settings.weights = CategoryWeights.model_validate(item.category_weights)
+            except ValueError:
+                logger.warning("Ignoring invalid category_weights in sync item")
+
+        self._persist_settings_to_env()
+
+    def _persist_settings_to_env(self) -> None:
+        """Persist current in-memory Settings to .env file."""
+        if self.settings is None:
+            return
 
         extra_env = {
             "SCORING_MODE": str(self.settings.scoring_mode),
