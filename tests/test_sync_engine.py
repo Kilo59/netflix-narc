@@ -68,7 +68,9 @@ async def test_sync_engine_two_client_sync(tmp_path: pathlib.Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_sync_engine_settings_synced_across_devices(tmp_path: pathlib.Path) -> None:
+async def test_sync_engine_settings_synced_across_devices(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Settings updated on Client A should synchronize to Client B's in-memory Settings."""
     shared_sync_dir = tmp_path / "settings_sync_folder"
     env_a = tmp_path / "env_a.env"
@@ -89,6 +91,12 @@ async def test_sync_engine_settings_synced_across_devices(tmp_path: pathlib.Path
     )
 
     settings_b = Settings(_env_file=str(env_b))  # type: ignore[call-arg]
+
+    monkeypatch.setattr(
+        Settings,
+        "get_env_file_path",
+        lambda self: env_a if self is settings_a else env_b,
+    )
 
     locker_a = EvidenceLocker(tmp_path / "a.sqlite")
     await locker_a.init()

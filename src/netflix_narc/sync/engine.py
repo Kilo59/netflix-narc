@@ -132,12 +132,7 @@ class SyncEngine:
         if self.settings is None:
             return
 
-        extra_env = {
-            "SCORING_MODE": str(self.settings.scoring_mode),
-            "MAX_AGE_RATING": str(self.settings.max_age_rating),
-            "MIN_QUALITY_RATING": str(self.settings.min_quality_rating),
-        }
-        api_key = (
+        persist_key = (
             self.settings.omdb_api_key
             if self.settings.active_rating_provider == RatingProviderType.OMDB
             else self.settings.csm_api_key
@@ -145,11 +140,15 @@ class SyncEngine:
 
         update_env_file(
             provider=self.settings.active_rating_provider,
-            api_key=api_key,
-            env_path=self.settings.get_env_file_path(),
+            api_key=persist_key,
             child_age_range=self.settings.child_age_range,
             weights=self.settings.weights,
-            extra_env=extra_env,
+            env_path=self.settings.get_env_file_path(),
+            extra_env={
+                "SCORING_MODE": str(self.settings.scoring_mode.value),
+                "MAX_AGE_RATING": str(self.settings.max_age_rating),
+                "MIN_QUALITY_RATING": str(self.settings.min_quality_rating),
+            },
         )
 
     async def apply_bundle_to_local(self, bundle: SyncBundle) -> int:
