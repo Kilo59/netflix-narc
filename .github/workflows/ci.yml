@@ -89,6 +89,8 @@ jobs:
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          key: pyapp-${{ env.PYAPP_VERSION || '0.24.0' }}
 
       - name: Test Standalone Binary Build via PyApp
         run: uv run --only-group build invoke build-binary

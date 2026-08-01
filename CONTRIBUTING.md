@@ -22,6 +22,15 @@ We use [uv](https://docs.astral.sh/uv/) for package management and environment i
     uv run pre-commit install
     ```
 
+4.  **(Optional) Install Rust for local binary builds**:
+    If you want to test building standalone executables locally via `uv run invoke build-binary`, ensure the Rust toolchain (`cargo`) is installed:
+    ```bash
+    # Install via rustup (recommended)
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    # Or via Homebrew on macOS
+    brew install rust
+    ```
+
 ## Development Workflow
 
 ### Running the Application
@@ -117,6 +126,10 @@ When preparing a new release for PyPI and GitHub:
    uv build
    # Build local PyApp standalone single-file executable
    uv run invoke build-binary
+   ```
+   *Note: `build-binary` uses PyApp `0.24.0` by default. You can test with a custom PyApp version using the `PYAPP_VERSION` environment variable:*
+   ```bash
+   PYAPP_VERSION=0.24.0 uv run invoke build-binary
    ```
 
 5. **Commit and Tag**:

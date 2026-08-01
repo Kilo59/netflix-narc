@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 import shutil
 import tomllib
@@ -15,6 +16,8 @@ if TYPE_CHECKING:
 # Project constants
 PROJECT_NAME = "netflix-narc"
 PYPROJECT_TOML = pathlib.Path("pyproject.toml")
+DEFAULT_PYAPP_VERSION = "0.24.0"
+PYAPP_VERSION = os.getenv("PYAPP_VERSION", DEFAULT_PYAPP_VERSION)
 
 
 @task(
@@ -110,8 +113,18 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
     if embed:
         env["PYAPP_EMBED"] = "1"
 
+    # NOTE(maintainers): PyApp bakes project metadata and wheel binaries into the executable
+    # at compile time via Rust's build.rs (`PYAPP_EMBED=1`). Therefore, a generic pre-compiled
+    # binary (e.g. via cargo-binstall) cannot be used. We specify `--version` and `--locked` to
+    # pin the exact PyApp crate and force Cargo to use PyApp's upstream Cargo.lock for 100%
+    # deterministic builds. PYAPP_VERSION can be overridden via environment variable if needed.
     bin_dir = dist_dir / "bin"
-    ctx.run(f"cargo install pyapp --root {bin_dir}", echo=True, pty=True, env=env)
+    ctx.run(
+        f"cargo install pyapp --version {PYAPP_VERSION} --locked --root {bin_dir}",
+        echo=True,
+        pty=True,
+        env=env,
+    )
 
     compiled_bin = bin_dir / "bin" / "pyapp"
     if not compiled_bin.exists():

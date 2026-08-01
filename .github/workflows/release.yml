@@ -50,29 +50,17 @@ jobs:
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          key: pyapp-${{ env.PYAPP_VERSION || '0.24.0' }}
 
       - name: Build Standalone Executable via PyApp
         shell: bash
-        env:
-          PYAPP_PROJECT_NAME: "netflix-narc"
-          PYAPP_EXEC_SPEC: "netflix_narc.main:main"
-          PYAPP_PYTHON_VERSION: "3.13"
-          PYAPP_EMBED: "1"
         run: |
-          WHEEL_PATH=$(ls -t dist/*.whl | head -n 1)
-          export PYAPP_PROJECT_VERSION=$(uv run invoke get-project-version)
-          export PYAPP_WHEEL_FILE="$(pwd)/$WHEEL_PATH"
-          cargo install pyapp --root dist/bin
-
-
-
-
-
-
-          if [ -f "dist/bin/bin/pyapp.exe" ]; then
-            cp "dist/bin/bin/pyapp.exe" "dist/${{ matrix.binary_name }}"
-          else
-            cp "dist/bin/bin/pyapp" "dist/${{ matrix.binary_name }}"
+          uv run --only-group build invoke build-binary
+          if [ -f "dist/netflix-narc.exe" ]; then
+            cp "dist/netflix-narc.exe" "dist/${{ matrix.binary_name }}"
+          elif [ -f "dist/netflix-narc" ]; then
+            cp "dist/netflix-narc" "dist/${{ matrix.binary_name }}"
           fi
           chmod +x "dist/${{ matrix.binary_name }}" || true
 
