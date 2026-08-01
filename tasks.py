@@ -85,18 +85,28 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
         raise RuntimeError(msg)
     latest_wheel = max(wheels, key=lambda p: p.stat().st_mtime)
     print(f"Building PyApp binary for wheel: {latest_wheel}")  # noqa: T201
-    env = {"PYAPP_EMBED": "1"} if embed else None
-    if not shutil.which("pyapp"):
-        print("pyapp CLI not found in PATH. Installing via cargo install pyapp...")  # noqa: T201
-        ctx.run("cargo install pyapp", echo=True, pty=True)
-    ctx.run(f"pyapp build {latest_wheel}", echo=True, pty=True, env=env)
 
-    # Set executable permissions on unix platforms
-    binary_path = dist_dir / "netflix-narc"
-    if binary_path.exists():
-        binary_path.chmod(0o755)
+    env = {
+        "PYAPP_PROJECT_NAME": "netflix-narc",
+        "PYAPP_EXEC_SPEC": "netflix_narc.main:main",
+        "PYAPP_PYTHON_VERSION": "3.13",
+        "PYAPP_WHEEL_FILE": str(latest_wheel.resolve()),
+    }
+    if embed:
+        env["PYAPP_EMBED"] = "1"
 
-    if archive and binary_path.exists():
+    bin_dir = dist_dir / "bin"
+    ctx.run(f"cargo install pyapp --root {bin_dir}", echo=True, pty=True, env=env)
+
+    compiled_bin = bin_dir / "bin" / "pyapp"
+    if not compiled_bin.exists():
+        compiled_bin = bin_dir / "bin" / "pyapp.exe"
+
+    target_bin = dist_dir / "netflix-narc"
+    shutil.copy(compiled_bin, target_bin)
+    target_bin.chmod(0o755)
+
+    if archive and target_bin.exists():
         tarball_path = dist_dir / "netflix-narc.tar.gz"
         print(f"Archiving binary to: {tarball_path}")  # noqa: T201
         ctx.run(f"tar -czf {tarball_path} -C {dist_dir} netflix-narc", echo=True, pty=True)

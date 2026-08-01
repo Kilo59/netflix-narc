@@ -48,17 +48,23 @@ jobs:
       - name: Build Wheel
         run: uv build --wheel
 
-      - name: Install PyApp CLI
-        run: cargo install pyapp
-
       - name: Build Standalone Executable via PyApp
         shell: bash
         env:
+          PYAPP_PROJECT_NAME: "netflix-narc"
+          PYAPP_EXEC_SPEC: "netflix_narc.main:main"
+          PYAPP_PYTHON_VERSION: "3.13"
           PYAPP_EMBED: "1"
         run: |
           WHEEL_PATH=$(ls -t dist/*.whl | head -n 1)
-          pyapp build "$WHEEL_PATH" --output "dist/${{ matrix.binary_name }}"
+          PYAPP_WHEEL_FILE="$(pwd)/$WHEEL_PATH" cargo install pyapp --root dist/bin
+          if [ -f "dist/bin/bin/pyapp.exe" ]; then
+            cp "dist/bin/bin/pyapp.exe" "dist/${{ matrix.binary_name }}"
+          else
+            cp "dist/bin/bin/pyapp" "dist/${{ matrix.binary_name }}"
+          fi
           chmod +x "dist/${{ matrix.binary_name }}" || true
+
 
 
 
