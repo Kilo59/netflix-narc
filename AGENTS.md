@@ -24,6 +24,7 @@ gh pr checks <number>              # See CI status for a PR
 ## Tech Stack
 
 - **Python** ≥ 3.13
+- **Rust** (Optional for local binary builds via PyApp; required in CI)
 - **Package Manager**: [uv](https://docs.astral.sh/uv/) — Use `uv run <command>` for all executions.
 - **TUI Framework**: [Textual](https://textual.textualize.io/) (`>=8.1.1`)
 - **HTTP Client**: [httpx](https://www.python-httpx.org/) (sync, via hishel)
@@ -38,6 +39,12 @@ gh pr checks <number>              # See CI status for a PR
 ## Project Structure
 
 ```text
+Cargo.toml                      # Rust package manifest (PyApp launcher dependency)
+Cargo.lock                      # Locked Rust dependency tree
+pyproject.toml                  # Python project metadata & dependencies
+tasks.py                        # Invoke development task runner
+CONTRIBUTING.md                 # Local setup, workflow, and release process documentation
+CHANGELOG.md                    # User-facing changelog per release
 .agent/                         # Design docs (architecture, API design, plan, ADRs)
   architecture.md
   decisions.md
@@ -54,29 +61,32 @@ gh pr checks <number>              # See CI status for a PR
   skills/
     hishel/SKILL.md             # How to use the hishel caching library
     textual/SKILL.md            # How to use the Textual TUI framework
-src/netflix_narc/
-  parser.py                     # Parses ViewingHistory.csv
-  csm_api.py                    # Common Sense Media API client (hishel cached)
-  omdb_api.py                   # OMDb API client (hishel cached)
-  factory.py                    # Instantiates the correct RatingProvider
-  evaluator.py                  # Applies user weights to NormalizedMetadata
-  rating_api.py                 # RatingProvider Protocol + NormalizedMetadata model
-  settings.py                   # pydantic-settings config; get_config_dir() for XDG path
-  persistence.py                # Writes all settings (incl. WEIGHTS__*) to config dir .env
-  manual_db.py                  # The Evidence Locker (async SQLite for manual data)
-  onboarding.py                 # [PLANNED] First-run multi-step wizard (OnboardingScreen)
-  preferences.py                # [PLANNED] Always-accessible settings panel (PreferencesScreen)
-  lineup.py                     # The Lineup Screen (Discovery Queue UI)
-  interrogation_room.py         # The Interrogation Room Screen (Manual Data Entry UI)
-  main.py                       # Textual TUI entrypoint
+src/
+  rust/
+    main.rs                     # Entrypoint for Rust launcher package
+  netflix_narc/
+    parser.py                     # Parses ViewingHistory.csv
+    csm_api.py                    # Common Sense Media API client (hishel cached)
+    omdb_api.py                   # OMDb API client (hishel cached)
+    factory.py                    # Instantiates the correct RatingProvider
+    evaluator.py                  # Applies user weights to NormalizedMetadata
+    rating_api.py                 # RatingProvider Protocol + NormalizedMetadata model
+    settings.py                   # pydantic-settings config; get_config_dir() for XDG path
+    persistence.py                # Writes all settings (incl. WEIGHTS__*) to config dir .env
+    manual_db.py                  # The Evidence Locker (async SQLite for manual data)
+    onboarding.py                 # First-run multi-step wizard (OnboardingScreen)
+    preferences.py                # Always-accessible settings panel (PreferencesScreen)
+    lineup.py                     # The Lineup Screen (Discovery Queue UI)
+    interrogation_room.py         # The Interrogation Room Screen (Manual Data Entry UI)
+    main.py                       # Textual TUI entrypoint
 tests/
   conftest.py                   # Shared fixtures (fake_settings, response payloads)
   test_evaluation.py            # Unit tests for evaluator.py
   test_parser.py                # Unit tests for parser.py
   test_rating_api.py            # HTTP-mocked tests for API clients (respx)
   test_project.py               # Meta-tests (config consistency checks)
-  test_persistence.py           # [PLANNED] Round-trip tests for settings persistence
-  test_onboarding.py            # [PLANNED] Structural tests for OnboardingScreen
+  test_persistence.py           # Round-trip tests for settings persistence
+  test_onboarding.py            # Structural tests for OnboardingScreen
 ```
 
 After ANY code change, validate with the following tools in this order. **ALWAYS prefix with `uv run`**:
