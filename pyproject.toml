@@ -34,6 +34,12 @@ netflix-narc = "netflix_narc.main:main"
 [tool.uv]
 package = true
 
+[tool.pyapp]
+project = "netflix-narc"
+exec-spec = "netflix_narc.main:main"
+python-version = "3.13"
+
+
 [dependency-groups]
 dev = [
     "invoke>=2.2.1",

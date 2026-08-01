@@ -66,3 +66,22 @@ def test(ctx: Context, *, coverage: bool = False) -> None:  # noqa: PT028
 def deps(ctx: Context) -> None:
     """Sync dependencies with uv lock file."""
     ctx.run("uv sync", echo=True, pty=True)
+
+
+@task(
+    help={
+        "embed": "Embed CPython runtime and wheel directly into binary for offline execution",
+    }
+)
+def build_binary(ctx: Context, *, embed: bool = True) -> None:
+    """Build a standalone single-file binary using PyApp."""
+    ctx.run("uv build --wheel", echo=True, pty=True)
+    dist_dir = pathlib.Path("dist")
+    wheels = list(dist_dir.glob("*.whl"))
+    if not wheels:
+        msg = "No wheel found in dist/ directory after build."
+        raise RuntimeError(msg)
+    latest_wheel = max(wheels, key=lambda p: p.stat().st_mtime)
+    print(f"Building PyApp binary for wheel: {latest_wheel}")  # noqa: T201
+    env_flag = "PYAPP_EMBED=1 " if embed else ""
+    ctx.run(f"{env_flag}uvx pyapp build {latest_wheel}", echo=True, pty=True)
