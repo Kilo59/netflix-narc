@@ -99,7 +99,7 @@ This project follows [Semantic Versioning (SemVer 2.0.0)](https://semver.org/spe
 
 Releasing `netflix-narc` follows a structured two-phase process:
 
-#### Phase 1: Pre-Release Preparation (Artifacts on `main`)
+#### Phase 1: Pre-Release Preparation (Branch & Merge to `main`)
 
 1. **Verify Local Quality Checks**:
    Ensure all quality checks pass locally before making release edits:
@@ -110,7 +110,13 @@ Releasing `netflix-narc` follows a structured two-phase process:
    uv run pytest -vv
    ```
 
-2. **Bump Version Number**:
+2. **Create a Release Branch**:
+   When preparing release artifacts that are not yet on `main`, create a dedicated release branch:
+   ```bash
+   git checkout -b release/vX.Y.Z
+   ```
+
+3. **Bump Version Number**:
    Use `uv version` to bump the project version in `pyproject.toml` (e.g. `uv version patch`, `uv version minor`, `uv version 0.1.0`):
    ```bash
    uv version minor
@@ -118,15 +124,17 @@ Releasing `netflix-narc` follows a structured two-phase process:
    uv version 0.1.0
    ```
 
-3. **Update `CHANGELOG.md`**:
+4. **Update `CHANGELOG.md`**:
    - Move all completed entries under `## [Unreleased]` into a new version header with today's date (e.g., `## [0.1.0] - YYYY-MM-DD`).
    - Add a fresh empty `## [Unreleased]` section at the top of the file.
 
-4. **Commit & Push Changes to `main`**:
-   Commit the version bump and `CHANGELOG.md` updates, and ensure all release artifacts exist on `main` prior to tagging:
+5. **Commit, Push Branch, Open PR & Merge to `main`**:
+   Commit the version bump and `CHANGELOG.md` updates, push the release branch, open a PR, and merge it into `main` so that all release artifacts exist on `main` prior to tagging:
    ```bash
    git commit -am "chore: release vX.Y.Z"
-   git push origin main
+   git push -u origin release/vX.Y.Z
+   gh pr create --title "chore: release vX.Y.Z" --body "Release preparation for vX.Y.Z"
+   # Once reviewed, merge the PR into main
    ```
 
 ---
