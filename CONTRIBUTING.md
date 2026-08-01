@@ -109,28 +109,28 @@ When preparing a new release for PyPI and GitHub:
    ```
 
 2. **Bump Version Number**:
-   Use `uv version` to bump the project version in `pyproject.toml` (e.g. `uv version patch`, `uv version minor`, `uv version 0.1.0`):
+   Use `uv version` to bump the project version in `pyproject.toml` (e.g. `uv version patch`, `uv version minor`, `uv version X.Y.Z`):
    ```bash
    uv version minor
    # or explicitly:
-   uv version 0.1.0
+   uv version X.Y.Z
    ```
 
 3. **Update `CHANGELOG.md`**:
-   - Move entries from `[Unreleased]` to a new version header with today's date (e.g. `## [0.1.0] - YYYY-MM-DD`).
+   - Move entries from `[Unreleased]` to a new version header with today's date (e.g. `## [X.Y.Z] - YYYY-MM-DD`).
    - Add a fresh empty `## [Unreleased]` section at the top of the file.
 
 4. **Commit & Push to `main`**:
    Commit the version bump and `CHANGELOG.md` updates so that all release artifacts exist on `main` prior to tagging:
    ```bash
-   git commit -am "chore: release v0.1.0"
+   git commit -am "chore: release vX.Y.Z"
    git push origin main
    ```
 
 5. **Tag the Release Commit**:
    Create an annotated git tag prefixed with `v` on `main`:
    ```bash
-   git tag -a v0.1.0 -m "Release v0.1.0"
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
    ```
 
 6. **Push Tag to Trigger CI Publishing**:
@@ -149,5 +149,5 @@ When preparing a new release for PyPI and GitHub:
 
 8. **Post-Release Narrative Update**:
    Once the automated GitHub Release is created by CI:
-   - Edit the GitHub Release (via GitHub Web UI or `gh release edit v0.1.0`).
+   - Edit the GitHub Release (via GitHub Web UI or `gh release edit vX.Y.Z`).
    - Add a high-level narrative summary providing release highlights, architectural updates, visual previews, and upgrade guidance beyond raw `CHANGELOG.md` bullet points.
