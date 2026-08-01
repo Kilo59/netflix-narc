@@ -24,7 +24,7 @@ gh pr checks <number>              # See CI status for a PR
 ## Tech Stack
 
 - **Python** ≥ 3.13
-- **Rust** (Optional for local binary builds via PyApp; required in CI)
+- **Rust** (Optional for local binary builds via PyApp; required in CI) — CI uses [`sccache`](https://github.com/mozilla/sccache) to cache individual crate compilation units (see `pre-publish` job in `.github/workflows/ci.yml`)
 - **Package Manager**: [uv](https://docs.astral.sh/uv/) — Use `uv run <command>` for all executions.
 - **TUI Framework**: [Textual](https://textual.textualize.io/) (`>=8.1.1`)
 - **HTTP Client**: [httpx](https://www.python-httpx.org/) (sync, via hishel)
@@ -61,8 +61,6 @@ CHANGELOG.md                    # User-facing changelog per release
     hishel/SKILL.md             # How to use the hishel caching library
     textual/SKILL.md            # How to use the Textual TUI framework
 src/
-  rust/
-    main.rs                     # Entrypoint for Rust launcher package
   netflix_narc/
     parser.py                     # Parses ViewingHistory.csv
     csm_api.py                    # Common Sense Media API client (hishel cached)

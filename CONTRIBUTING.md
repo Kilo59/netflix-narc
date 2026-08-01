@@ -149,5 +149,6 @@ When preparing a new release for PyPI and GitHub:
    Pushing a `v*` tag triggers the [.github/workflows/release.yml](file:///.github/workflows/release.yml) GitHub Actions workflow, which will automatically:
    - Build the wheel distribution using `uv build`.
    - Compile standalone zero-dependency executables via **PyApp** for **macOS Apple Silicon** (`aarch64-apple-darwin`), **macOS Intel** (`x86_64-apple-darwin`), **Linux** (`x86_64-unknown-linux-gnu`), and **Windows** (`x86_64-pc-windows-msvc.exe`).
+     PyApp's dependency crates are cached between runs using [`sccache`](https://github.com/mozilla/sccache) (see `pre-publish` job in `.github/workflows/ci.yml`). Only the final `pyapp` crate recompiles on each run to embed the freshly built wheel.
    - Publish the wheel package to [PyPI](https://pypi.org/project/netflix-narc/) via Trusted Publishing.
    - Create a GitHub Release with all pre-compiled standalone binary executables and wheels attached.
