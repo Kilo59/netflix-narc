@@ -120,16 +120,12 @@ When preparing a new release for PyPI and GitHub:
    - Move entries from `[Unreleased]` to a new version header with today's date (e.g. `## [0.1.0] - YYYY-MM-DD`).
    - Add a fresh empty `## [Unreleased]` section at the top.
 
-4. **Verify Build Package & Standalone Binary**:
-   Test building wheels and standalone executables locally:
+4. **Optional: Local Build Verification (Not Required for Releases)**:
+   Building wheels and standalone executables locally is optional for development testing. **You do NOT need to build packages or binaries locally during release preparation** — GitHub Actions CI handles all building and packaging automatically upon tag push.
    ```bash
+   # Optional local verification only:
    uv build
-   # Build local PyApp standalone single-file executable
    uv run invoke build-binary
-   ```
-   *Note: `build-binary` uses PyApp `0.24.0` by default. You can test with a custom PyApp version using the `PYAPP_VERSION` environment variable:*
-   ```bash
-   PYAPP_VERSION=0.24.0 uv run invoke build-binary
    ```
 
 5. **Commit and Tag**:

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a3] - 2026-08-01
+
+### Added
+- **Standalone Binaries via PyApp**: Support for building and distributing zero-dependency executables for macOS (ARM64 & Intel), Linux (x86_64), and Windows (x86_64) via `pyapp` and `invoke build-binary`.
+- **CI Build & Caching**: Integrated `sccache` in GitHub Actions CI for fast incremental compilation of PyApp executable dependencies.
+
+### Changed
+- Bumped `idna` dependency from 3.11 to 3.15.
+- Bumped `msgpack` dependency from 1.1.2 to 1.2.1.
+
 ## [0.1.0a2] - 2026-07-31
 
 ### Added
