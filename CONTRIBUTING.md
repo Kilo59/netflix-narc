@@ -111,10 +111,12 @@ When preparing a new release for PyPI and GitHub:
    - Move entries from `[Unreleased]` to a new version header with today's date (e.g. `## [0.1.0] - YYYY-MM-DD`).
    - Add a fresh empty `## [Unreleased]` section at the top.
 
-4. **Verify Build Package**:
-   Test building the wheel and source distribution:
+4. **Verify Build Package & Standalone Binary**:
+   Test building wheels and standalone executables locally:
    ```bash
    uv build
+   # Build local PyApp standalone single-file executable
+   uv run invoke build-binary
    ```
 
 5. **Commit and Tag**:
@@ -132,6 +134,7 @@ When preparing a new release for PyPI and GitHub:
 
 7. **Automated CI/CD Release**:
    Pushing a `v*` tag triggers the [.github/workflows/release.yml](file:///.github/workflows/release.yml) GitHub Actions workflow, which will automatically:
-   - Build the package distribution using `uv build`.
-   - Publish the artifacts to [PyPI](https://pypi.org/project/netflix-narc/) via PyPI Trusted Publishing.
-   - Create a GitHub Release with dist assets and generated release notes.
+   - Build the wheel distribution using `uv build`.
+   - Compile standalone zero-dependency executables via **PyApp** for **macOS Apple Silicon** (`aarch64-apple-darwin`), **macOS Intel** (`x86_64-apple-darwin`), **Linux** (`x86_64-unknown-linux-gnu`), and **Windows** (`x86_64-pc-windows-msvc.exe`).
+   - Publish the wheel package to [PyPI](https://pypi.org/project/netflix-narc/) via Trusted Publishing.
+   - Create a GitHub Release with all pre-compiled standalone binary executables and wheels attached.

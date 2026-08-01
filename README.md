@@ -26,13 +26,35 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- **Python 3.13+**
-- **`uv`** (recommended for package management and local development; optional if installing via `pipx` or `pip`)
+### ⚡ Quick Start: Standalone Executable (Recommended — No Python Required!)
 
-### Quick Install (recommended)
+Download a single pre-compiled binary from [GitHub Releases](https://github.com/Kilo59/netflix-narc/releases). No Python, `uv`, or package setup required.
 
-#### Via `uv` tool (PyPI)
+#### macOS & Linux
+1. Download the binary for your architecture from the [Latest Release](https://github.com/Kilo59/netflix-narc/releases/latest):
+   - **macOS (Apple Silicon M1/M2/M3/M4)**: `netflix-narc-aarch64-apple-darwin`
+   - **macOS (Intel)**: `netflix-narc-x86_64-apple-darwin`
+   - **Linux**: `netflix-narc-x86_64-unknown-linux-gnu`
+2. Make it executable and launch:
+   ```bash
+   chmod +x netflix-narc-aarch64-apple-darwin
+   ./netflix-narc-aarch64-apple-darwin --csv /path/to/NetflixViewingHistory.csv
+   ```
+
+#### Windows
+1. Download `netflix-narc-x86_64-pc-windows-msvc.exe` from the [Latest Release](https://github.com/Kilo59/netflix-narc/releases/latest).
+2. Run from Command Prompt or PowerShell:
+   ```powershell
+   .\netflix-narc-x86_64-pc-windows-msvc.exe --csv C:\path\to\NetflixViewingHistory.csv
+   ```
+
+---
+
+### 🐍 Alternative: Package Manager & Source Install (Requires Python 3.13+)
+
+If you already have Python 3.13+ and prefer using a package manager:
+
+#### Via `uv tool` (PyPI)
 
 ```bash
 uv tool install netflix-narc
@@ -47,17 +69,18 @@ pipx install netflix-narc
 pip install netflix-narc
 ```
 
-#### From GitHub
+#### From GitHub Source
 
 ```bash
 uv tool install git+https://github.com/Kilo59/netflix-narc
 ```
 
-### Development Install
+### Development Setup
 
 1. Clone the repository and navigate into the `netflix-narc` directory.
 2. Install dependencies with `uv sync`.
 3. Run via `uv run netflix-narc`.
+
 
 ### Prerequisites & Setup
 - Python 3.13+
