@@ -28,9 +28,6 @@ jobs:
             target: x86_64-pc-windows-msvc
             binary_name: netflix-narc-x86_64-pc-windows-msvc.exe
 
-    env:
-      PYAPP_VERSION: "0.24.0"
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,8 +47,6 @@ jobs:
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
-        with:
-          key: pyapp-${{ env.PYAPP_VERSION }}
 
       - name: Build Standalone Executable via PyApp
         shell: bash
