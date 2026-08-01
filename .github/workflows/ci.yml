@@ -62,7 +62,9 @@ jobs:
         run: uv run invoke test
 
   pre-publish:
-    name: Test package installation & binary build
+    # WARNING: This name is a required status check in GitHub branch protection.
+    # Do NOT rename without also updating Settings → Branches → main → Required status checks.
+    name: Build verification
     needs: [static-analysis, tests]
     if: >-
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
