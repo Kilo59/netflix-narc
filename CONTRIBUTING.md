@@ -122,8 +122,8 @@ Releasing `netflix-narc` follows a structured two-phase process:
    - Move all completed entries under `## [Unreleased]` into a new version header with today's date (e.g., `## [0.1.0] - YYYY-MM-DD`).
    - Add a fresh empty `## [Unreleased]` section at the top of the file.
 
-4. **Commit & Ensure Changes on `main`**:
-   Commit the version bump and `CHANGELOG.md` updates. Changes can be committed directly to `main` or merged into `main` via PR — **the requirement is that all release artifacts exist on `main` prior to tagging**.
+4. **Commit & Push Changes to `main`**:
+   Commit the version bump and `CHANGELOG.md` updates, and ensure all release artifacts exist on `main` prior to tagging:
    ```bash
    git commit -am "chore: release vX.Y.Z"
    git push origin main
