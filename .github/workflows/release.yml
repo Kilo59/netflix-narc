@@ -51,7 +51,8 @@ jobs:
       - name: Build Standalone Executable via PyApp
         shell: bash
         run: |
-          uv run --only-group build invoke build-binary
+          uv run --only-group build invoke build-binary --no-archive
+
           if [ -f "dist/netflix-narc.exe" ]; then
             cp "dist/netflix-narc.exe" "dist/${{ matrix.binary_name }}"
           elif [ -f "dist/netflix-narc" ]; then

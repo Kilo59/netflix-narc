@@ -39,9 +39,8 @@ gh pr checks <number>              # See CI status for a PR
 ## Project Structure
 
 ```text
-Cargo.toml                      # Rust package manifest (PyApp launcher dependency)
-Cargo.lock                      # Locked Rust dependency tree
 pyproject.toml                  # Python project metadata & dependencies
+
 tasks.py                        # Invoke development task runner
 CONTRIBUTING.md                 # Local setup, workflow, and release process documentation
 CHANGELOG.md                    # User-facing changelog per release
