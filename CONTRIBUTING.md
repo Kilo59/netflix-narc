@@ -97,10 +97,18 @@ This project follows [Semantic Versioning (SemVer 2.0.0)](https://semver.org/spe
 
 ### Release Steps
 
-When preparing a new release for PyPI and GitHub:
+Releasing `netflix-narc` follows a structured two-phase process:
 
-1. **Verify Local Quality Checks**:
-   Ensure all checks pass locally:
+#### Phase 1: Pre-Release Preparation & Pull Request
+
+1. **Create a Release Branch**:
+   Create a dedicated branch for preparing the release artifacts:
+   ```bash
+   git checkout -b release/vX.Y.Z
+   ```
+
+2. **Verify Local Quality Checks**:
+   Ensure all checks pass locally before making release edits:
    ```bash
    uv run ruff check .
    uv run ruff format --check .
@@ -108,7 +116,7 @@ When preparing a new release for PyPI and GitHub:
    uv run pytest -vv
    ```
 
-2. **Bump Version Number**:
+3. **Bump Version Number**:
    Use `uv version` to bump the project version in `pyproject.toml` (e.g. `uv version patch`, `uv version minor`, `uv version 0.1.0`):
    ```bash
    uv version minor
@@ -116,35 +124,53 @@ When preparing a new release for PyPI and GitHub:
    uv version 0.1.0
    ```
 
-3. **Update `CHANGELOG.md`**:
-   - Move entries from `[Unreleased]` to a new version header with today's date (e.g. `## [0.1.0] - YYYY-MM-DD`).
-   - Add a fresh empty `## [Unreleased]` section at the top.
+4. **Update `CHANGELOG.md`**:
+   - Move all completed entries under `## [Unreleased]` into a new version header with today's date (e.g., `## [0.1.0] - YYYY-MM-DD`).
+   - Add a fresh empty `## [Unreleased]` section at the top of the file.
 
-4. **Optional: Local Build Verification (Not Required for Releases)**:
-   Building wheels and standalone executables locally is optional for development testing. **You do NOT need to build packages or binaries locally during release preparation** — GitHub Actions CI handles all building and packaging automatically upon tag push.
+5. **Commit and Open PR**:
+   Commit the version bump and changelog updates, push the branch, and open a Pull Request for review:
    ```bash
-   # Optional local verification only:
-   uv build
-   uv run invoke build-binary
+   git commit -am "chore: prepare vX.Y.Z release"
+   git push -u origin release/vX.Y.Z
+   gh pr create --title "chore: release vX.Y.Z" --body "Release preparation for vX.Y.Z"
    ```
 
-5. **Commit and Tag**:
-   Commit the version bump and create an annotated git tag prefixed with `v`:
+6. **Merge to `main`**:
+   Once code review and CI checks pass on the PR, merge the PR into `main`.
+
+---
+
+#### Phase 2: Tagging, CI Release Publishing & Post-Release Narrative
+
+1. **Checkout and Update `main`**:
+   Switch to `main` and pull the merged pre-release PR:
    ```bash
-   git commit -am "chore: release v0.1.0"
-   git tag -a v0.1.0 -m "Release v0.1.0"
+   git checkout main
+   git pull origin main
    ```
 
-6. **Push Tag to Trigger Publishing**:
-   Push the main branch and the release tag to GitHub:
+2. **Tag the Release Commit**:
+   Create an annotated git tag prefixed with `v` on the merged `main` commit:
+   ```bash
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   ```
+
+3. **Push Tag to Trigger CI Publishing**:
+   Push `main` and the release tag to GitHub to trigger the automated release pipeline:
    ```bash
    git push origin main --tags
    ```
 
-7. **Automated CI/CD Release**:
-   Pushing a `v*` tag triggers the [.github/workflows/release.yml](file:///.github/workflows/release.yml) GitHub Actions workflow, which will automatically:
-   - Build the wheel distribution using `uv build`.
-   - Compile standalone zero-dependency executables via **PyApp** for **macOS Apple Silicon** (`aarch64-apple-darwin`), **macOS Intel** (`x86_64-apple-darwin`), **Linux** (`x86_64-unknown-linux-gnu`), and **Windows** (`x86_64-pc-windows-msvc.exe`).
+4. **Automated CI/CD Release Execution**:
+   Pushing a `v*` tag triggers the [.github/workflows/release.yml](file:///.github/workflows/release.yml) GitHub Actions workflow, which automatically:
+   - Builds the wheel & sdist distribution packages using `uv build`.
+   - Compiles standalone zero-dependency executables via **PyApp** for **macOS Apple Silicon** (`aarch64-apple-darwin`), **macOS Intel** (`x86_64-apple-darwin`), **Linux** (`x86_64-unknown-linux-gnu`), and **Windows** (`x86_64-pc-windows-msvc.exe`).
      PyApp's dependency crates are cached between runs using [`sccache`](https://github.com/mozilla/sccache) (see `pre-publish` job in `.github/workflows/ci.yml`). Only the final `pyapp` crate recompiles on each run to embed the freshly built wheel.
-   - Publish the wheel package to [PyPI](https://pypi.org/project/netflix-narc/) via Trusted Publishing.
-   - Create a GitHub Release with all pre-compiled standalone binary executables and wheels attached.
+   - Publishes the wheel package to [PyPI](https://pypi.org/project/netflix-narc/) via Trusted Publishing.
+   - Creates a GitHub Release with all pre-compiled standalone binary executables and wheels attached.
+
+5. **Post-Release Narrative Update**:
+   Once the automated GitHub Release is created:
+   - Edit the GitHub Release (via GitHub Web UI or `gh release edit vX.Y.Z`).
+   - Transform the raw `CHANGELOG.md` bullet points into a user-facing narrative highlighting major feature context, architectural improvements, visual previews, and upgrade guidance.
