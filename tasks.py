@@ -85,7 +85,7 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
     latest_wheel = max(wheels, key=lambda p: p.stat().st_mtime)
     print(f"Building PyApp binary for wheel: {latest_wheel}")  # noqa: T201
     env = {"PYAPP_EMBED": "1"} if embed else None
-    ctx.run(f"uvx pyapp build {latest_wheel}", echo=True, pty=True, env=env)
+    ctx.run(f"uv run --only-group build pyapp build {latest_wheel}", echo=True, pty=True, env=env)
 
     # Set executable permissions on unix platforms
     binary_path = dist_dir / "netflix-narc"

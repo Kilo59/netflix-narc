@@ -54,8 +54,10 @@ jobs:
           PYAPP_EMBED: "1"
         run: |
           WHEEL_PATH=$(ls -t dist/*.whl | head -n 1)
-          uvx pyapp build "$WHEEL_PATH" --output "dist/${{ matrix.binary_name }}"
+          uv run --only-group build pyapp build "$WHEEL_PATH" --output "dist/${{ matrix.binary_name }}"
           chmod +x "dist/${{ matrix.binary_name }}" || true
+
+
 
           mkdir -p dist/pkg
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then

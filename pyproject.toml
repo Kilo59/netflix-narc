@@ -33,6 +33,7 @@ netflix-narc = "netflix_narc.main:main"
 
 [tool.uv]
 package = true
+default-groups = ["dev"]
 
 [tool.pyapp]
 project = "netflix-narc"
@@ -51,6 +52,10 @@ dev = [
     "ruff>=0.15.14",
     "ruff-sync>=0.1.0",
 ]
+build = [
+    "pyapp>=4.16.1",
+]
+
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
