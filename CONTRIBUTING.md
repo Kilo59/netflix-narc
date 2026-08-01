@@ -97,12 +97,10 @@ This project follows [Semantic Versioning (SemVer 2.0.0)](https://semver.org/spe
 
 ### Release Steps
 
-Releasing `netflix-narc` follows a structured two-phase process:
-
-#### Phase 1: Pre-Release Preparation (Branch & Merge to `main`)
+When preparing a new release for PyPI and GitHub:
 
 1. **Verify Local Quality Checks**:
-   Ensure all quality checks pass locally before making release edits:
+   Ensure all checks pass locally:
    ```bash
    uv run ruff check .
    uv run ruff format --check .
@@ -110,13 +108,7 @@ Releasing `netflix-narc` follows a structured two-phase process:
    uv run pytest -vv
    ```
 
-2. **Create a Release Branch**:
-   When preparing release artifacts that are not yet on `main`, create a dedicated release branch:
-   ```bash
-   git checkout -b release/vX.Y.Z
-   ```
-
-3. **Bump Version Number**:
+2. **Bump Version Number**:
    Use `uv version` to bump the project version in `pyproject.toml` (e.g. `uv version patch`, `uv version minor`, `uv version 0.1.0`):
    ```bash
    uv version minor
@@ -124,38 +116,30 @@ Releasing `netflix-narc` follows a structured two-phase process:
    uv version 0.1.0
    ```
 
-4. **Update `CHANGELOG.md`**:
-   - Move all completed entries under `## [Unreleased]` into a new version header with today's date (e.g., `## [0.1.0] - YYYY-MM-DD`).
+3. **Update `CHANGELOG.md`**:
+   - Move entries from `[Unreleased]` to a new version header with today's date (e.g. `## [0.1.0] - YYYY-MM-DD`).
    - Add a fresh empty `## [Unreleased]` section at the top of the file.
 
-5. **Commit, Push Branch, Open PR & Merge to `main`**:
-   Commit the version bump and `CHANGELOG.md` updates, push the release branch, open a PR, and merge it into `main` so that all release artifacts exist on `main` prior to tagging:
+4. **Commit & Push to `main`**:
+   Commit the version bump and `CHANGELOG.md` updates so that all release artifacts exist on `main` prior to tagging:
    ```bash
-   git commit -am "chore: release vX.Y.Z"
-   git push -u origin release/vX.Y.Z
-   gh pr create --title "chore: release vX.Y.Z" --body "Release preparation for vX.Y.Z"
-   # Once reviewed, merge the PR into main
+   git commit -am "chore: release v0.1.0"
+   git push origin main
    ```
 
----
-
-#### Phase 2: Tagging, CI Release Publishing & Post-Release Narrative
-
-1. **Tag the Release Commit on `main`**:
-   Create an annotated git tag prefixed with `v` on the latest `main` commit containing the release artifacts:
+5. **Tag the Release Commit**:
+   Create an annotated git tag prefixed with `v` on `main`:
    ```bash
-   git checkout main
-   git pull origin main
-   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git tag -a v0.1.0 -m "Release v0.1.0"
    ```
 
-2. **Push Tag to Trigger CI Publishing**:
+6. **Push Tag to Trigger CI Publishing**:
    Push `main` and the release tag to GitHub to trigger the automated release pipeline:
    ```bash
    git push origin main --tags
    ```
 
-3. **Automated CI/CD Release Execution**:
+7. **Automated CI/CD Release Execution**:
    Pushing a `v*` tag triggers the [.github/workflows/release.yml](file:///.github/workflows/release.yml) GitHub Actions workflow, which automatically:
    - Builds the wheel & sdist distribution packages using `uv build`.
    - Compiles standalone zero-dependency executables via **PyApp** for **macOS Apple Silicon** (`aarch64-apple-darwin`), **macOS Intel** (`x86_64-apple-darwin`), **Linux** (`x86_64-unknown-linux-gnu`), and **Windows** (`x86_64-pc-windows-msvc.exe`).
@@ -163,7 +147,7 @@ Releasing `netflix-narc` follows a structured two-phase process:
    - Publishes the wheel package to [PyPI](https://pypi.org/project/netflix-narc/) via Trusted Publishing.
    - Creates a GitHub Release with all pre-compiled standalone binary executables and wheels attached.
 
-4. **Post-Release Narrative Update**:
+8. **Post-Release Narrative Update**:
    Once the automated GitHub Release is created by CI:
-   - Edit the GitHub Release (via GitHub Web UI or `gh release edit vX.Y.Z`).
-   - Add a high-level narrative summary providing release highlights, architectural updates, screenshots/media, and upgrade guidance beyond raw `CHANGELOG.md` bullet points.
+   - Edit the GitHub Release (via GitHub Web UI or `gh release edit v0.1.0`).
+   - Add a high-level narrative summary providing release highlights, architectural updates, visual previews, and upgrade guidance beyond raw `CHANGELOG.md` bullet points.
