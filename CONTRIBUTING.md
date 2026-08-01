@@ -109,46 +109,45 @@ When preparing a new release for PyPI and GitHub:
    ```
 
 2. **Bump Version Number**:
-   Use `uv version` to bump the project version in `pyproject.toml` (e.g. `uv version patch`, `uv version minor`, `uv version 0.1.0`):
+   Use `uv version` to bump the project version in `pyproject.toml` (e.g. `uv version patch`, `uv version minor`, `uv version X.Y.Z`):
    ```bash
    uv version minor
    # or explicitly:
-   uv version 0.1.0
+   uv version X.Y.Z
    ```
 
 3. **Update `CHANGELOG.md`**:
-   - Move entries from `[Unreleased]` to a new version header with today's date (e.g. `## [0.1.0] - YYYY-MM-DD`).
-   - Add a fresh empty `## [Unreleased]` section at the top.
+   - Move entries from `[Unreleased]` to a new version header with today's date (e.g. `## [X.Y.Z] - YYYY-MM-DD`).
+   - Add a fresh empty `## [Unreleased]` section at the top of the file.
 
-4. **Verify Build Package & Standalone Binary**:
-   Test building wheels and standalone executables locally:
+4. **Commit & Push to `main`**:
+   Commit the version bump and `CHANGELOG.md` updates so that all release artifacts exist on `main` prior to tagging:
    ```bash
-   uv build
-   # Build local PyApp standalone single-file executable
-   uv run invoke build-binary
-   ```
-   *Note: `build-binary` uses PyApp `0.24.0` by default. You can test with a custom PyApp version using the `PYAPP_VERSION` environment variable:*
-   ```bash
-   PYAPP_VERSION=0.24.0 uv run invoke build-binary
+   git commit -am "chore: release vX.Y.Z"
+   git push origin main
    ```
 
-5. **Commit and Tag**:
-   Commit the version bump and create an annotated git tag prefixed with `v`:
+5. **Tag the Release Commit**:
+   Create an annotated git tag prefixed with `v` on `main`:
    ```bash
-   git commit -am "chore: release v0.1.0"
-   git tag -a v0.1.0 -m "Release v0.1.0"
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
    ```
 
-6. **Push Tag to Trigger Publishing**:
-   Push the main branch and the release tag to GitHub:
+6. **Push Tag to Trigger CI Publishing**:
+   Push `main` and the release tag to GitHub to trigger the automated release pipeline:
    ```bash
    git push origin main --tags
    ```
 
-7. **Automated CI/CD Release**:
-   Pushing a `v*` tag triggers the [.github/workflows/release.yml](file:///.github/workflows/release.yml) GitHub Actions workflow, which will automatically:
-   - Build the wheel distribution using `uv build`.
-   - Compile standalone zero-dependency executables via **PyApp** for **macOS Apple Silicon** (`aarch64-apple-darwin`), **macOS Intel** (`x86_64-apple-darwin`), **Linux** (`x86_64-unknown-linux-gnu`), and **Windows** (`x86_64-pc-windows-msvc.exe`).
+7. **Automated CI/CD Release Execution**:
+   Pushing a `v*` tag triggers the [.github/workflows/release.yml](file:///.github/workflows/release.yml) GitHub Actions workflow, which automatically:
+   - Builds the wheel & sdist distribution packages using `uv build`.
+   - Compiles standalone zero-dependency executables via **PyApp** for **macOS Apple Silicon** (`aarch64-apple-darwin`), **macOS Intel** (`x86_64-apple-darwin`), **Linux** (`x86_64-unknown-linux-gnu`), and **Windows** (`x86_64-pc-windows-msvc.exe`).
      PyApp's dependency crates are cached between runs using [`sccache`](https://github.com/mozilla/sccache) (see `pre-publish` job in `.github/workflows/ci.yml`). Only the final `pyapp` crate recompiles on each run to embed the freshly built wheel.
-   - Publish the wheel package to [PyPI](https://pypi.org/project/netflix-narc/) via Trusted Publishing.
-   - Create a GitHub Release with all pre-compiled standalone binary executables and wheels attached.
+   - Publishes the wheel package to [PyPI](https://pypi.org/project/netflix-narc/) via Trusted Publishing.
+   - Creates a GitHub Release with all pre-compiled standalone binary executables and wheels attached.
+
+8. **Post-Release Narrative Update**:
+   Once the automated GitHub Release is created by CI:
+   - Edit the GitHub Release (via GitHub Web UI or `gh release edit vX.Y.Z`).
+   - Add a high-level narrative summary providing release highlights, architectural updates, visual previews, and upgrade guidance beyond raw `CHANGELOG.md` bullet points.
