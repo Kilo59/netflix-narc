@@ -41,6 +41,10 @@ jobs:
       - name: Set up Python
         run: uv python install 3.13
 
+      - name: Clean dist directory
+        shell: bash
+        run: rm -rf dist && mkdir -p dist
+
       - name: Build Wheel
         run: uv build --wheel
 
@@ -49,7 +53,7 @@ jobs:
         env:
           PYAPP_EMBED: "1"
         run: |
-          WHEEL_PATH=$(ls dist/*.whl | head -n 1)
+          WHEEL_PATH=$(ls -t dist/*.whl | head -n 1)
           uvx pyapp build "$WHEEL_PATH" --output "dist/${{ matrix.binary_name }}"
 
       - name: Upload Binary Artifact
