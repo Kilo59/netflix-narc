@@ -71,9 +71,10 @@ def deps(ctx: Context) -> None:
 @task(
     help={
         "embed": "Embed CPython runtime and wheel directly into binary for offline execution",
+        "archive": "Create a .tar.gz / .zip archive alongside raw binary",
     }
 )
-def build_binary(ctx: Context, *, embed: bool = True) -> None:
+def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> None:
     """Build a standalone single-file binary using PyApp."""
     ctx.run("uv build --wheel", echo=True, pty=True)
     dist_dir = pathlib.Path("dist")
@@ -85,3 +86,13 @@ def build_binary(ctx: Context, *, embed: bool = True) -> None:
     print(f"Building PyApp binary for wheel: {latest_wheel}")  # noqa: T201
     env = {"PYAPP_EMBED": "1"} if embed else None
     ctx.run(f"uvx pyapp build {latest_wheel}", echo=True, pty=True, env=env)
+
+    # Set executable permissions on unix platforms
+    binary_path = dist_dir / "netflix-narc"
+    if binary_path.exists():
+        binary_path.chmod(0o755)
+
+    if archive and binary_path.exists():
+        tarball_path = dist_dir / "netflix-narc.tar.gz"
+        print(f"Archiving binary to: {tarball_path}")  # noqa: T201
+        ctx.run(f"tar -czf {tarball_path} -C {dist_dir} netflix-narc", echo=True, pty=True)

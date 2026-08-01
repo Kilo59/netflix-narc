@@ -55,12 +55,27 @@ jobs:
         run: |
           WHEEL_PATH=$(ls -t dist/*.whl | head -n 1)
           uvx pyapp build "$WHEEL_PATH" --output "dist/${{ matrix.binary_name }}"
+          chmod +x "dist/${{ matrix.binary_name }}" || true
 
-      - name: Upload Binary Artifact
+          mkdir -p dist/pkg
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp "dist/${{ matrix.binary_name }}" "dist/pkg/netflix-narc.exe"
+            (cd dist/pkg && zip "../${{ matrix.binary_name }}.zip" netflix-narc.exe)
+          else
+            cp "dist/${{ matrix.binary_name }}" "dist/pkg/netflix-narc"
+            chmod +x "dist/pkg/netflix-narc"
+            tar -czf "dist/${{ matrix.binary_name }}.tar.gz" -C dist/pkg netflix-narc
+          fi
+          rm -rf dist/pkg
+
+      - name: Upload Binary Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.target }}
-          path: dist/${{ matrix.binary_name }}
+          path: |
+            dist/${{ matrix.binary_name }}
+            dist/${{ matrix.binary_name }}.tar.gz
+            dist/${{ matrix.binary_name }}.zip
 
   publish:
     name: Publish to PyPI

@@ -28,25 +28,34 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 
 ### ⚡ Quick Start: Standalone Executable (Recommended — No Python Required!)
 
-Download a single pre-compiled binary from [GitHub Releases](https://github.com/Kilo59/netflix-narc/releases). No Python, `uv`, or package setup required.
+Download a pre-compiled standalone release from [GitHub Releases](https://github.com/Kilo59/netflix-narc/releases). No Python, `uv`, or setup required.
 
-#### macOS & Linux
-1. Download the binary for your architecture from the [Latest Release](https://github.com/Kilo59/netflix-narc/releases/latest):
-   - **macOS (Apple Silicon M1/M2/M3/M4)**: `netflix-narc-aarch64-apple-darwin`
-   - **macOS (Intel)**: `netflix-narc-x86_64-apple-darwin`
-   - **Linux**: `netflix-narc-x86_64-unknown-linux-gnu`
-2. Make it executable and launch:
+#### macOS & Linux (Archive — Recommended)
+1. Download the archive for your architecture from the [Latest Release](https://github.com/Kilo59/netflix-narc/releases/latest):
+   - **macOS (Apple Silicon M1/M2/M3/M4)**: `netflix-narc-aarch64-apple-darwin.tar.gz`
+   - **macOS (Intel)**: `netflix-narc-x86_64-apple-darwin.tar.gz`
+   - **Linux**: `netflix-narc-x86_64-unknown-linux-gnu.tar.gz`
+2. Extract and launch:
    ```bash
-   chmod +x netflix-narc-aarch64-apple-darwin
-   ./netflix-narc-aarch64-apple-darwin --csv /path/to/NetflixViewingHistory.csv
+   tar -xzf netflix-narc-aarch64-apple-darwin.tar.gz
+   ./netflix-narc
    ```
+
+> 💡 **Tip (Optional)**: Move `netflix-narc` to `/usr/local/bin/` so you can launch it from any directory:
+> ```bash
+> sudo mv netflix-narc /usr/local/bin/
+> netflix-narc
+> ```
+
+*(Note: If you download the raw uncompressed binary file directly, run `chmod +x <binary-name>` once before executing).*
 
 #### Windows
-1. Download `netflix-narc-x86_64-pc-windows-msvc.exe` from the [Latest Release](https://github.com/Kilo59/netflix-narc/releases/latest).
-2. Run from Command Prompt or PowerShell:
+1. Download `netflix-narc-x86_64-pc-windows-msvc.zip` (or the raw `.exe`) from the [Latest Release](https://github.com/Kilo59/netflix-narc/releases/latest).
+2. Extract the archive and launch from Command Prompt or PowerShell:
    ```powershell
-   .\netflix-narc-x86_64-pc-windows-msvc.exe --csv C:\path\to\NetflixViewingHistory.csv
+   .\netflix-narc.exe
    ```
+
 
 ---
 
