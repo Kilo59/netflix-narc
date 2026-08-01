@@ -87,6 +87,9 @@ jobs:
       - name: Build package
         run: uv build
 
+      - name: Install PyApp CLI
+        run: cargo install pyapp
+
       - name: Test Standalone Binary Build via PyApp
         env:
           PYAPP_EMBED: "1"

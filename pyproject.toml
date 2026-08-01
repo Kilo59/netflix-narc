@@ -54,8 +54,8 @@ dev = [
 ]
 build = [
     "invoke>=2.2.1",
-    "pyapp>=4.16.1",
 ]
+
 
 
 

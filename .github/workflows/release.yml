@@ -48,14 +48,18 @@ jobs:
       - name: Build Wheel
         run: uv build --wheel
 
+      - name: Install PyApp CLI
+        run: cargo install pyapp
+
       - name: Build Standalone Executable via PyApp
         shell: bash
         env:
           PYAPP_EMBED: "1"
         run: |
           WHEEL_PATH=$(ls -t dist/*.whl | head -n 1)
-          uv run --only-group build pyapp build "$WHEEL_PATH" --output "dist/${{ matrix.binary_name }}"
+          pyapp build "$WHEEL_PATH" --output "dist/${{ matrix.binary_name }}"
           chmod +x "dist/${{ matrix.binary_name }}" || true
+
 
 
 
