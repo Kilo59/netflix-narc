@@ -52,7 +52,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build Standalone Executable via PyApp
-
         shell: bash
         env:
           PYAPP_PROJECT_NAME: "netflix-narc"
@@ -61,7 +60,15 @@ jobs:
           PYAPP_EMBED: "1"
         run: |
           WHEEL_PATH=$(ls -t dist/*.whl | head -n 1)
-          PYAPP_WHEEL_FILE="$(pwd)/$WHEEL_PATH" cargo install pyapp --root dist/bin
+          export PYAPP_PROJECT_VERSION=$(uv run invoke get-project-version)
+          export PYAPP_WHEEL_FILE="$(pwd)/$WHEEL_PATH"
+          cargo install pyapp --root dist/bin
+
+
+
+
+
+
           if [ -f "dist/bin/bin/pyapp.exe" ]; then
             cp "dist/bin/bin/pyapp.exe" "dist/${{ matrix.binary_name }}"
           else

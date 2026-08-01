@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pathlib
 import shutil
+import tomllib
 from typing import TYPE_CHECKING
 
 from invoke.tasks import task
@@ -14,6 +15,18 @@ if TYPE_CHECKING:
 # Project constants
 PROJECT_NAME = "netflix-narc"
 PYPROJECT_TOML = pathlib.Path("pyproject.toml")
+
+
+@task(
+    aliases=["version"],
+)
+def get_project_version(ctx: Context) -> str:  # noqa: ARG001
+    """Print and return the project version from pyproject.toml."""
+    with PYPROJECT_TOML.open("rb") as f:
+        data = tomllib.load(f)
+    ver: str = data["project"]["version"]
+    print(ver)  # noqa: T201
+    return ver
 
 
 @task
@@ -88,10 +101,12 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
 
     env = {
         "PYAPP_PROJECT_NAME": "netflix-narc",
+        "PYAPP_PROJECT_VERSION": get_project_version(ctx),
         "PYAPP_EXEC_SPEC": "netflix_narc.main:main",
         "PYAPP_PYTHON_VERSION": "3.13",
         "PYAPP_WHEEL_FILE": str(latest_wheel.resolve()),
     }
+
     if embed:
         env["PYAPP_EMBED"] = "1"
 
