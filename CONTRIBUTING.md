@@ -22,6 +22,15 @@ We use [uv](https://docs.astral.sh/uv/) for package management and environment i
     uv run pre-commit install
     ```
 
+4.  **(Optional) Install Rust for local binary builds**:
+    If you want to test building standalone executables locally via `uv run invoke build-binary`, ensure the Rust toolchain (`cargo`) is installed:
+    ```bash
+    # Install via rustup (recommended)
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    # Or via Homebrew on macOS
+    brew install rust
+    ```
+
 ## Development Workflow
 
 ### Running the Application
@@ -111,10 +120,16 @@ When preparing a new release for PyPI and GitHub:
    - Move entries from `[Unreleased]` to a new version header with today's date (e.g. `## [0.1.0] - YYYY-MM-DD`).
    - Add a fresh empty `## [Unreleased]` section at the top.
 
-4. **Verify Build Package**:
-   Test building the wheel and source distribution:
+4. **Verify Build Package & Standalone Binary**:
+   Test building wheels and standalone executables locally:
    ```bash
    uv build
+   # Build local PyApp standalone single-file executable
+   uv run invoke build-binary
+   ```
+   *Note: `build-binary` uses PyApp `0.24.0` by default. You can test with a custom PyApp version using the `PYAPP_VERSION` environment variable:*
+   ```bash
+   PYAPP_VERSION=0.24.0 uv run invoke build-binary
    ```
 
 5. **Commit and Tag**:
@@ -132,6 +147,8 @@ When preparing a new release for PyPI and GitHub:
 
 7. **Automated CI/CD Release**:
    Pushing a `v*` tag triggers the [.github/workflows/release.yml](file:///.github/workflows/release.yml) GitHub Actions workflow, which will automatically:
-   - Build the package distribution using `uv build`.
-   - Publish the artifacts to [PyPI](https://pypi.org/project/netflix-narc/) via PyPI Trusted Publishing.
-   - Create a GitHub Release with dist assets and generated release notes.
+   - Build the wheel distribution using `uv build`.
+   - Compile standalone zero-dependency executables via **PyApp** for **macOS Apple Silicon** (`aarch64-apple-darwin`), **macOS Intel** (`x86_64-apple-darwin`), **Linux** (`x86_64-unknown-linux-gnu`), and **Windows** (`x86_64-pc-windows-msvc.exe`).
+     PyApp's dependency crates are cached between runs using [`sccache`](https://github.com/mozilla/sccache) (see `pre-publish` job in `.github/workflows/ci.yml`). Only the final `pyapp` crate recompiles on each run to embed the freshly built wheel.
+   - Publish the wheel package to [PyPI](https://pypi.org/project/netflix-narc/) via Trusted Publishing.
+   - Create a GitHub Release with all pre-compiled standalone binary executables and wheels attached.

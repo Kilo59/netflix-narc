@@ -462,7 +462,7 @@ wheels = [
 
 [[package]]
 name = "netflix-narc"
-version = "0.1.0a2"
+version = "0.1.0a3"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
@@ -474,6 +474,9 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+build = [
+    { name = "invoke" },
+]
 dev = [
     { name = "invoke" },
     { name = "mypy" },
@@ -496,6 +499,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
+build = [{ name = "invoke", specifier = ">=2.2.1" }]
 dev = [
     { name = "invoke", specifier = ">=2.2.1" },
     { name = "mypy", specifier = ">=1.19.1" },

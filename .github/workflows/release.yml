@@ -7,6 +7,91 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-binaries:
+    name: Build Standalone Binary (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-apple-darwin
+            binary_name: netflix-narc-aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            binary_name: netflix-narc-x86_64-apple-darwin
+
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary_name: netflix-narc-x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_name: netflix-narc-x86_64-pc-windows-msvc.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Clean dist directory
+        shell: bash
+        run: rm -rf dist && mkdir -p dist
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Build Standalone Executable via PyApp
+        shell: bash
+        env:
+          RUSTC_WRAPPER: sccache
+          SCCACHE_GHA_ENABLED: "true"
+        run: |
+          uv run --only-group build invoke build-binary --no-archive
+
+          if [ -f "dist/netflix-narc.exe" ]; then
+            cp "dist/netflix-narc.exe" "dist/${{ matrix.binary_name }}"
+          elif [ -f "dist/netflix-narc" ]; then
+            cp "dist/netflix-narc" "dist/${{ matrix.binary_name }}"
+          fi
+          chmod +x "dist/${{ matrix.binary_name }}" || true
+
+      - name: Archive binary (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist/pkg
+          cp "dist/${{ matrix.binary_name }}" "dist/pkg/netflix-narc"
+          chmod +x "dist/pkg/netflix-narc"
+          tar -czf "dist/${{ matrix.binary_name }}.tar.gz" -C dist/pkg netflix-narc
+          rm -rf dist/pkg
+
+      - name: Archive binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/pkg | Out-Null
+          Copy-Item "dist/${{ matrix.binary_name }}" "dist/pkg/netflix-narc.exe"
+          Compress-Archive -Path "dist/pkg/netflix-narc.exe" -DestinationPath "dist/${{ matrix.binary_name }}.zip"
+          Remove-Item -Recurse -Force dist/pkg
+
+      - name: Upload Binary Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.target }}
+          if-no-files-found: ignore
+          path: |
+            dist/${{ matrix.binary_name }}
+            dist/${{ matrix.binary_name }}.tar.gz
+            dist/${{ matrix.binary_name }}.zip
+
   publish:
     name: Publish to PyPI
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -48,8 +133,10 @@ jobs:
 
   github-release:
     name: Create GitHub Release
-    needs: [publish]
+    needs: [publish, build-binaries]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
     steps:
@@ -61,6 +148,13 @@ jobs:
 
       - name: Build package
         run: uv build
+
+      - name: Download Binary Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: dist/
+          merge-multiple: true
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

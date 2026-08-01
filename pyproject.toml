@@ -1,6 +1,6 @@
 [project]
 name = "netflix-narc"
-version = "0.1.0a2"
+version = "0.1.0a3"
 description = "A terminal UI that narcs on inappropriate Netflix viewing history."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -33,6 +33,12 @@ netflix-narc = "netflix_narc.main:main"
 
 [tool.uv]
 package = true
+default-groups = ["dev"]
+
+[tool.pyapp]
+project = "netflix-narc"
+exec-spec = "netflix_narc.main:main"
+python-version = "3.13"
 
 [dependency-groups]
 dev = [
@@ -44,6 +50,9 @@ dev = [
     "respx>=0.22.0",
     "ruff>=0.15.14",
     "ruff-sync>=0.1.0",
+]
+build = [
+    "invoke>=2.2.1",
 ]
 
 [tool.pytest.ini_options]

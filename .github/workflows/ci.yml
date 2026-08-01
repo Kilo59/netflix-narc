@@ -62,7 +62,9 @@ jobs:
         run: uv run invoke test
 
   pre-publish:
-    name: Test package installation
+    # WARNING: This name is a required status check in GitHub branch protection.
+    # Do NOT rename without also updating Settings → Branches → main → Required status checks.
+    name: Build verification
     needs: [static-analysis, tests]
     if: >-
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
@@ -74,6 +76,9 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
         run: uv python install 3.13
@@ -83,3 +88,12 @@ jobs:
 
       - name: Build package
         run: uv build
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Test Standalone Binary Build via PyApp
+        env:
+          RUSTC_WRAPPER: sccache
+          SCCACHE_GHA_ENABLED: "true"
+        run: uv run --only-group build invoke build-binary --no-archive
