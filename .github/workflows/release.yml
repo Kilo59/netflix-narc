@@ -28,6 +28,9 @@ jobs:
             target: x86_64-pc-windows-msvc
             binary_name: netflix-narc-x86_64-pc-windows-msvc.exe
 
+    env:
+      PYAPP_VERSION: "0.24.0"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,13 +48,10 @@ jobs:
         shell: bash
         run: rm -rf dist && mkdir -p dist
 
-      - name: Build Wheel
-        run: uv build --wheel
-
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          key: pyapp-${{ env.PYAPP_VERSION || '0.24.0' }}
+          key: pyapp-${{ env.PYAPP_VERSION }}
 
       - name: Build Standalone Executable via PyApp
         shell: bash
@@ -63,11 +63,6 @@ jobs:
             cp "dist/netflix-narc" "dist/${{ matrix.binary_name }}"
           fi
           chmod +x "dist/${{ matrix.binary_name }}" || true
-
-
-
-
-
           mkdir -p dist/pkg
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             cp "dist/${{ matrix.binary_name }}" "dist/pkg/netflix-narc.exe"
@@ -83,6 +78,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.target }}
+          if-no-files-found: ignore
           path: |
             dist/${{ matrix.binary_name }}
             dist/${{ matrix.binary_name }}.tar.gz
