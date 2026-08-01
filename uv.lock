@@ -565,6 +565,7 @@ dependencies = [
 
 [package.dev-dependencies]
 build = [
+    { name = "invoke" },
     { name = "pyapp" },
 ]
 dev = [
@@ -589,7 +590,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-build = [{ name = "pyapp", specifier = ">=4.16.1" }]
+build = [
+    { name = "invoke", specifier = ">=2.2.1" },
+    { name = "pyapp", specifier = ">=4.16.1" },
+]
 dev = [
     { name = "invoke", specifier = ">=2.2.1" },
     { name = "mypy", specifier = ">=1.19.1" },

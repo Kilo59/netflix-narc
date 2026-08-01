@@ -53,8 +53,10 @@ dev = [
     "ruff-sync>=0.1.0",
 ]
 build = [
+    "invoke>=2.2.1",
     "pyapp>=4.16.1",
 ]
+
 
 
 [tool.pytest.ini_options]
