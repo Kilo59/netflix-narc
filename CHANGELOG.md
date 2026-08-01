@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a4] - 2026-08-01
+
+### Added
+- **PyPI & License Badges**: Added PyPI version, Python supported versions, and MIT License badges to `README.md`.
+
+### Fixed
+- **Windows Binary Builds**: Guarded `invoke` task `pty` option in `tasks.py` on Windows platforms where the `pty` standard library module is unsupported.
+
 ## [0.1.0a3] - 2026-08-01
 
 ### Added

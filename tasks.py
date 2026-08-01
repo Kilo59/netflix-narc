@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
+import sys
 import tomllib
 from typing import TYPE_CHECKING
 
@@ -18,6 +19,7 @@ PROJECT_NAME = "netflix-narc"
 PYPROJECT_TOML = pathlib.Path("pyproject.toml")
 DEFAULT_PYAPP_VERSION = "0.24.0"
 PYAPP_VERSION = os.getenv("PYAPP_VERSION", DEFAULT_PYAPP_VERSION)
+USE_PTY = sys.platform != "win32"
 
 
 @task(
@@ -38,7 +40,7 @@ def fmt(ctx: Context, *, check: bool = False) -> None:
     cmds = ["ruff", "format", "."]
     if check:
         cmds.append("--check")
-    ctx.run(" ".join(cmds), echo=True, pty=True)
+    ctx.run(" ".join(cmds), echo=True, pty=USE_PTY)
 
 
 @task(
@@ -54,7 +56,7 @@ def lint(ctx: Context, *, check: bool = False, unsafe_fixes: bool = False) -> No
         cmds.append("--fix")
     if unsafe_fixes:
         cmds.extend(["--unsafe-fixes", "--show-fixes"])
-    ctx.run(" ".join(cmds), echo=True, pty=True)
+    ctx.run(" ".join(cmds), echo=True, pty=USE_PTY)
 
 
 @task(
@@ -67,7 +69,7 @@ def type_check(ctx: Context, *, install_types: bool = False, check: bool = False
         cmds.append("--install-types")
     if check:
         cmds.extend(["--pretty"])
-    ctx.run(" ".join(cmds), echo=True, pty=True)
+    ctx.run(" ".join(cmds), echo=True, pty=USE_PTY)
 
 
 @task
@@ -76,13 +78,13 @@ def test(ctx: Context, *, coverage: bool = False) -> None:  # noqa: PT028
     cmds = ["pytest", "-vv"]
     if coverage:
         cmds.extend(["--cov=netflix_narc", "--cov-report=term-missing"])
-    ctx.run(" ".join(cmds), echo=True, pty=True)
+    ctx.run(" ".join(cmds), echo=True, pty=USE_PTY)
 
 
 @task
 def deps(ctx: Context) -> None:
     """Sync dependencies with uv lock file."""
-    ctx.run("uv sync", echo=True, pty=True)
+    ctx.run("uv sync", echo=True, pty=USE_PTY)
 
 
 @task(
@@ -93,7 +95,7 @@ def deps(ctx: Context) -> None:
 )
 def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> None:
     """Build a standalone single-file binary using PyApp."""
-    ctx.run("uv build --wheel", echo=True, pty=True)
+    ctx.run("uv build --wheel", echo=True, pty=USE_PTY)
     dist_dir = pathlib.Path("dist")
     wheels = list(dist_dir.glob("*.whl"))
     if not wheels:
@@ -122,7 +124,7 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
     ctx.run(
         f"cargo install pyapp --version {PYAPP_VERSION} --locked --root {bin_dir}",
         echo=True,
-        pty=True,
+        pty=USE_PTY,
         env=env,
     )
 
@@ -137,4 +139,4 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
     if archive and target_bin.exists():
         tarball_path = dist_dir / "netflix-narc.tar.gz"
         print(f"Archiving binary to: {tarball_path}")  # noqa: T201
-        ctx.run(f"tar -czf {tarball_path} -C {dist_dir} netflix-narc", echo=True, pty=True)
+        ctx.run(f"tar -czf {tarball_path} -C {dist_dir} netflix-narc", echo=True, pty=USE_PTY)
