@@ -1,5 +1,9 @@
 # Netflix Narc 🕵️‍♂️🍿
 
+[![PyPI version](https://img.shields.io/pypi/v/netflix-narc.svg)](https://pypi.org/project/netflix-narc/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/netflix-narc.svg)](https://pypi.org/project/netflix-narc/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ![Netflix Narc Hero Art](./assets/hero.png)
 
 **Your automated, terminal-based snitch.**
