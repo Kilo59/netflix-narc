@@ -83,5 +83,5 @@ def build_binary(ctx: Context, *, embed: bool = True) -> None:
         raise RuntimeError(msg)
     latest_wheel = max(wheels, key=lambda p: p.stat().st_mtime)
     print(f"Building PyApp binary for wheel: {latest_wheel}")  # noqa: T201
-    env_flag = "PYAPP_EMBED=1 " if embed else ""
-    ctx.run(f"{env_flag}uvx pyapp build {latest_wheel}", echo=True, pty=True)
+    env = {"PYAPP_EMBED": "1"} if embed else None
+    ctx.run(f"uvx pyapp build {latest_wheel}", echo=True, pty=True, env=env)
