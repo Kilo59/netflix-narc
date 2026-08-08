@@ -20,15 +20,12 @@ from hishel import SyncSqliteStorage
 # Initialize storage backend
 storage = SyncSqliteStorage(
     database_path=".csm_cache.db",
-    default_ttl=7200.0, # Cache entries expire after 2 hours
+    default_ttl=7200.0,  # Cache entries expire after 2 hours
 )
 
 # Initialize the SyncCacheClient with the storage
 client = SyncCacheClient(
-    storage=storage,
-    headers={"Authorization": "Bearer token"},
-    http2=True,
-    timeout=10.0
+    storage=storage, headers={"Authorization": "Bearer token"}, http2=True, timeout=10.0
 )
 
 # Use the client just like httpx.Client

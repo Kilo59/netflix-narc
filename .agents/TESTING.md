@@ -41,8 +41,7 @@ Use `@pytest.mark.parametrize` with `pytest.param(..., id="case_name")` for read
         pytest.param("N/A", 10, False, id="non-numeric-rating-skipped"),
     ],
 )
-def test_evaluate_age_rating(content_rating, max_age, should_flag):
-    ...
+def test_evaluate_age_rating(content_rating, max_age, should_flag): ...
 ```
 
 ### 3.3 No Autouse Fixtures
@@ -129,7 +128,7 @@ def test_evaluate_title_flags_age():
 ```python
 def test_parse_netflix_history_valid_data(tmp_path):
     csv_file = tmp_path / "ViewingHistory.csv"
-    csv_file.write_text("Title,Date\n\"The Matrix\",\"1/1/26\"\n", encoding="utf-8")
+    csv_file.write_text('Title,Date\n"The Matrix","1/1/26"\n', encoding="utf-8")
     records = parse_netflix_history(csv_file)
     assert len(records) == 1
 ```

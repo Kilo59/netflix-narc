@@ -26,6 +26,7 @@ exposed weight controls, and reliable one-time onboarding.
 ```python
 def get_config_dir() -> pathlib.Path:
     import platformdirs
+
     d = pathlib.Path(platformdirs.user_config_dir("netflix-narc"))
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -55,8 +56,8 @@ def get_config_dir() -> pathlib.Path:
 class OnboardingResult(NamedTuple):
     child_age_range: tuple[int, int]
     weights: CategoryWeights
-    provider: RatingProviderType | None   # None = skipped
-    api_key: SecretStr | None             # None = skipped
+    provider: RatingProviderType | None  # None = skipped
+    api_key: SecretStr | None  # None = skipped
 ```
 
 **Steps (ContentSwitcher):**
