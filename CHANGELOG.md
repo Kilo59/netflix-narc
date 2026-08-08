@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a5] - 2026-08-08
+
+### Added
+- **Distribution Smoke Test**: Added automated wheel build, venv installation, and isolated execution smoke test (`tests/test_distribution.py`) marked with `@pytest.mark.slow`.
+- **SHA-256 Checksum Manifest**: Automated generation of `SHA256SUMS` in release pipeline and added verification instructions (`shasum -a 256 -c SHA256SUMS`) to `README.md`.
+
+### Fixed
+- **Wheel Package Data**: Added `[tool.setuptools.package-data]` to `pyproject.toml` to ensure `narc.tcss` is bundled into built `.whl` packages and PyApp executables, resolving `StylesheetError: unable to read CSS file`.
+- **macOS Gatekeeper Quarantine**: Documented `xattr -d com.apple.quarantine netflix-narc` instructions in `README.md` and release notes to resolve browser download Gatekeeper process termination (`killed`).
+- **macOS Ad-Hoc Code Signing**: Centralized ad-hoc code signing (`codesign --force --deep -s -`) in `tasks.py` (`build_binary`) for macOS targets with `shlex.quote` path escaping.
+
 ## [0.1.0a4] - 2026-08-01
 
 ### Added
