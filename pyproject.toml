@@ -60,6 +60,9 @@ build = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 
 [tool.ruff-sync]
 exclude = [

@@ -10,6 +10,7 @@ import sys
 import pytest
 
 
+@pytest.mark.slow
 def test_wheel_distribution_smoke_test(tmp_path: pathlib.Path) -> None:
     """Build wheel, install into isolated venv, run CLI from outside repo root.
 

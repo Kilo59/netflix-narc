@@ -67,6 +67,19 @@ def test_package_data_includes_tcss() -> None:
     )
     assert has_tcss, "pyproject.toml [tool.setuptools.package-data] must include '*.tcss'"
 
+    netflix_narc_patterns = package_data.get("netflix_narc")
+    assert isinstance(netflix_narc_patterns, list), (
+        "pyproject.toml [tool.setuptools.package-data] entry for 'netflix_narc' must be a list"
+    )
+
+    has_netflix_narc_tcss = any(
+        isinstance(item, str) and "*.tcss" in item for item in netflix_narc_patterns
+    )
+    assert has_netflix_narc_tcss, (
+        "pyproject.toml [tool.setuptools.package-data] entry for 'netflix_narc' must "
+        "explicitly include a '*.tcss' pattern so netflix_narc's CSS is bundled in wheels"
+    )
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])
