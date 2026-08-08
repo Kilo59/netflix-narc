@@ -74,11 +74,13 @@ def type_check(ctx: Context, *, install_types: bool = False, check: bool = False
 
 
 @task
-def test(ctx: Context, *, coverage: bool = False) -> None:
+def test(ctx: Context, *, coverage: bool = False, junit: bool = False) -> None:
     """Run tests with pytest."""
     cmds = ["pytest", "-vv"]
     if coverage:
         cmds.extend(["--cov=netflix_narc", "--cov-report=term-missing", "--cov-report=xml"])
+    if junit:
+        cmds.extend(["--junitxml=junit.xml", "-o", "junit_family=legacy"])
     ctx.run(" ".join(cmds), echo=True, pty=USE_PTY)
 
 

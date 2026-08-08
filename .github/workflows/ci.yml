@@ -59,7 +59,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Run tests with coverage
-        run: uv run invoke test --coverage
+        run: uv run invoke test --coverage --junit
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -67,6 +67,12 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
           fail_ci_if_error: false
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   pre-publish:
     # WARNING: This name is a required status check in GitHub branch protection.
