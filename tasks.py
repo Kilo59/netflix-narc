@@ -78,7 +78,7 @@ def test(ctx: Context, *, coverage: bool = False) -> None:
     """Run tests with pytest."""
     cmds = ["pytest", "-vv"]
     if coverage:
-        cmds.extend(["--cov=netflix_narc", "--cov-report=term-missing"])
+        cmds.extend(["--cov=netflix_narc", "--cov-report=term-missing", "--cov-report=xml"])
     ctx.run(" ".join(cmds), echo=True, pty=USE_PTY)
 
 
