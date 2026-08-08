@@ -39,9 +39,17 @@ Download a pre-compiled standalone release from [GitHub Releases](https://github
    - **macOS (Apple Silicon M1/M2/M3/M4)**: `netflix-narc-aarch64-apple-darwin.tar.gz`
    - **macOS (Intel)**: `netflix-narc-x86_64-apple-darwin.tar.gz`
    - **Linux**: `netflix-narc-x86_64-unknown-linux-gnu.tar.gz`
-2. Extract and launch:
+2. Extract the archive:
    ```bash
    tar -xzf netflix-narc-aarch64-apple-darwin.tar.gz
+   ```
+3. **macOS Gatekeeper Fix**: If you downloaded the archive via a web browser on macOS, remove the quarantine attribute before launching:
+   ```bash
+   xattr -d com.apple.quarantine netflix-narc
+   ```
+   *(Without this step, macOS blocks un-notarized browser downloads with `"netflix-narc Not Opened: Apple could not verify..."` and terminates the process with `killed`).*
+4. Launch the executable:
+   ```bash
    ./netflix-narc
    ```
 
@@ -59,6 +67,16 @@ Download a pre-compiled standalone release from [GitHub Releases](https://github
    ```powershell
    .\netflix-narc.exe
    ```
+
+#### 🔒 Verifying Download Integrity
+To verify your downloaded release archives against the official `SHA256SUMS` manifest attached to each GitHub Release:
+```bash
+# macOS
+shasum -a 256 -c SHA256SUMS
+
+# Linux
+sha256sum -c SHA256SUMS
+```
 
 
 ---

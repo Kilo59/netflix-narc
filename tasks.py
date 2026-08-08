@@ -136,6 +136,10 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
     shutil.copy(compiled_bin, target_bin)
     target_bin.chmod(0o755)
 
+    if sys.platform == "darwin":
+        print(f"Ad-hoc code signing binary for macOS: {target_bin}")  # noqa: T201
+        ctx.run(f"codesign --force --deep -s - {target_bin}", echo=True, pty=USE_PTY)
+
     if archive and target_bin.exists():
         tarball_path = dist_dir / "netflix-narc.tar.gz"
         print(f"Archiving binary to: {tarball_path}")  # noqa: T201
