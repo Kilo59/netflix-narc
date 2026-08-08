@@ -49,5 +49,17 @@ def test_ruff_version_in_sync(
     )
 
 
+def test_package_data_includes_tcss() -> None:
+    """Ensure setuptools package-data includes .tcss files so narc.tcss is bundled in wheels."""
+    pyproject = pathlib.Path(__file__).parent.parent / "pyproject.toml"
+    content = pyproject.read_text(encoding="utf-8")
+    assert "[tool.setuptools.package-data]" in content, (
+        "pyproject.toml must configure [tool.setuptools.package-data] to bundle narc.tcss"
+    )
+    assert "*.tcss" in content, (
+        "pyproject.toml [tool.setuptools.package-data] must include '*.tcss'"
+    )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

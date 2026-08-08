@@ -40,6 +40,9 @@ project = "netflix-narc"
 exec-spec = "netflix_narc.main:main"
 python-version = "3.13"
 
+[tool.setuptools.package-data]
+netflix_narc = ["*.tcss", "*.png", "*.jpg", "*.svg"]
+
 [dependency-groups]
 dev = [
     "invoke>=2.2.1",
