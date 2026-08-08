@@ -74,7 +74,7 @@ def type_check(ctx: Context, *, install_types: bool = False, check: bool = False
 
 
 @task
-def test(ctx: Context, *, coverage: bool = False) -> None:  # noqa: PT028
+def test(ctx: Context, *, coverage: bool = False) -> None:
     """Run tests with pytest."""
     cmds = ["pytest", "-vv"]
     if coverage:
