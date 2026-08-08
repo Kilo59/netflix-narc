@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import tomllib
 
 import pytest
 
@@ -52,13 +53,19 @@ def test_ruff_version_in_sync(
 def test_package_data_includes_tcss() -> None:
     """Ensure setuptools package-data includes .tcss files so narc.tcss is bundled in wheels."""
     pyproject = pathlib.Path(__file__).parent.parent / "pyproject.toml"
-    content = pyproject.read_text(encoding="utf-8")
-    assert "[tool.setuptools.package-data]" in content, (
+    with pyproject.open("rb") as f:
+        data = tomllib.load(f)
+
+    package_data = data.get("tool", {}).get("setuptools", {}).get("package-data")
+    assert package_data is not None, (
         "pyproject.toml must configure [tool.setuptools.package-data] to bundle narc.tcss"
     )
-    assert "*.tcss" in content, (
-        "pyproject.toml [tool.setuptools.package-data] must include '*.tcss'"
+
+    has_tcss = any(
+        isinstance(v, list) and any("*.tcss" in item for item in v if isinstance(item, str))
+        for v in package_data.values()
     )
+    assert has_tcss, "pyproject.toml [tool.setuptools.package-data] must include '*.tcss'"
 
 
 if __name__ == "__main__":
