@@ -47,7 +47,7 @@ Download a pre-compiled standalone release from [GitHub Releases](https://github
    ```bash
    xattr -d com.apple.quarantine netflix-narc
    ```
-   *(Without this step, macOS blocks un-notarized browser downloads with `"netflix-narc Not Opened: Apple could not verify..."` and terminates the process with `killed`).*
+   *(Without this step, macOS blocks unnotarized browser downloads with `"netflix-narc Not Opened: Apple could not verify..."` and terminates the process with `killed`).*
 4. Launch the executable:
    ```bash
    ./netflix-narc

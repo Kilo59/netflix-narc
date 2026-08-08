@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import shlex
 import shutil
 import sys
 import tomllib
@@ -138,7 +139,11 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
 
     if sys.platform == "darwin":
         print(f"Ad-hoc code signing binary for macOS: {target_bin}")  # noqa: T201
-        ctx.run(f"codesign --force --deep -s - {target_bin}", echo=True, pty=USE_PTY)
+        ctx.run(
+            f"codesign --force --deep -s - {shlex.quote(str(target_bin))}",
+            echo=True,
+            pty=USE_PTY,
+        )
 
     if archive and target_bin.exists():
         tarball_path = dist_dir / "netflix-narc.tar.gz"
