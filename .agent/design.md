@@ -16,9 +16,9 @@ This model standardizes the disparate response formats from various APIs into a 
 class NormalizedMetadata(BaseModel):
     title: str
     content_rating: str | None  # Standard rating (e.g., PG-13, TV-MA)
-    user_rating: float | None    # Normalized 0.0 - 10.0 scale
-    provider_name: str           # The source API (e.g., 'csm', 'omdb')
-    category_scores: dict[str, int | float] # Specific criteria scores (0-5)
+    user_rating: float | None  # Normalized 0.0 - 10.0 scale
+    provider_name: str  # The source API (e.g., 'csm', 'omdb')
+    category_scores: dict[str, int | float]  # Specific criteria scores (0-5)
 ```
 
 ### 2. `RatingProvider` (Protocol)

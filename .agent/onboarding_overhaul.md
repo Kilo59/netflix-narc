@@ -143,8 +143,8 @@ the panel is hidden and replaced with a dim hint line. This applies on `Onboardi
 class OnboardingResult(NamedTuple):
     child_age_range: tuple[int, int]
     weights: CategoryWeights
-    provider: RatingProviderType | None   # None = skipped
-    api_key: SecretStr | None             # None = skipped
+    provider: RatingProviderType | None  # None = skipped
+    api_key: SecretStr | None  # None = skipped
 ```
 
 `PreferencesScreen` saves directly via `update_env_file` and updates `app.settings` in-memory.

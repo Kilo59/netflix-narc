@@ -29,9 +29,7 @@ def test_omdb_returns_none_on_false_response(tmp_path, fake_settings):
     payload = {"Response": "False", "Error": "Movie not found!"}
 
     with respx.mock:
-        respx.get("http://www.omdbapi.com/").mock(
-            return_value=httpx.Response(200, json=payload)
-        )
+        respx.get("http://www.omdbapi.com/").mock(return_value=httpx.Response(200, json=payload))
         client = OMDBClient(settings=fake_settings, cache_dir=tmp_path)
         result = client.search_title("Nonexistent Movie")
         client.close()
@@ -44,8 +42,7 @@ def test_omdb_returns_none_on_false_response(tmp_path, fake_settings):
 Always use the `fake_settings` fixture from `conftest.py`. Never use a real `.env` file or real API keys in tests.
 
 ```python
-def test_my_new_case(tmp_path, fake_settings):
-    ...
+def test_my_new_case(tmp_path, fake_settings): ...
 ```
 
 ### 5. Use `@pytest.mark.parametrize` for Variants

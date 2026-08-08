@@ -22,11 +22,10 @@ from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, Button, Static
 from textual.containers import Vertical, Horizontal
 
+
 class MyTextualApp(App):
     # Bind hotkeys to actions (key, action_name, description)
-    BINDINGS = [
-        ("q", "quit", "Quit application")
-    ]
+    BINDINGS = [("q", "quit", "Quit application")]
 
     # Declare the relative path for the stylesheet
     CSS_PATH = "styles.tcss"
@@ -53,6 +52,7 @@ class MyTextualApp(App):
     def action_quit(self) -> None:
         """Action handler corresponding to the BINDING 'quit'."""
         self.exit()
+
 
 if __name__ == "__main__":
     app = MyTextualApp()
@@ -87,6 +87,7 @@ Applications can overlay completely distinct views or modals via `Screen` object
 ```python
 from textual.screen import Screen
 
+
 class SetupScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Static("Settings Configurator")
@@ -95,6 +96,7 @@ class SetupScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         # Dismissing a screen pops it off the stack and optionally returns a payload
         self.dismiss("Saved Data Payload")
+
 
 # Inside your main application class:
 def open_setup(self):

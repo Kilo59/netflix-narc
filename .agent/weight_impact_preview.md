@@ -41,7 +41,7 @@ For each eligible record:
 ```python
 baseline_score = calculate_suitability(
     record.to_normalized_metadata(),
-    saved_settings,   # last-saved weights, NOT the current in-UI values
+    saved_settings,  # last-saved weights, NOT the current in-UI values
 )
 ```
 
@@ -60,6 +60,7 @@ def _sample_indices(total: int, n: int) -> list[int]:
         return list(range(total))
     step = (total - 1) / (n - 1)
     return [round(i * step) for i in range(n)]
+
 
 n = min(6, len(eligible))
 indices = _sample_indices(len(sorted_records), n)
