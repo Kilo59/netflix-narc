@@ -31,7 +31,7 @@ def get_project_version(ctx: Context) -> str:  # noqa: ARG001
     with PYPROJECT_TOML.open("rb") as f:
         data = tomllib.load(f)
     ver: str = data["project"]["version"]
-    print(ver)  # noqa: T201
+    print(ver)
     return ver
 
 
@@ -103,7 +103,7 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
         msg = "No wheel found in dist/ directory after build."
         raise RuntimeError(msg)
     latest_wheel = max(wheels, key=lambda p: p.stat().st_mtime)
-    print(f"Building PyApp binary for wheel: {latest_wheel}")  # noqa: T201
+    print(f"Building PyApp binary for wheel: {latest_wheel}")
 
     env = {
         "PYAPP_PROJECT_NAME": "netflix-narc",
@@ -147,5 +147,5 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
 
     if archive and target_bin.exists():
         tarball_path = dist_dir / "netflix-narc.tar.gz"
-        print(f"Archiving binary to: {tarball_path}")  # noqa: T201
+        print(f"Archiving binary to: {tarball_path}")
         ctx.run(f"tar -czf {tarball_path} -C {dist_dir} netflix-narc", echo=True, pty=USE_PTY)
