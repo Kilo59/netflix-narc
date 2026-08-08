@@ -62,9 +62,6 @@ jobs:
             cp "dist/netflix-narc" "dist/${{ matrix.binary_name }}"
           fi
           chmod +x "dist/${{ matrix.binary_name }}" || true
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            codesign --force --deep -s - "dist/${{ matrix.binary_name }}" || true
-          fi
 
       - name: Archive binary (Unix)
         if: runner.os != 'Windows'
