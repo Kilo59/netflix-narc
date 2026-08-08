@@ -138,7 +138,7 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
     target_bin.chmod(0o755)
 
     if sys.platform == "darwin":
-        print(f"Ad-hoc code signing binary for macOS: {target_bin}")  # noqa: T201
+        print(f"Ad-hoc code signing binary for macOS: {target_bin}")
         ctx.run(
             f"codesign --force --deep -s - {shlex.quote(str(target_bin))}",
             echo=True,

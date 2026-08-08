@@ -559,7 +559,7 @@ requires-dist = [
     { name = "httpx", extras = ["http2"], specifier = ">=0.28.1" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "rich-pixels", specifier = ">=3.0.1" },
-    { name = "textual", specifier = ">=8.1.1" },
+    { name = "textual", specifier = ">=8.2.8" },
 ]
 
 [package.metadata.requires-dev]
