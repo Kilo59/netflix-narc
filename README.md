@@ -173,6 +173,7 @@ You can also configure sync directly in your environment or `~/.config/netflix-n
 
 - `l`: Open **The Lineup** (priority review queue)
 - `i`: Open **Interrogation Room** (manual data entry for selected title)
+- `Space`: Flag selected title for follow-up
 - `s`: Open **Preferences** (settings, weights, API provider & BYOS sync)
 - `a`: Open **Advanced Options** (Load CSV, Evaluate API)
 - `h` / `?`: Contextual **Help Overlay**

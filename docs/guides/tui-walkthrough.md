@@ -12,6 +12,7 @@
 |------------|-----------------|-------------|
 | <kbd>l</kbd> | **Lineup Screen** | Open the card-based review queue for sequential title triage. |
 | <kbd>i</kbd> | **Interrogation Room** | Edit manual rating overrides and Evidence Locker dossier for the selected title. |
+| <kbd>Space</kbd> | **Flag for Follow-up** | Toggle flag for future follow-up on highlighted row or active screen. |
 | <kbd>s</kbd> | **Preferences Screen** | Open full preferences panel (weights, scoring mode, provider, BYOS sync). |
 | <kbd>a</kbd> | **Advanced Options** | Progressive disclosure modal for power-user actions. |
 | <kbd>h</kbd> or <kbd>?</kbd> | **Help Screen** | Display contextual help, philosophy, and keyboard reference. |
@@ -24,9 +25,12 @@
 | Context | Keybinding | Action | Description |
 |---------|------------|--------|-------------|
 | **Main Table** | <kbd>Enter</kbd> | **Expand / Collapse** | Toggle 5 sub-suitability breakdown bars for highlighted row. |
+| **Main Table** | <kbd>Space</kbd> | **Flag for Follow-up** | Toggle flag for future follow-up on highlighted row. |
 | **Lineup Queue** | <kbd>i</kbd> | **Interrogate** | Open Interrogation Room for current card title. |
+| **Lineup Queue** | <kbd>Space</kbd> | **Flag for Follow-up** | Toggle flag for future follow-up on current card title. |
 | **Lineup Queue** | <kbd>x</kbd> | **Ignore Title** | Mark current title as ignored and advance to next item. |
 | **Lineup Queue** | <kbd>s</kbd> | **Skip Title** | Skip current title without modifying its status. |
+| **Interrogation** | <kbd>Space</kbd> | **Flag for Follow-up** | Toggle 'Flag for future follow-up' checkbox (when form input non-focused). |
 | **Interrogation** | <kbd>F2</kbd> | **Web Search** | Open Common Sense Media search for title in default browser. |
 | **Modals / Screens** | <kbd>Esc</kbd> | **Close / Back** | Dismiss current screen or modal dialog without saving changes. |
 
