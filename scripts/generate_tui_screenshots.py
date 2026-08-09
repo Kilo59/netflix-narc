@@ -7,6 +7,7 @@ import asyncio
 import os
 import pathlib
 import tempfile
+import warnings
 from typing import TYPE_CHECKING
 
 from netflix_narc.main import NetflixNarcApp
@@ -118,8 +119,9 @@ async def _capture_main_app_screenshots(
         await pilot.pause(0.3)
 
         # Main DataTable with Expanded Row showing Sub-bars
-        await pilot.press("enter")  # Toggle row expansion
-        await pilot.pause(0.3)
+        if app.grouped_records:
+            await pilot.press("enter")  # Toggle row expansion
+            await pilot.pause(0.3)
         svg_datatable = app.export_screenshot()
         (output_dir / "datatable_expanded.svg").write_text(svg_datatable)
 
@@ -162,9 +164,10 @@ async def generate_screenshots(
     """Capture SVG screenshots of all main Textual screens in netflix-narc."""
     output_dir.mkdir(parents=True, exist_ok=True)
     if csv_path and not csv_path.exists():
-        print(
-            f"Warning: Specified CSV file does not exist: {csv_path}. "
-            "Proceeding without sample CSV data."
+        warnings.warn(
+            f"Specified CSV file does not exist: {csv_path}. Proceeding without sample CSV data.",
+            UserWarning,
+            stacklevel=2,
         )
         csv_to_use = None
     else:

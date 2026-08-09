@@ -129,5 +129,15 @@ def test_get_env_file_path_resolution(tmp_path: pathlib.Path) -> None:
     assert s.get_env_file_path() == custom_env
 
 
+@pytest.mark.asyncio
+async def test_generate_screenshots_missing_csv_warning(tmp_path: pathlib.Path) -> None:
+    """generate_screenshots raises a UserWarning when a non-existent csv_path is passed."""
+    from scripts.generate_tui_screenshots import generate_screenshots  # noqa: PLC0415
+
+    missing_csv = tmp_path / "non_existent.csv"
+    with pytest.warns(UserWarning, match=r"Specified CSV file does not exist"):
+        await generate_screenshots(tmp_path, missing_csv)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

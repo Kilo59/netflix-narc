@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import warnings
 from typing import TYPE_CHECKING, ClassVar, NamedTuple, cast, override
 
 from pydantic import SecretStr, TypeAdapter
@@ -631,14 +632,14 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         self._child_age_range = age_range
         self._age_valid = True
 
-        # Keep UI in sync with the internal age range state; failures are logged but don't crash.
+        # Keep UI in sync with internal age range state; issues raise UserWarning without crashing.
         try:
             age_input = self.query_one("#age-input", Input)
         except (NoMatches, TooManyMatches) as exc:
-            logger.warning(
-                "Failed to locate age input widget for age_range %s: %s",
-                age_range,
-                exc,
+            warnings.warn(
+                f"Failed to locate age input widget for age_range {age_range}: {exc}",
+                UserWarning,
+                stacklevel=2,
             )
             return
 
@@ -646,10 +647,10 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         try:
             age_input.value = f"{lo}-{hi}" if lo != hi else str(lo)
         except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "Failed to update age input value for age_range %s: %s",
-                age_range,
-                exc,
+            warnings.warn(
+                f"Failed to update age input value for age_range {age_range}: {exc}",
+                UserWarning,
+                stacklevel=2,
             )
 
     def _go_to_step(self, step: int) -> None:
