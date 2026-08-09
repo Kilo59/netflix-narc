@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 
 import httpx
@@ -87,45 +88,45 @@ async def storage_backend(
     request: pytest.FixtureRequest,
     tmp_path: pathlib.Path,
     respx_mock: respx.MockRouter,
-) -> StorageBackend:
+) -> AsyncGenerator[StorageBackend]:
     """Parametrized fixture providing each initialized StorageBackend implementation."""
     match request.param:
         case "local_folder":
             sync_dir = tmp_path / "sync_folder"
             backend_local = LocalStorageBackend(sync_dir)
             await backend_local.initialize()
-            return backend_local
+            yield backend_local
 
         case "s3":
             url_prefix = "https://r2.cloudflarestorage.com/my-sync-bucket/narc-data/"
             respx_mock.head(url_prefix + "manifest.json").respond(status_code=404)
 
-            client = httpx.AsyncClient()
-            backend_s3 = S3StorageBackend(
-                endpoint_url="https://r2.cloudflarestorage.com",
-                bucket_name="my-sync-bucket",
-                access_key_id=SecretStr("fake-key"),
-                secret_access_key=SecretStr("fake-secret"),
-                prefix="narc-data",
-                client=client,
-            )
-            await backend_s3.initialize()
-            return backend_s3
+            async with httpx.AsyncClient() as client:
+                backend_s3 = S3StorageBackend(
+                    endpoint_url="https://r2.cloudflarestorage.com",
+                    bucket_name="my-sync-bucket",
+                    access_key_id=SecretStr("fake-key"),
+                    secret_access_key=SecretStr("fake-secret"),
+                    prefix="narc-data",
+                    client=client,
+                )
+                await backend_s3.initialize()
+                yield backend_s3
 
         case "webdav":
             base_url = "https://nextcloud.example.com/remote.php/dav/files/user/netflix-narc/"
             respx_mock.request("PROPFIND", base_url).respond(status_code=200)
 
-            client = httpx.AsyncClient()
-            backend_webdav = WebDAVStorageBackend(
-                webdav_url="https://nextcloud.example.com/remote.php/dav/files/user",
-                username="user",
-                password=SecretStr("secret-pass"),
-                remote_path="netflix-narc",
-                client=client,
-            )
-            await backend_webdav.initialize()
-            return backend_webdav
+            async with httpx.AsyncClient() as client:
+                backend_webdav = WebDAVStorageBackend(
+                    webdav_url="https://nextcloud.example.com/remote.php/dav/files/user",
+                    username="user",
+                    password=SecretStr("secret-pass"),
+                    remote_path="netflix-narc",
+                    client=client,
+                )
+                await backend_webdav.initialize()
+                yield backend_webdav
 
         case _:
             msg = f"Unknown backend parameter: {request.param}"

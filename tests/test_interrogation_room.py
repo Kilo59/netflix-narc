@@ -23,6 +23,7 @@ async def test_interrogation_room_mount_empty(
     """Mounting InterrogationRoomScreen with no existing DB record initializes blank inputs."""
     fake_settings.child_age_range = (8, 12)
     app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    await app.evidence_locker.init()
     screen = InterrogationRoomScreen("Unknown Title")
 
     async with app.run_test(size=(160, 200)) as pilot:
@@ -81,6 +82,7 @@ async def test_interrogation_room_realtime_suitability_updates(
     """Typing into form inputs triggers real-time suitability recalculations."""
     fake_settings.child_age_range = (8, 12)
     app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    await app.evidence_locker.init()
     screen = InterrogationRoomScreen("Stranger Things")
 
     async with app.run_test(size=(160, 200)) as pilot:

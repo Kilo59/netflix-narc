@@ -126,6 +126,7 @@ async def test_preferences_invalid_age_shows_error(
         await pilot.pause()
 
         err_static = screen.query_one("#pref-age-error", Static)
+        assert err_static.has_class("hidden") is False
         assert "Invalid age range" in str(err_static.render())
         assert any(isinstance(s, PreferencesScreen) for s in app.screen_stack)
 

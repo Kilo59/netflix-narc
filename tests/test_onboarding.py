@@ -204,8 +204,9 @@ async def test_onboarding_invalid_age_validation(
         await pilot.click("#btn-next")
         await pilot.pause()
 
-        # Verify error text is displayed and age step container remains visible
+        # Verify error text is displayed and step remains 1
         error_widget = onb.query_one("#age-error", Static)
+        assert error_widget.has_class("hidden") is False
         assert "Enter a valid age" in str(error_widget.render())
 
         assert onb.query_one("#step-age", Container).has_class("hidden") is False
@@ -237,10 +238,24 @@ async def test_onboarding_navigation_back_and_skip(
         # Step 0 -> Step 1 -> valid age -> Step 2
         await pilot.click("#btn-next")
         await pilot.pause()
-        onb.query_one("#age-input", Input).value = "8-12"
+        age_input = onb.query_one("#age-input", Input)
+        age_input.value = "10"
+        age_input.post_message(Input.Changed(age_input, "10"))
+        await pilot.pause()
         await pilot.click("#btn-next")
         await pilot.pause()
         assert onb.query_one("#step-weights", Container).has_class("hidden") is False
+
+        # Step 2 (Weights - optional) -> Skip -> Step 3 (API)
+        skip_btn = onb.query_one("#btn-skip", Button)
+        skip_btn.press()
+        await pilot.pause()
+        assert onb.query_one("#step-api", Container).has_class("hidden") is False
+
+        # Step 3 (API - optional) -> Skip -> Step 4 (Summary)
+        skip_btn.press()
+        await pilot.pause()
+        assert onb.query_one("#step-summary", Container).has_class("hidden") is False
 
 
 @pytest.mark.asyncio

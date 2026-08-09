@@ -617,6 +617,10 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         # Optional steps show Skip instead of dimming Next
         is_optional = step in (2, 3)
         skip_btn.display = is_optional
+        if is_optional:
+            skip_btn.remove_class("hidden")
+        else:
+            skip_btn.add_class("hidden")
 
         if step == len(_STEPS) - 1:
             next_btn.label = "Start Narcing →"
