@@ -16,10 +16,10 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 ## ✨ Features
 
 - **🍿 Netflix History Integration**: Ingest your profile's `NetflixViewingHistory.csv` to analyze watching habits.
-- **📋 Onboarding Wizard**: First-run setup to configure child age ranges, content weightings, and scoring modes with a live **Weight Impact Preview**.
+- **📋 Onboarding Wizard**: First-run setup to configure child age ranges, content weightings, and scoring modes with a live **Weight Impact Preview** (allowing you to pin titles you know well to test weights/modes for optimal outcomes).
 - **🔍 The Lineup & Interrogation Room**: A Steam-inspired priority review queue (`l`) and manual data entry room (`i`) to score niche titles across Common Sense Media categories (0–5), attach cover art via macOS clipboard, and track dossier completeness.
 - **🧠 Common Sense Intel**: Automatically fetches age ratings, quality scores, and granular category breakdowns (Violence, Language, Educational Value, etc.) from API providers (OMDb, CSM, TMDB) or your local Evidence Locker.
-- **📊 Suitability Sub-bars & Scoring Modes**: Expand any show to view rich sub-bar breakdowns across Base Quality, Age Suitability, Educational Suitability, Positive Content, and Content Safety under **Quality Focus** or **Balanced** scoring modes.
+- **📊 Suitability Sub-bars & Scoring Modes**: Expand any show to view rich sub-bar breakdowns across Base Quality, Age Suitability, Educational Suitability, Positive Content, and Content Safety under [**Quality Focus** or **Balanced** scoring modes](docs/guides/tui-walkthrough.md#scoring-modes).
 - **⚖️ Weighted Justice**: Customize how strictly you want to judge different content categories.
 - **☁️ Storage & Sync (BYOS)**: Sync preferences and Evidence Locker manual dossiers across devices using your own local drive, Cloudflare R2, AWS S3, or Nextcloud/WebDAV.
 - **❓ Contextual Help Screen**: Built-in keyboard shortcut reference and scoring mode guide available anywhere via `h` or `?`.

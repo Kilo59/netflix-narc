@@ -66,5 +66,10 @@ rm ~/.config/netflix-narc/.env
 
 The app supports two **Scoring Modes** (configurable in Preferences or during Onboarding):
 
-- **Option A (Quality Focus)**: Base quality and positive content drive the baseline score, while Age Suitability and Content Safety act strictly as penalty-only deductions. High content safety concerns directly reduce suitability without mature content inflating the score.
-- **Option B (Balanced)**: All present components contribute to a weighted average score, with neutral safety factors capped at 7.0/10.
+- **Option A (Quality Focus)**: Quality and educational components drive the baseline score, while Age Suitability and Content Safety act strictly as penalty-only deductions. High safety scores will not inflate a low-quality show, but safety violations will directly lower suitability.
+- **Option B (Balanced)** *(Default)*: All 5 components contribute to a weighted average score, with neutral safety factors capped at 7.0/10 to avoid inflating non-educational titles.
+
+📖 **For complete details on mathematical formulas, mechanics, and use cases, see [Scoring Modes in the TUI Walkthrough](tui-walkthrough.md#scoring-modes).**
+
+!!! tip "How to Find the Best Setup for Your Family"
+    We recommend picking 2–3 titles in your viewing history that you know very well, pinning them in the **Live Weight Impact Preview** panel (`📌 Pin a Title` dropdown), and testing how your suitability scores react as you toggle between **Quality Focus** and **Balanced** modes while tweaking category weights.
