@@ -74,6 +74,15 @@ class ManualMetadata(BaseModel):
 
         return round(100 * filled / total_fields)
 
+    @property
+    def has_rating_data(self) -> bool:
+        """Return True if the record contains any content rating or quality score metadata."""
+        return (
+            self.content_rating is not None
+            or self.user_rating is not None
+            or len(self.category_scores) > 0
+        )
+
     def to_normalized_metadata(self) -> NormalizedMetadata:
         """Convert to standard NormalizedMetadata."""
         return NormalizedMetadata(

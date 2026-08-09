@@ -926,6 +926,11 @@ class NetflixNarcApp(App[None]):
             return "[dim]Ignored[/dim]"
 
         api_metadata = await self._get_merged_metadata(base_title, cache_only=cache_only)
+        followup_tag = (
+            "[cyan](Flagged)[/cyan] "
+            if manual_record and manual_record.flagged_for_followup
+            else ""
+        )
 
         if api_metadata:
             score = calculate_suitability(api_metadata, self.settings)
@@ -933,19 +938,12 @@ class NetflixNarcApp(App[None]):
 
             flags = evaluate_title(api_metadata, self.settings)
 
-            # Surface if flagged manually
-            followup_tag = (
-                "[cyan](Flagged)[/cyan] "
-                if manual_record and manual_record.flagged_for_followup
-                else ""
-            )
-
             if flags:
                 return f"{followup_tag}[red]{', '.join(flags)}[/red]"
             return f"{followup_tag}[green]Passed[/green]"
 
         self.evaluated_suitability[base_title] = "[dim]N/A[/dim]"
-        return "[yellow]Not Found[/yellow]"
+        return f"{followup_tag}[yellow]Not Found[/yellow]"
 
     async def _sort_queue(self) -> None:
         """Sort grouped records based on priority queue rules."""
