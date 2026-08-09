@@ -430,6 +430,7 @@ class NetflixNarcApp(App[None]):
         ("f10", "quit", "Quit"),
         ("l", "start_lineup", "The Lineup"),
         ("i", "interrogate", "Interrogate Title"),
+        Binding("space", "toggle_flag", "Flag Title"),
         ("s", "settings", "Settings"),
         ("a", "advanced", "Advanced"),
         ("?", "show_help", "Help"),
@@ -888,6 +889,33 @@ class NetflixNarcApp(App[None]):
 
         if base_title in self.grouped_records:
             self.push_screen(InterrogationRoomScreen(base_title=base_title))
+
+    async def action_toggle_flag(self) -> None:
+        """Toggle flag for future follow-up on the currently selected row in the data table."""
+        table = self.query_one(DataTable)
+        try:
+            if table.row_count == 0 or not table.cursor_coordinate:
+                return
+            row_key = table.coordinate_to_cell_key(table.cursor_coordinate).row_key.value
+        except (LookupError, ValueError, CellDoesNotExist):
+            return
+
+        if not row_key or not isinstance(row_key, str):
+            return
+
+        base_title = row_key
+        if base_title not in self.grouped_records:
+            # Check if it's a child row. Child keys format: {base_title}_{rec.title}_{date}
+            for b_title in self.grouped_records:
+                if base_title.startswith(b_title + "_"):
+                    base_title = b_title
+                    break
+
+        if base_title in self.grouped_records:
+            new_state = await self.evidence_locker.toggle_flag_title(base_title)
+            await self.refresh_title(base_title)
+            status_str = "Flagged" if new_state else "Unflagged"
+            self.notify(f"{status_str} for follow-up: {base_title}")
 
     async def _fetch_and_evaluate(self, base_title: str, *, cache_only: bool) -> str:
         """Fetch metadata, merge manual data, and evaluate."""

@@ -402,5 +402,23 @@ async def test_manual_db_cli_main(tmp_path: pathlib.Path, monkeypatch: pytest.Mo
     assert rec_imported_csv.user_rating == 4.5
 
 
+@pytest.mark.asyncio
+async def test_toggle_flag_title(temp_db: EvidenceLocker) -> None:
+    """Test toggling the flagged_for_followup state for a title."""
+    # First toggle creates record with flagged_for_followup=True
+    state1 = await temp_db.toggle_flag_title("Flag Test Show")
+    assert state1 is True
+    record1 = await temp_db.get_record("Flag Test Show")
+    assert record1 is not None
+    assert record1.flagged_for_followup is True
+
+    # Second toggle switches flagged_for_followup to False
+    state2 = await temp_db.toggle_flag_title("Flag Test Show")
+    assert state2 is False
+    record2 = await temp_db.get_record("Flag Test Show")
+    assert record2 is not None
+    assert record2.flagged_for_followup is False
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

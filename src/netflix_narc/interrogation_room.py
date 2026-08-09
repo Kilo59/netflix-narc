@@ -36,6 +36,7 @@ class InterrogationRoomScreen(Screen[bool]):
     """The Interrogation Room Screen: enter manual metadata for a title."""
 
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
+        Binding("space", "toggle_flag", "Flag for Follow-up"),
         Binding("escape", "save_and_exit", "Save & Exit"),
         Binding("f2", "open_browser", "Search Web"),
         Binding("up", "focus_previous", "Focus Previous", show=False),
@@ -139,6 +140,13 @@ class InterrogationRoomScreen(Screen[bool]):
     async def action_save_and_exit(self) -> None:
         """Save changes and close."""
         await self._save_record()
+
+    def action_toggle_flag(self) -> None:
+        """Toggle the 'Flag for future follow-up' checkbox."""
+        if isinstance(self.focused, Input):
+            return
+        checkbox = self.query_one("#input-flag", Checkbox)
+        checkbox.value = not checkbox.value
 
     def action_open_browser(self) -> None:
         """Open the default web browser to search for this title on Common Sense Media."""

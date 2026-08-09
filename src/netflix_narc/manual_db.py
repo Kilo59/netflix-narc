@@ -213,6 +213,16 @@ class EvidenceLocker:
             record = ManualMetadata(title=title, ignored=True)
         await self.upsert_record(record)
 
+    async def toggle_flag_title(self, title: str) -> bool:
+        """Toggle the flagged_for_followup state for a title. Return new state."""
+        record = await self.get_record(title)
+        if record:
+            record.flagged_for_followup = not record.flagged_for_followup
+        else:
+            record = ManualMetadata(title=title, flagged_for_followup=True)
+        await self.upsert_record(record)
+        return record.flagged_for_followup
+
     async def dump_dossiers(self) -> list[DossierSyncItem]:
         """Dump all evidence locker records as DossierSyncItem objects for sync."""
         records = await self.get_all_records()

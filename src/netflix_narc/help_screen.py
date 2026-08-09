@@ -90,6 +90,7 @@ class HelpScreen(Screen[None]):
                 yield Static(
                     "  [b]L[/b]          Open The Lineup\n"
                     "  [b]I[/b]          Interrogate selected title\n"
+                    "  [b]Space[/b]      Flag selected title for follow-up\n"
                     "  [b]S[/b]          Preferences\n"
                     "  [b]A[/b]          Advanced options (load CSV, evaluate)\n"
                     "  [b]?[/b] / [b]H[/b]      Show this screen\n"

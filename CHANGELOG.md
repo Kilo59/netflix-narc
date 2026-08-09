@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a6] - 2026-08-09
+
+### Added
+- **Spacebar Flag Shortcut**: Added `spacebar` keybinding to toggle "Flag for future follow-up" directly on selected titles in the main DataTable, Interrogation Room form, and Lineup screen.
+
 ## [0.1.0a5] - 2026-08-08
 
 ### Added

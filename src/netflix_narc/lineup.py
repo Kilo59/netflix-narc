@@ -25,6 +25,7 @@ class LineupScreen(Screen[None]):
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("q", "app.pop_screen", "Quit Lineup"),
         Binding("i", "interrogate", "Interrogate"),
+        Binding("space", "toggle_flag", "Flag for Follow-up"),
         Binding("x", "ignore", "Ignore"),
         Binding("s", "skip", "Skip"),
     ]
@@ -64,6 +65,7 @@ class LineupScreen(Screen[None]):
 
             with Horizontal(id="lineup-actions"):
                 yield Button("Interrogate [I]", id="btn-interrogate", variant="primary")
+                yield Button("Flag [Space]", id="btn-flag", variant="default")
                 yield Button("Ignore [X]", id="btn-ignore", variant="warning")
                 yield Button("Skip [S]", id="btn-skip", variant="default")
         yield Footer()
@@ -115,6 +117,17 @@ class LineupScreen(Screen[None]):
             self.current_index += 1
             self._refresh_ui()
 
+    async def action_toggle_flag(self) -> None:
+        """Toggle flag for future follow-up for the current title."""
+        if self.current_index >= len(self.queue):
+            return
+        base_title = self.queue[self.current_index]
+        locker = self.narc_app.evidence_locker
+        new_state = await locker.toggle_flag_title(base_title)
+        await self.narc_app.refresh_title(base_title)
+        status_str = "Flagged" if new_state else "Unflagged"
+        self.notify(f"{status_str} for follow-up: {base_title}")
+
     async def action_ignore(self) -> None:
         """Mark the title as ignored in the Evidence Locker and skip."""
         if self.current_index >= len(self.queue):
@@ -141,6 +154,10 @@ class LineupScreen(Screen[None]):
         """Map button presses to their respective actions."""
         if event.button.id == "btn-interrogate":
             self.action_interrogate()
+        elif event.button.id == "btn-flag":
+            task = asyncio.create_task(self.action_toggle_flag())
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
         elif event.button.id == "btn-ignore":
             task = asyncio.create_task(self.action_ignore())
             self._background_tasks.add(task)
