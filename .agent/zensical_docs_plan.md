@@ -41,7 +41,7 @@ To optimize agent resource allocation, tasks are divided into three difficulty t
 - [x] **Task 2.2**: Write `docs/getting-started/installation.md` — Binary download guide, macOS quarantine fix (`xattr -d com.apple.quarantine netflix-narc`), `uv`/`pip` options.
 - [x] **Task 2.3**: Write `docs/getting-started/exporting-netflix-csv.md` — Visual guide for downloading `ViewingHistory.csv` from Netflix Account Settings.
 - [x] **Task 2.4**: Write `docs/guides/onboarding-and-setup.md` — `OnboardingScreen` wizard walkthrough & optional API key setup (CSM, OMDb, TMDB).
-- [ ] **Task 2.5**: Write `docs/guides/tui-walkthrough.md` — Lineup Screen (`l`), Interrogation Room (`i`), and Preferences/Weights (`s`) guide.
+- [x] **Task 2.5**: Write `docs/guides/tui-walkthrough.md` — Lineup Screen (`l`), Interrogation Room (`i`), and Preferences/Weights (`s`) guide.
 - [ ] **Task 2.6**: Write `docs/guides/troubleshooting-faq.md` — CSV parsing errors, rate limit tips, config reset guide (`~/.config/netflix-narc/.env`).
 - [ ] **Task 2.7**: Create `.github/workflows/docs.yml` — GitHub Actions workflow for GitHub Pages deployment using `uv run --group docs zensical build`.
 
