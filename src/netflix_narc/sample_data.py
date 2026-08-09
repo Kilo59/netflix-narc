@@ -9,7 +9,7 @@ SAMPLE_MANUAL_RECORDS: list[ManualMetadata] = [
         title="Stranger Things",
         content_rating="TV-14",
         user_rating=8.7,
-        image_url="http://example.com/st.jpg",
+        image_url="https://example.com/st.jpg",
         category_scores={
             "Violence & Scariness": 4,
             "Educational Value": 2,
@@ -23,7 +23,7 @@ SAMPLE_MANUAL_RECORDS: list[ManualMetadata] = [
         title="PAW Patrol: The Movie",
         content_rating="G",
         user_rating=6.1,
-        image_url="http://example.com/paw.jpg",
+        image_url="https://example.com/paw.jpg",
         category_scores={
             "Violence & Scariness": 1,
             "Educational Value": 5,

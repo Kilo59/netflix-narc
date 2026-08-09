@@ -241,6 +241,7 @@ from netflix_narc.main import NetflixNarcApp
 
 SCREENSHOTS_DIR = pathlib.Path("docs/assets/images")
 
+
 async def generate_screenshots() -> None:
     SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
     app = NetflixNarcApp()
@@ -254,6 +255,7 @@ async def generate_screenshots() -> None:
         await pilot.press("s")
         await pilot.pause(0.3)
         app.save_screenshot(str(SCREENSHOTS_DIR / "preferences.svg"))
+
 
 if __name__ == "__main__":
     asyncio.run(generate_screenshots())
