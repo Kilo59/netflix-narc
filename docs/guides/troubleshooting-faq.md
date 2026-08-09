@@ -54,5 +54,17 @@ rm ~/.config/netflix-narc/.env
 ### Q: Can I run netflix-narc without registering for API keys?
 **Yes!** API keys are completely optional. `netflix-narc` includes fallback rating mechanisms and local manual override capabilities via the Interrogation Room screen.
 
-### Q: How does netflix-narc calculate severity scores?
-Title severity is computed by multiplying category rating scores (Violence, Sex/Nudity, Language, Drugs, etc.) by your customized category weights configured in the Preferences panel (<kbd>s</kbd> key).
+### Q: How does netflix-narc calculate suitability and severity scores?
+
+**netflix-narc** evaluates titles on a 0.0–10.0 suitability scale based on **5 sub-suitability breakdown components**:
+
+1. **Base Quality**: User/critic rating out of 10.
+2. **Age Suitability**: Distance between the title's rating and your configured child age range.
+3. **Educational Suitability**: Educational value score weighted by your preferences.
+4. **Positive Content**: Positive messages and positive role models score.
+5. **Content Safety**: Penalty deduction for Violence, Sexual Content, Language, and Substance Use.
+
+The app supports two **Scoring Modes** (configurable in Preferences or during Onboarding):
+
+- **Option A (Quality Focus)**: Base quality and positive content drive the baseline score, while Age Suitability and Content Safety act strictly as penalty-only deductions. High content safety concerns directly reduce suitability without mature content inflating the score.
+- **Option B (Balanced)**: All present components contribute to a weighted average score, with neutral safety factors capped at 7.0/10.

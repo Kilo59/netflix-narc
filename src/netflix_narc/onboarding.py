@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import copy
+import logging
+import warnings
 from typing import TYPE_CHECKING, ClassVar, NamedTuple, cast, override
 
 from pydantic import SecretStr, TypeAdapter
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
+from textual.css.query import NoMatches, TooManyMatches
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
@@ -22,6 +25,8 @@ from netflix_narc.settings import (
     ScoringMode,
     parse_str_age_range,
 )
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -431,6 +436,21 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         self._child_age_range: tuple[int, int] | None = None
         self._age_valid = False
 
+    @property
+    def current_step(self) -> int:
+        """Get the current wizard step index (0-indexed)."""
+        return self._current_step
+
+    @property
+    def child_age_range(self) -> tuple[int, int] | None:
+        """Get the target child age range setting."""
+        return self._child_age_range
+
+    @property
+    def is_age_valid(self) -> bool:
+        """Check if the entered age range is valid."""
+        return self._age_valid
+
     @override
     def compose(self) -> ComposeResult:
         """Compose the onboarding screen elements."""
@@ -597,6 +617,41 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         self._go_to_step(0)
 
     # ── Navigation ────────────────────────────────────────────────────────
+
+    @property
+    def child_age_input(self) -> Input:
+        """Get the child age input widget."""
+        return self.query_one("#age-input", Input)
+
+    def go_to_step(self, step: int) -> None:
+        """Navigate programmatically to a specific step in the wizard (0-indexed)."""
+        self._go_to_step(step)
+
+    def set_child_age_range(self, age_range: tuple[int, int]) -> None:
+        """Programmatically set the target child age range and mark age validation as valid."""
+        self._child_age_range = age_range
+        self._age_valid = True
+
+        # Keep UI in sync with internal age range state; issues raise UserWarning without crashing.
+        try:
+            age_input = self.query_one("#age-input", Input)
+        except (NoMatches, TooManyMatches) as exc:
+            warnings.warn(
+                f"Failed to locate age input widget for age_range {age_range}: {exc}",
+                UserWarning,
+                stacklevel=2,
+            )
+            return
+
+        lo, hi = age_range
+        try:
+            age_input.value = f"{lo}-{hi}" if lo != hi else str(lo)
+        except (ValueError, TypeError) as exc:
+            warnings.warn(
+                f"Failed to update age input value for age_range {age_range}: {exc}",
+                UserWarning,
+                stacklevel=2,
+            )
 
     def _go_to_step(self, step: int) -> None:
         self._current_step = step

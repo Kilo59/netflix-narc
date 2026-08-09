@@ -13,9 +13,10 @@
 
 - 📥 **Automated CSV Ingestion**: Effortlessly import your official Netflix `ViewingHistory.csv` export.
 - 🌐 **Multi-Provider Rating Intelligence**: Fetches rich content metadata and granular age recommendations from **Common Sense Media (CSM)**, **OMDb**, and **The Movie Database (TMDB)**.
-- ⚖️ **Customizable Severity Weights**: Fine-tune rating sensitivity across content categories including Violence, Sex/Nudity, Language, Drug/Alcohol Use, and Educational Value.
+- ⚖️ **Customizable Severity Weights**: Fine-tune rating sensitivity across content categories including Violence, Sex/Nudity, Language, Drug/Alcohol Use, and Educational Value under **Quality Focus** or **Balanced** scoring modes.
 - ⚡ **Offline Caching & Evidence Locker**: Powered by `hishel` caching to minimize API requests and an async SQLite database to store manual overrides and local ratings.
-- 💻 **Interactive Terminal UI**: Seamlessly review flagged titles, inspect content breakdowns, and adjust preferences using a sleek keyboard-driven Textual interface.
+- 📊 **Sub-Bar Suitability Breakdown**: Expand any title to inspect 5 sub-suitability bars (Base Quality, Age Suitability, Educational Suitability, Positive Content, Content Safety).
+- 💻 **Interactive Terminal UI**: Seamlessly review titles in a sequential card queue, inspect content breakdowns, and adjust preferences with live **Weight Impact Preview** (before/after score deltas and title pinning) using a sleek keyboard-driven Textual interface.
 
 ---
 
@@ -27,7 +28,7 @@ Whether you are running `netflix-narc` for the first time or customizing your sa
 
 -   :material-download: **[Installation](getting-started/installation.md)**
 
-    Download standalone pre-built binaries for macOS, Linux, or Windows, or install via `uv`/`pip`.
+    Download standalone pre-built binaries for macOS, Linux, or Windows, or install via `uv`, `pipx`, or `pip`.
 
 -   :material-file-document-outline: **[Exporting Netflix History](getting-started/exporting-netflix-csv.md)**
 
@@ -40,6 +41,10 @@ Whether you are running `netflix-narc` for the first time or customizing your sa
 -   :material-monitor-dashboard: **[TUI Feature Walkthrough](guides/tui-walkthrough.md)**
 
     Explore the Lineup Screen, Interrogation Room, and Live Weight Impact Preview controls.
+
+-   :material-cloud-sync: **[Storage & Sync (BYOS)](guides/storage-and-sync.md)**
+
+    Synchronize preferences and Evidence Locker manual dossiers via local drive, Cloudflare R2, AWS S3, or Nextcloud/WebDAV.
 
 </div>
 

@@ -33,6 +33,36 @@ SAMPLE_MANUAL_RECORDS: list[ManualMetadata] = [
             "Sexy Stuff": 1,
         },
     ),
+    ManualMetadata(
+        title="Squid Game",
+        content_rating="TV-MA",
+        user_rating=8.0,
+        image_url="https://example.com/sg.jpg",
+        category_scores={
+            "Violence & Scariness": 5,
+            "Educational Value": 1,
+            "Positive Messages": 1,
+            "Positive Role Models": 1,
+            "Language": 5,
+            "Sexy Stuff": 4,
+            "Drinking, Drugs & Smoking": 4,
+        },
+    ),
+    ManualMetadata(
+        title="The Magic School Bus",
+        content_rating="TV-Y",
+        user_rating=7.9,
+        image_url="https://example.com/msb.jpg",
+        category_scores={
+            "Educational Value": 5,
+            "Positive Messages": 5,
+            "Positive Role Models": 4,
+            "Violence & Scariness": 1,
+            "Language": 1,
+            "Sexy Stuff": 1,
+            "Drinking, Drugs & Smoking": 1,
+        },
+    ),
 ]
 
 

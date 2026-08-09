@@ -290,5 +290,81 @@ async def test_onboarding_reset_all_weights_button(
         assert violence_row.value == 4
 
 
+@pytest.mark.asyncio
+async def test_onboarding_public_api_helpers(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """go_to_step and set_child_age_range public methods drive wizard navigation cleanly."""
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test(size=(120, 60)) as pilot:
+        await pilot.pause()
+
+        onb = next(s for s in pilot.app.screen_stack if isinstance(s, OnboardingScreen))
+
+        onb.set_child_age_range((8, 12))
+        onb.go_to_step(2)
+        await pilot.pause()
+
+        assert onb.current_step == 2
+        assert onb.child_age_range == (8, 12)
+        assert onb.is_age_valid is True
+
+        onb.go_to_step(3)
+        await pilot.pause()
+        assert onb.current_step == 3
+
+
+@pytest.mark.asyncio
+async def test_onboarding_public_api_single_age_helper(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """set_child_age_range formats single ages cleanly and marks age as valid."""
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test(size=(120, 60)) as pilot:
+        await pilot.pause()
+
+        onb = next(s for s in pilot.app.screen_stack if isinstance(s, OnboardingScreen))
+
+        onb.set_child_age_range((10, 10))
+        await pilot.pause()
+
+        assert onb.child_age_range == (10, 10)
+        assert onb.is_age_valid is True
+        assert onb.child_age_input.value == "10"
+
+
+def test_set_child_age_range_unmounted_warning() -> None:
+    """Calling set_child_age_range on an unmounted OnboardingScreen issues UserWarning."""
+    onb = OnboardingScreen()
+    with pytest.warns(UserWarning, match=r"Failed to locate age input widget"):
+        onb.set_child_age_range((8, 12))
+
+    assert onb.child_age_range == (8, 12)
+    assert onb.is_age_valid is True
+
+
+@pytest.mark.asyncio
+async def test_set_child_age_range_update_error_warning(
+    fake_settings: Settings, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Failed age input value assignment issues UserWarning."""
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test(size=(120, 60)) as pilot:
+        await pilot.pause()
+
+        onb = next(s for s in pilot.app.screen_stack if isinstance(s, OnboardingScreen))
+
+        def failing_set_value(*_args: object, **_kwargs: object) -> None:
+            msg = "Mocked value assignment error"
+            raise ValueError(msg)
+
+        monkeypatch.setattr(
+            Input, "value", property(fget=lambda *_args: "", fset=failing_set_value)
+        )
+
+        with pytest.warns(UserWarning, match=r"Failed to update age input value"):
+            onb.set_child_age_range((8, 12))
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

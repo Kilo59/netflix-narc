@@ -18,6 +18,7 @@ nav = [
     { "User Guides" = [
         { "Onboarding & Setup" = "guides/onboarding-and-setup.md" },
         { "TUI Feature Walkthrough" = "guides/tui-walkthrough.md" },
+        { "Storage & Sync (BYOS)" = "guides/storage-and-sync.md" },
         { "Troubleshooting & FAQ" = "guides/troubleshooting-faq.md" }
     ] }
 ]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import re
 import shlex
 import shutil
 import sys
@@ -172,13 +173,36 @@ def docs_build(ctx: Context) -> None:
 
 
 @task(
+    aliases=["screenshots"],
     help={
         "output_dir": "Directory where generated SVG screenshots will be saved",
-    }
+        "csv_path": "Path to Netflix viewing history CSV file",
+    },
 )
-def docs_screenshots(ctx: Context, output_dir: str | None = None) -> None:
+def docs_screenshots(
+    ctx: Context, output_dir: str | None = None, csv_path: str | None = None
+) -> None:
     """Generate SVG TUI screenshots for documentation using Textual export."""
-    cmd = ["uv", "run", "python", "scripts/generate_docs_screenshots.py"]
+    cmd = ["uv", "run", "python", "scripts/generate_tui_screenshots.py"]
     if output_dir:
         cmd.extend(["--output-dir", shlex.quote(output_dir)])
+    if csv_path:
+        cmd.extend(["--csv-path", shlex.quote(csv_path)])
     ctx.run(" ".join(cmd), echo=True, pty=USE_PTY)
+
+
+@task(
+    help={
+        "tape": "Specific tape script name (without .tape extension) to run",
+    }
+)
+def recordings(ctx: Context, tape: str | None = None) -> None:
+    """Regenerate CLI animation GIFs using Charm VHS tape scripts."""
+    if tape:
+        if not re.match(r"^[a-zA-Z0-9_-]+$", tape):
+            msg = f"Invalid tape script name: {tape!r}"
+            raise ValueError(msg)
+        safe_tape = shlex.quote(tape)
+        ctx.run(f"vhs tapes/{safe_tape}.tape", echo=True, pty=USE_PTY)
+    else:
+        ctx.run("vhs tapes/*.tape", echo=True, pty=USE_PTY)
