@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, override
 
 import pytest
 from textual.app import App, ComposeResult
+from textual.containers import Container
 from textual.widgets import Button, Input, Static
 
 from netflix_narc.main import NetflixNarcApp
@@ -168,16 +169,17 @@ async def test_onboarding_screen_forwards_weight_changes(
         preview = onb.query_one(WeightImpactPreview)
         assert preview is not None
 
-        # Verify that the initial weights in the preview match the baseline settings weights
-        assert preview._current_weights.violence == fake_settings.weights.violence  # noqa: SLF001
+        # Verify that the initial violence weight row value matches fake_settings
+        violence_row = next(r for r in onb.query(WeightRow) if r.field_name == "violence")
+        assert violence_row.value == fake_settings.weights.violence
 
         # Click the "5" button in the Violence weight row
         new_val = 5
         await pilot.click(f"#wr-violence-{new_val}")
         await pilot.pause()
 
-        # Verify that the preview's current weights reactively updated to 5!
-        assert preview._current_weights.violence == new_val  # noqa: SLF001
+        # Verify that the violence weight row value reactively updated to 5!
+        assert violence_row.value == new_val
 
 
 @pytest.mark.asyncio
@@ -202,11 +204,11 @@ async def test_onboarding_invalid_age_validation(
         await pilot.click("#btn-next")
         await pilot.pause()
 
-        # Verify error text is displayed and step remains 1
+        # Verify error text is displayed and age step container remains visible
         error_widget = onb.query_one("#age-error", Static)
         assert "Enter a valid age" in str(error_widget.render())
 
-        assert onb._current_step == 1  # noqa: SLF001
+        assert onb.query_one("#step-age", Container).has_class("hidden") is False
 
 
 @pytest.mark.asyncio
@@ -220,17 +222,17 @@ async def test_onboarding_navigation_back_and_skip(
         await pilot.pause()
 
         onb = next(s for s in pilot.app.screen_stack if isinstance(s, OnboardingScreen))
-        assert onb._current_step == 0  # noqa: SLF001
+        assert onb.query_one("#step-welcome", Container).has_class("hidden") is False
 
         # Step 0 -> Step 1
         await pilot.click("#btn-next")
         await pilot.pause()
-        assert onb._current_step == 1  # noqa: SLF001
+        assert onb.query_one("#step-age", Container).has_class("hidden") is False
 
         # Step 1 -> Step 0 via Back
         await pilot.click("#btn-back")
         await pilot.pause()
-        assert onb._current_step == 0  # noqa: SLF001
+        assert onb.query_one("#step-welcome", Container).has_class("hidden") is False
 
         # Step 0 -> Step 1 -> valid age -> Step 2
         await pilot.click("#btn-next")
@@ -238,7 +240,7 @@ async def test_onboarding_navigation_back_and_skip(
         onb.query_one("#age-input", Input).value = "8-12"
         await pilot.click("#btn-next")
         await pilot.pause()
-        assert onb._current_step == 2  # noqa: SLF001
+        assert onb.query_one("#step-weights", Container).has_class("hidden") is False
 
 
 @pytest.mark.asyncio

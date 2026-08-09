@@ -7,6 +7,7 @@ import re
 import tomllib
 
 import pytest
+from pydantic_settings import SettingsConfigDict
 
 from netflix_narc.settings import Settings
 
@@ -118,11 +119,13 @@ def test_parse_child_age_range_invalid_raises(invalid_input: object) -> None:
 
 
 def test_get_env_file_path_resolution(tmp_path: pathlib.Path) -> None:
-    """Settings.get_env_file_path returns custom path when _env_file attribute is set."""
+    """Settings.get_env_file_path returns custom path when model_config env_file is set."""
     custom_env = tmp_path / "custom.env"
-    s = Settings()
-    s._env_file = custom_env  # type: ignore[attr-defined] # noqa: SLF001
 
+    class CustomSettings(Settings):
+        model_config = SettingsConfigDict(env_file=custom_env)
+
+    s = CustomSettings()
     assert s.get_env_file_path() == custom_env
 
 
