@@ -29,11 +29,11 @@ To optimize agent resource allocation, tasks are divided into three difficulty t
 
 ### 🟢 Tier 1: Low Difficulty Tasks (Basic / "Dumb" Agents)
 
-- [ ] **Task 1.1**: Update `pyproject.toml` to add `docs = ["zensical>=0.1.0"]` under `[dependency-groups]`. Run `uv lock`.
-- [ ] **Task 1.2**: Create `zensical.toml` in repository root with standard project metadata and theme config.
-- [ ] **Task 1.3**: Update `tasks.py` to add `docs_serve` and `docs_build` invoke tasks.
-- [ ] **Task 1.4**: Update `CONTRIBUTING.md` with documentation local preview commands (`uv run inv docs-serve`).
-- [ ] **Task 1.5**: Create directory structure: `docs/getting-started/`, `docs/guides/`, `docs/assets/images/`, `docs/assets/recordings/`.
+- [x] **Task 1.1**: Update `pyproject.toml` to add `docs = ["zensical>=0.1.0"]` under `[dependency-groups]`. Run `uv lock`.
+- [x] **Task 1.2**: Create `zensical.toml` in repository root with standard project metadata and theme config.
+- [x] **Task 1.3**: Update `tasks.py` to add `docs_serve` and `docs_build` invoke tasks.
+- [x] **Task 1.4**: Update `CONTRIBUTING.md` with documentation local preview commands (`uv run inv docs-serve`).
+- [x] **Task 1.5**: Create directory structure: `docs/getting-started/`, `docs/guides/`, `docs/assets/images/`, `docs/assets/recordings/`.
 
 ### 🟡 Tier 2: Medium Difficulty Tasks (Standard Agents)
 
@@ -154,7 +154,10 @@ Add documentation serve and build tasks:
 ```python
 @task(
     aliases=["docs"],
-    help={"host": "Host interface to bind (default: 127.0.0.1)", "port": "Port to bind (default: 8000)"},
+    help={
+        "host": "Host interface to bind (default: 127.0.0.1)",
+        "port": "Port to bind (default: 8000)",
+    },
 )
 def docs_serve(ctx: Context, host: str = "127.0.0.1", port: int = 8000) -> None:
     """Serve documentation locally using Zensical."""

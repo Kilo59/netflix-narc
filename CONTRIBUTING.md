@@ -84,6 +84,25 @@ We use `mypy` in strict mode.
 uv run mypy .
 ```
 
+### Documentation
+
+To preview the documentation site locally with live reloading:
+
+```bash
+uv run --group docs zensical serve
+# or using invoke
+uv run inv docs-serve
+```
+
+To build the static site locally:
+
+```bash
+uv run --group docs zensical build
+# or using invoke
+uv run inv docs-build
+```
+
+
 ## Release Process & Versioning Strategy
 
 This project follows [Semantic Versioning (SemVer 2.0.0)](https://semver.org/spec/v2.0.0.html) and uses PEP 440 compliant version strings (e.g., `0.1.0a1`, `0.1.0`, `1.0.0`).

@@ -54,6 +54,9 @@ dev = [
     "ruff>=0.16.2",
     "ruff-sync>=0.1.8",
 ]
+docs = [
+    "zensical>=0.0.53",
+]
 build = [
     "invoke>=2.2.1",
 ]
