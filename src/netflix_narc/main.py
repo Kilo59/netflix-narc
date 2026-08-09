@@ -868,10 +868,10 @@ class NetflixNarcApp(App[None]):
         """Interrogate the currently selected row in the data table."""
         table = self.query_one(DataTable)
         try:
-            if not table.cursor_coordinate:
+            if table.row_count == 0 or not table.cursor_coordinate:
                 return
             row_key = table.coordinate_to_cell_key(table.cursor_coordinate).row_key.value
-        except (LookupError, ValueError):
+        except Exception:  # noqa: BLE001
             return
 
         if not row_key or not isinstance(row_key, str):
