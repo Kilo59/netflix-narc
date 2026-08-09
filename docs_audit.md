@@ -300,7 +300,7 @@ Below is the structured, sequential task breakdown to resolve all audit findings
 
 - [x] **Task 2.1 — Storage & Sync (BYOS) Guide (Audit #3 & #18)**
   - Create `docs/guides/storage-and-sync.md` covering Local Folder/iCloud, S3/Cloudflare R2, and WebDAV/Nextcloud configurations, test connection button, and `.env` setup. Update `zensical.toml` navigation.
-- [ ] **Task 2.2 — Scoring Modes & Algorithm Section (Audit #2)**
+- [x] **Task 2.2 — Scoring Modes & Algorithm Section (Audit #2)**
   - Add a dedicated section to `tui-walkthrough.md` (under Preferences) explaining **Quality Focus** vs **Balanced** scoring modes. Update the FAQ response in `troubleshooting-faq.md`.
 - [ ] **Task 2.3 — Correct Lineup vs Main DataTable Descriptions (Audit #7 & #16)**
   - Rewrite `tui-walkthrough.md` § 1 to accurately describe the sequential card review flow (Lineup). Add a new section for the **Main Inspection Table** (expandable rows, severity colors, view counts).

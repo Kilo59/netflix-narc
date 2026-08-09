@@ -55,7 +55,30 @@ Press <kbd>s</kbd> to open the **Preferences Screen** to tune your evaluation al
 
 ![Preferences Screen](../assets/images/preferences_screen.svg){: .tui-screenshot }
 
-### Features
+### Scoring Modes
 
-- **Category Sensitivity Sliders**: Adjust weights for individual content concerns (e.g., set Violence weight higher than Language weight).
-- **Live Weight Impact Preview**: As you adjust sliders, the preview panel dynamically recalculates how many titles in your viewing history flip between Safe, Warning, and Flagged states.
+**netflix-narc** supports two evaluation algorithms depending on your family's filtering philosophy:
+
+- **Option A: Quality Focus (`quality_focus`)**:
+  - Base Quality and Positive Content drive the initial suitability score.
+  - Gate factors (**Age Suitability** and **Content Safety**) act strictly as penalty deductions.
+  - *Best for*: Parents who want high-quality family shows to shine, but want inappropriate or mature content penalized heavily regardless of how high its critic score is.
+- **Option B: Balanced (`balanced`)** *(Default)*:
+  - All 5 sub-suitability components contribute to a weighted average score.
+  - Neutral safety factors are capped at `7.0/10` to maintain realistic score balance.
+  - *Best for*: A holistic view where high educational value or positive messages can offset mild content concerns.
+
+### Category Sensitivity Weights
+
+Customizable 1–5 scale sliders let you tune how aggressively specific concerns lower suitability:
+
+- **Overall Signals**: Base Quality weight, Age Suitability weight.
+- **Content Categories**: Educational Value, Positive Messages, Positive Role Models, Violence & Scariness, Sexual Content, Language, Drinking/Drugs/Smoking.
+
+### Live Weight Impact Preview
+
+During Onboarding and inside Preferences, **netflix-narc** renders a side-by-side **Weight Impact Preview** panel:
+
+- **Before / After Suitability Bars**: Displays instant visual comparison bars showing how your weight changes adjust suitability scores across sample titles in your Evidence Locker.
+- **Delta Indicator**: Shows exact numeric score shifts (e.g., `+1.2` or `-0.8`).
+- **📌 Pin a Title Selector**: Allows you to pin a specific title to watch its suitability score react in real-time as you tweak individual sliders.
