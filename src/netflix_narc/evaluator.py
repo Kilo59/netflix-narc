@@ -649,7 +649,7 @@ def merge_metadata(
         return api_metadata
 
     if not merge_manual_data or api_metadata is None:
-        if not manual_record.has_rating_data:
+        if manual_record is None or not manual_record.has_rating_data:
             return api_metadata
         return manual_record.to_normalized_metadata()
 

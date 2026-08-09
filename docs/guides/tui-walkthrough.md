@@ -30,7 +30,7 @@
 | **Lineup Queue** | <kbd>Space</kbd> | **Flag for Follow-up** | Toggle flag for future follow-up on current card title. |
 | **Lineup Queue** | <kbd>x</kbd> | **Ignore Title** | Mark current title as ignored and advance to next item. |
 | **Lineup Queue** | <kbd>s</kbd> | **Skip Title** | Skip current title without modifying its status. |
-| **Interrogation** | <kbd>Space</kbd> | **Flag for Follow-up** | Toggle 'Flag for future follow-up' checkbox (when form input non-focused). |
+| **Interrogation** | <kbd>Space</kbd> | **Flag for Follow-up** | Toggle 'Flag for future follow-up' checkbox (when no form input is focused). |
 | **Interrogation** | <kbd>F2</kbd> | **Web Search** | Open Common Sense Media search for title in default browser. |
 | **Modals / Screens** | <kbd>Esc</kbd> | **Close / Back** | Dismiss current screen or modal dialog without saving changes. |
 
