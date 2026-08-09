@@ -517,5 +517,33 @@ def test_merge_metadata_no_merge_manual_takes_precedence():
     assert merged.category_scores == {"Language": 1.0}
 
 
+def test_explain_suitability_and_bar_thresholds():
+    settings = Settings(child_age_range=(8, 12), _env_file=None)  # type: ignore[call-arg]
+    metadata = NormalizedMetadata(
+        title="Test Explain",
+        content_rating="TV-MA",
+        user_rating=3.0,
+        provider_name="csm",
+        category_scores={"Violence & Scariness": 5.0, "Educational Value": 0.0},
+    )
+
+    explanations = explain_suitability(metadata, settings)
+    assert any("Base quality rating:" in e for e in explanations)
+    assert any("exceeds" in e.lower() for e in explanations)
+
+    bar_excellent = get_suitability_bar(9.0, width=10)
+
+    assert "[green]" in bar_excellent
+
+    bar_good = get_suitability_bar(7.5, width=10)
+    assert "[greenyellow]" in bar_good
+
+    bar_warning = get_suitability_bar(5.5, width=10)
+    assert "[yellow]" in bar_warning
+
+    bar_poor = get_suitability_bar(3.0, width=10)
+    assert "[red]" in bar_poor
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

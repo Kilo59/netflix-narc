@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING, override
 
 import pytest
 from textual.app import App, ComposeResult
-from textual.widgets import Button, Input
+from textual.containers import Container
+from textual.widgets import Button, Input, Static
 
 from netflix_narc.main import NetflixNarcApp
 from netflix_narc.manual_db import ManualMetadata
@@ -168,16 +169,125 @@ async def test_onboarding_screen_forwards_weight_changes(
         preview = onb.query_one(WeightImpactPreview)
         assert preview is not None
 
-        # Verify that the initial weights in the preview match the baseline settings weights
-        assert preview._current_weights.violence == fake_settings.weights.violence  # noqa: SLF001
+        # Verify that the initial violence weight row value matches fake_settings
+        violence_row = next(r for r in onb.query(WeightRow) if r.field_name == "violence")
+        assert violence_row.value == fake_settings.weights.violence
 
         # Click the "5" button in the Violence weight row
         new_val = 5
         await pilot.click(f"#wr-violence-{new_val}")
         await pilot.pause()
 
-        # Verify that the preview's current weights reactively updated to 5!
-        assert preview._current_weights.violence == new_val  # noqa: SLF001
+        # Verify that the violence weight row value reactively updated to 5!
+        assert violence_row.value == new_val
+
+
+@pytest.mark.asyncio
+async def test_onboarding_invalid_age_validation(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Entering an invalid age should display an error message and block navigation."""
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test(size=(120, 60)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+
+        onb = next(s for s in pilot.app.screen_stack if isinstance(s, OnboardingScreen))
+
+        # Advance to step 1 (Age input)
+        await pilot.click("#btn-next")
+        await pilot.pause()
+
+        # Enter invalid age string
+        age_input = onb.query_one("#age-input", Input)
+        age_input.value = "invalid_age_str"
+        await pilot.click("#btn-next")
+        await pilot.pause()
+
+        # Verify error text is displayed and step remains 1
+        error_widget = onb.query_one("#age-error", Static)
+        assert error_widget.has_class("hidden") is False
+        assert "Enter a valid age" in str(error_widget.content)
+
+        assert onb.query_one("#step-age", Container).has_class("hidden") is False
+
+
+@pytest.mark.asyncio
+async def test_onboarding_navigation_back_and_skip(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Test navigating backwards with btn-back and skipping optional steps with btn-skip."""
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test(size=(120, 60)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+
+        onb = next(s for s in pilot.app.screen_stack if isinstance(s, OnboardingScreen))
+        assert onb.query_one("#step-welcome", Container).has_class("hidden") is False
+
+        # Step 0 -> Step 1
+        await pilot.click("#btn-next")
+        await pilot.pause()
+        assert onb.query_one("#step-age", Container).has_class("hidden") is False
+
+        # Step 1 -> Step 0 via Back
+        await pilot.click("#btn-back")
+        await pilot.pause()
+        assert onb.query_one("#step-welcome", Container).has_class("hidden") is False
+
+        # Step 0 -> Step 1 -> valid age -> Step 2
+        await pilot.click("#btn-next")
+        await pilot.pause()
+        age_input = onb.query_one("#age-input", Input)
+        age_input.value = "10"
+        age_input.post_message(Input.Changed(age_input, "10"))
+        await pilot.pause()
+        await pilot.click("#btn-next")
+        await pilot.pause()
+        assert onb.query_one("#step-weights", Container).has_class("hidden") is False
+
+        # Step 2 (Weights - optional) -> Skip -> Step 3 (API)
+        skip_btn = onb.query_one("#btn-skip", Button)
+        skip_btn.press()
+        await pilot.pause()
+        assert onb.query_one("#step-api", Container).has_class("hidden") is False
+
+        # Step 3 (API - optional) -> Skip -> Step 4 (Summary)
+        skip_btn.press()
+        await pilot.pause()
+        assert onb.query_one("#step-summary", Container).has_class("hidden") is False
+
+
+@pytest.mark.asyncio
+async def test_onboarding_reset_all_weights_button(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Clicking btn-reset-all-weights resets all WeightRow values to default."""
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test(size=(120, 60)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+
+        onb = next(s for s in pilot.app.screen_stack if isinstance(s, OnboardingScreen))
+
+        # Advance to step 2 (Weights)
+        await pilot.click("#btn-next")
+        await pilot.pause()
+        onb.query_one("#age-input", Input).value = "10"
+        await pilot.click("#btn-next")
+        await pilot.pause()
+
+        # Modify a weight row
+        await pilot.click("#wr-violence-1")
+        await pilot.pause()
+
+        # Click reset all weights button
+        await pilot.click("#btn-reset-all-weights")
+        await pilot.pause()
+
+        # Check violence weight is reset to default (4)
+        violence_row = next(r for r in onb.query(WeightRow) if r.field_name == "violence")
+        assert violence_row.value == 4
 
 
 if __name__ == "__main__":

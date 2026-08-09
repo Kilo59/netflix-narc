@@ -7,6 +7,9 @@ import re
 import tomllib
 
 import pytest
+from pydantic_settings import SettingsConfigDict
+
+from netflix_narc.settings import Settings
 
 
 @pytest.fixture()
@@ -79,6 +82,51 @@ def test_package_data_includes_tcss() -> None:
         "pyproject.toml [tool.setuptools.package-data] entry for 'netflix_narc' must "
         "explicitly include a '*.tcss' pattern so netflix_narc's CSS is bundled in wheels"
     )
+
+
+@pytest.mark.parametrize(
+    ("raw_input", "expected"),
+    [
+        (None, None),
+        ((10, 14), (10, 14)),
+        (("8", "12"), (8, 12)),
+        ([7, 13], (7, 13)),
+        (["6", "11"], (6, 11)),
+        ("10", (10, 10)),
+        (" 8 - 12 ", (8, 12)),
+    ],
+)
+def test_parse_child_age_range_valid(raw_input: object, expected: tuple[int, int] | None) -> None:
+    """Settings.parse_child_age_range converts valid formats to tuple[int, int]."""
+    res = Settings.parse_child_age_range(raw_input)
+    assert res == expected
+
+
+@pytest.mark.parametrize(
+    "invalid_input",
+    [
+        "no_numbers_here",
+        12345,
+        ["invalid", "data"],
+        (1,),
+        object(),
+    ],
+)
+def test_parse_child_age_range_invalid_raises(invalid_input: object) -> None:
+    """Settings.parse_child_age_range raises ValueError on invalid formats."""
+    with pytest.raises(ValueError, match=r"Invalid age range format|Could not parse age range"):
+        Settings.parse_child_age_range(invalid_input)
+
+
+def test_get_env_file_path_resolution(tmp_path: pathlib.Path) -> None:
+    """Settings.get_env_file_path returns custom path when model_config env_file is set."""
+    custom_env = tmp_path / "custom.env"
+
+    class CustomSettings(Settings):
+        model_config = SettingsConfigDict(env_file=custom_env)
+
+    s = CustomSettings()
+    assert s.get_env_file_path() == custom_env
 
 
 if __name__ == "__main__":
