@@ -10,7 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0a6] - 2026-08-09
 
 ### Added
-- **Spacebar Flag Shortcut**: Added `spacebar` keybinding to toggle "Flag for future follow-up" directly on selected titles in the main DataTable, Interrogation Room form, and Lineup screen.
+- **Spacebar Flag Shortcut**: Added `Space` keybinding to toggle "Flag for future follow-up" directly on selected titles in the main DataTable, Interrogation Room form, and Lineup screen. Added a dedicated "Flag [Space]" button to the Lineup screen.
+- **Documentation Site & User Guides**: Launched MkDocs Zensical documentation site at [https://kilo59.github.io/netflix-narc/](https://kilo59.github.io/netflix-narc/) with comprehensive user guides:
+  - Exporting Netflix Viewing History (`docs/getting-started/exporting-netflix-csv.md`)
+  - Standalone Binary & Package Manager Installation (`docs/getting-started/installation.md`)
+  - Onboarding, API Setup, and Weight Calibration (`docs/guides/onboarding-and-setup.md`)
+  - Full TUI Feature Walkthrough & Hotkey Reference (`docs/guides/tui-walkthrough.md`)
+  - BYOS Storage & Multi-Device Synchronization (`docs/guides/storage-and-sync.md`)
+  - Troubleshooting & FAQ (`docs/guides/troubleshooting-faq.md`)
+- **Automated TUI Screenshot Generation**: Programmatic vector SVG screenshot generator (`scripts/generate_tui_screenshots.py`) for capturing high-resolution TUI snapshots across all screens into documentation.
+- **Scoring Mode & Calibration Guidance**: Detailed mathematical explanations of **Quality Focus** vs **Balanced** scoring modes, including calibration strategies using title pinning in the Live Weight Impact Preview.
+- **Codecov & CI Test Reporting**: Integrated Codecov coverage reporting and pytest JUnit XML artifact publishing in GitHub Actions CI pipeline.
+
+### Fixed
+- **Unrated Flagged Title Base Quality**: Fixed issue where flagging an unrated title with `Space` caused Base Quality to default to `5.0/10`. Unrated flagged titles now preserve `N/A` suitability until rated via API or manual entry, displaying `(Flagged) Not Found`.
+- **PyPI Project URLs**: Added `Documentation` and `Repository` links to `pyproject.toml` project URLs metadata.
 
 ## [0.1.0a5] - 2026-08-08
 
