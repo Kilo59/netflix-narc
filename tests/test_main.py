@@ -137,11 +137,12 @@ async def test_action_show_help_pushes_help_screen(
 async def test_action_start_lineup_pushes_lineup_screen(
     fake_settings: Settings, tmp_path: pathlib.Path
 ) -> None:
-    """Pressing 'l' should launch LineupScreen."""
+    """Pressing 'l' with items in queue should launch LineupScreen."""
     fake_settings.child_age_range = (8, 12)
     app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
+        app.grouped_records["Test Title"] = []
         await pilot.press("l")
         await pilot.pause()
 

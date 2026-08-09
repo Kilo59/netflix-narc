@@ -569,7 +569,7 @@ class NetflixNarcApp(App[None]):
         """Load CSV, init Evidence Locker, sync, and perform initial evaluation."""
         await self.evidence_locker.init()
         self._load_startup_csv()
-        for base_title in self.grouped_records:
+        for base_title in list(self.grouped_records):
             if base_title not in self.evaluated_flags:
                 flags_str = await self._fetch_and_evaluate(base_title, cache_only=True)
                 self.evaluated_flags[base_title] = flags_str
