@@ -298,7 +298,7 @@ Below is the structured, sequential task breakdown to resolve all audit findings
 ### ✍️ Phase 2: Missing Documentation Content & Accuracy Fixes
 *Goal: Fix inaccurate descriptions, document missing features (Scoring Modes, BYOS Sync, Sub-bars), and create missing guide pages.*
 
-- [ ] **Task 2.1 — Storage & Sync (BYOS) Guide (Audit #3 & #18)**
+- [x] **Task 2.1 — Storage & Sync (BYOS) Guide (Audit #3 & #18)**
   - Create `docs/guides/storage-and-sync.md` covering Local Folder/iCloud, S3/Cloudflare R2, and WebDAV/Nextcloud configurations, test connection button, and `.env` setup. Update `zensical.toml` navigation.
 - [ ] **Task 2.2 — Scoring Modes & Algorithm Section (Audit #2)**
   - Add a dedicated section to `tui-walkthrough.md` (under Preferences) explaining **Quality Focus** vs **Balanced** scoring modes. Update the FAQ response in `troubleshooting-faq.md`.
