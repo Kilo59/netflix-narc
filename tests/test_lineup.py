@@ -49,10 +49,10 @@ async def test_lineup_mount_and_ui_rendering(
         await pilot.pause()
 
         counter = screen.query_one("#lineup-counter", Static)
-        assert "Title 1 of 2" in str(counter.render())
+        assert "Title 1 of 2" in str(counter.content)
 
         title_info = screen.query_one("#title-info", Static)
-        rendered_text = str(title_info.render())
+        rendered_text = str(title_info.content)
         assert "Stranger Things" in rendered_text
         assert "2023-01-15" in rendered_text
         assert "80%" in rendered_text
@@ -74,7 +74,7 @@ async def test_lineup_skip_action(fake_settings: Settings, tmp_path: pathlib.Pat
         await pilot.pause()
 
         counter = screen.query_one("#lineup-counter", Static)
-        assert "Title 2 of 2" in str(counter.render())
+        assert "Title 2 of 2" in str(counter.content)
 
 
 @pytest.mark.asyncio
@@ -98,7 +98,7 @@ async def test_lineup_ignore_action(fake_settings: Settings, tmp_path: pathlib.P
         assert record.ignored is True
 
         counter = screen.query_one("#lineup-counter", Static)
-        assert "Title 2 of 2" in str(counter.render())
+        assert "Title 2 of 2" in str(counter.content)
 
 
 @pytest.mark.asyncio

@@ -40,7 +40,7 @@ async def test_interrogation_room_mount_empty(
         assert flag_checkbox.value is False
 
         overall_bar = screen.query_one("#overall-suitability-bar", Static)
-        assert "Overall Suitability:" in str(overall_bar.render())
+        assert "Overall Suitability:" in str(overall_bar.content)
 
 
 @pytest.mark.asyncio
@@ -94,7 +94,7 @@ async def test_interrogation_room_realtime_suitability_updates(
         await pilot.pause()
 
         overall_bar = screen.query_one("#overall-suitability-bar", Static)
-        assert "Overall Suitability:" in str(overall_bar.render())
+        assert "Overall Suitability:" in str(overall_bar.content)
 
         quality_input = screen.query_one("#input-quality-rating", Input)
         quality_input.value = "5"

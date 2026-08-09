@@ -34,7 +34,7 @@ async def test_preferences_mount_and_initial_state(
         assert age_input.value == "8-12"
 
         title = screen.query_one("#prefs-title", Static)
-        assert "PREFERENCES" in str(title.render())
+        assert "PREFERENCES" in str(title.content)
 
 
 @pytest.mark.asyncio
@@ -55,7 +55,7 @@ async def test_preferences_scoring_mode_description_update(
         await pilot.pause()
 
         desc = screen.query_one("#pref-scoring-mode-description", Static)
-        assert "Quality Focus" in str(desc.render()) or "Option A" in str(desc.render())
+        assert "Quality Focus" in str(desc.content) or "Option A" in str(desc.content)
 
 
 @pytest.mark.asyncio
@@ -127,7 +127,7 @@ async def test_preferences_invalid_age_shows_error(
 
         err_static = screen.query_one("#pref-age-error", Static)
         assert err_static.has_class("hidden") is False
-        assert "Invalid age range" in str(err_static.render())
+        assert "Invalid age range" in str(err_static.content)
         assert any(isinstance(s, PreferencesScreen) for s in app.screen_stack)
 
 

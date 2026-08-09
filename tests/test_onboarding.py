@@ -207,7 +207,7 @@ async def test_onboarding_invalid_age_validation(
         # Verify error text is displayed and step remains 1
         error_widget = onb.query_one("#age-error", Static)
         assert error_widget.has_class("hidden") is False
-        assert "Enter a valid age" in str(error_widget.render())
+        assert "Enter a valid age" in str(error_widget.content)
 
         assert onb.query_one("#step-age", Container).has_class("hidden") is False
 

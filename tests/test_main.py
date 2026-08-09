@@ -259,11 +259,10 @@ def test_create_storage_backend(
         setattr(fake_settings, key, val)
 
     backend = create_storage_backend(fake_settings)
-    match expected_type:
-        case None:
-            assert backend is None
-        case _:
-            assert isinstance(backend, expected_type)
+    if expected_type is type(None):
+        assert backend is None
+    else:
+        assert isinstance(backend, expected_type)
 
 
 @pytest.mark.parametrize(
