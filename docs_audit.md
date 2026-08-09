@@ -310,7 +310,7 @@ Below is the structured, sequential task breakdown to resolve all audit findings
   - Add sections in `tui-walkthrough.md` for the 5 sub-suitability breakdown bars, the Help Screen (`h`/`?`), and the Advanced Options modal (`a`).
 - [x] **Task 2.6 — Comprehensive Keybindings Table (Audit #11)**
   - Expand the keybindings reference table in `tui-walkthrough.md` to include missing keys (`h`, `a`, `c`, `e`, `f10`, `F2`, `x`).
-- [ ] **Task 2.7 — Homepage & Installation Alignment (Audit #8, #14, #15)**
+- [x] **Task 2.7 — Homepage & Installation Alignment (Audit #8, #14, #15)**
   - Fix `docs/index.md` (remove bogus "Quick Filtering" toggle claim; fix Weight Preview description).
   - Sync `docs/getting-started/installation.md` with `README.md` (architecture-specific binary tarballs, `xattr` quarantine fix, `pipx`, SHA256 checksum verification).
 

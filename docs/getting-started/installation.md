@@ -4,82 +4,114 @@
 
 ---
 
-## Option A: Standalone Executable (Recommended)
+## Option A: Standalone Executable (Recommended — No Python Required)
 
-Standalone binaries are pre-compiled for macOS, Linux, and Windows. They require **no Python environment setup** and run out of the box.
+Standalone pre-compiled release binaries are available for macOS, Linux, and Windows. They require **no Python environment setup** and run out of the box.
 
-1. Navigate to the latest release on [GitHub Releases](https://github.com/Kilo59/netflix-narc/releases).
-2. Download the binary matching your operating system:
-   - **macOS (Apple Silicon / Intel)**: `netflix-narc-macos`
-   - **Linux (x86_64)**: `netflix-narc-linux`
-   - **Windows (x86_64)**: `netflix-narc-windows.exe`
+### 1. Download Release Archive
 
-### Platform-Specific Setup Notes
+Navigate to the latest release on [GitHub Releases](https://github.com/Kilo59/netflix-narc/releases/latest) and download the archive matching your operating system and architecture:
+
+| Operating System | Architecture | Release Archive Name |
+|------------------|--------------|----------------------|
+| **macOS** | Apple Silicon (M1/M2/M3/M4) | `netflix-narc-aarch64-apple-darwin.tar.gz` |
+| **macOS** | Intel | `netflix-narc-x86_64-apple-darwin.tar.gz` |
+| **Linux** | x86_64 | `netflix-narc-x86_64-unknown-linux-gnu.tar.gz` |
+| **Windows** | x86_64 | `netflix-narc-x86_64-pc-windows-msvc.zip` |
+
+### 2. Extraction & Platform Notes
 
 === "macOS"
 
-    Because standalone executables downloaded from GitHub are not signed by an Apple Developer Certificate, macOS Gatekeeper may display a warning: `"netflix-narc cannot be opened because it is from an unidentified developer"`.
-
-    To allow execution, open your **Terminal** app and remove the quarantine attribute:
-
-    ```bash
-    # 1. Make the binary executable
-    chmod +x ~/Downloads/netflix-narc-macos
-
-    # 2. Clear Apple quarantine attribute
-    xattr -d com.apple.quarantine ~/Downloads/netflix-narc-macos
-
-    # 3. Optional: Move to your local PATH
-    mv ~/Downloads/netflix-narc-macos /usr/local/bin/netflix-narc
-    ```
+    1. Extract the downloaded archive:
+       ```bash
+       tar -xzf netflix-narc-aarch64-apple-darwin.tar.gz
+       ```
+    2. **Clear Apple Quarantine Attribute**: Because release binaries are not signed with an Apple Developer Certificate, macOS Gatekeeper blocks unnotarized browser downloads with `"netflix-narc Not Opened: Apple could not verify..."` and terminates execution with `killed`. Run:
+       ```bash
+       xattr -d com.apple.quarantine netflix-narc
+       ```
+    3. Run the binary directly:
+       ```bash
+       ./netflix-narc
+       ```
+    4. *(Optional)* Move to system path:
+       ```bash
+       sudo mv netflix-narc /usr/local/bin/
+       ```
 
 === "Linux"
 
-    Grant execute permissions and launch from your terminal:
-
-    ```bash
-    chmod +x ~/Downloads/netflix-narc-linux
-    mv ~/Downloads/netflix-narc-linux ~/.local/bin/netflix-narc
-    ```
+    1. Extract the archive and grant execution permissions:
+       ```bash
+       tar -xzf netflix-narc-x86_64-unknown-linux-gnu.tar.gz
+       chmod +x netflix-narc
+       ```
+    2. Run or move to local path:
+       ```bash
+       mv netflix-narc ~/.local/bin/
+       ```
 
 === "Windows"
 
-    Launch `netflix-narc-windows.exe` directly from PowerShell or Command Prompt:
+    1. Extract `netflix-narc-x86_64-pc-windows-msvc.zip` (or the raw `.exe`).
+    2. Launch from Command Prompt or PowerShell:
+       ```powershell
+       .\netflix-narc.exe
+       ```
 
-    ```powershell
-    .\netflix-narc-windows.exe
-    ```
+### 3. Verifying Download Integrity (SHA256)
+
+Each release includes an official `SHA256SUMS` manifest file. You can verify checksums before executing:
+
+```bash
+# macOS
+shasum -a 256 -c SHA256SUMS
+
+# Linux
+sha256sum -c SHA256SUMS
+```
 
 ---
 
-## Option B: Python Package (`uv` or `pip`)
+## Option B: Python Package (`uv`, `pipx`, `pip`, or Source)
 
-If you already have Python (≥ 3.13) installed on your computer, you can install `netflix-narc` via `uv` or `pip`.
+If you have Python (≥ 3.13) installed on your system, you can install **netflix-narc** into an isolated Python environment.
 
-=== "Using uv (Recommended)"
+=== "Via uv (Recommended)"
 
-    [`uv`](https://docs.astral.sh/uv/) installs `netflix-narc` in an isolated tool environment:
+    [`uv`](https://docs.astral.sh/uv/) installs `netflix-narc` into an isolated tool environment:
 
     ```bash
     uv tool install netflix-narc
     ```
 
-=== "Using pip"
+=== "Via pipx"
 
-    Standard installation via PyPI:
+    ```bash
+    pipx install netflix-narc
+    ```
+
+=== "Via pip"
 
     ```bash
     pip install netflix-narc
+    ```
+
+=== "From GitHub Source"
+
+    Install the cutting-edge main branch directly from GitHub:
+
+    ```bash
+    uv tool install git+https://github.com/Kilo59/netflix-narc
     ```
 
 ---
 
 ## Verifying Installation
 
-Verify that `netflix-narc` is installed correctly by running the help command in your terminal:
+Verify that `netflix-narc` is installed correctly by checking the CLI help flags:
 
 ```bash
 netflix-narc --help
 ```
-
-You should see the command-line usage instructions and available options.
