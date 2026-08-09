@@ -29,7 +29,17 @@ Upon launching **netflix-narc** after setup, your uploaded Netflix viewing histo
 - **Row Expansion (<kbd>Enter</kbd>)**: Press <kbd>Enter</kbd> or click any row to expand/collapse detailed sub-suitability breakdown bars.
 - **Color-Coded Suitability Bars**: Displays overall suitability scores from `0.0/10` to `10.0/10` (🟢 Green $\ge 7.5$, 🟡 Yellow $\ge 5.0$, 🔴 Red $< 5.0$).
 - **View Count & Watch Dates**: Displays total view count and first/last watch dates extracted from your Netflix CSV.
-- **Evidence Locker Indicator**: Icons indicate whether a title has been manually reviewed and stored in your local Evidence Locker database.
+### Sub-Suitability Breakdown Bars
+
+When a row is expanded in the main inspection table or inspected in the Interrogation Room, **netflix-narc** displays 5 sub-suitability bars:
+
+| Sub-Bar | Description |
+|---------|-------------|
+| **Base Quality** | User/critic quality score out of 10.0. |
+| **Age Suitability** | Compatibility with your child's age range. |
+| **Educational Suitability** | Educational value score scaled by your custom weight. |
+| **Positive Content** | Combined score for positive messages and positive role models. |
+| **Content Safety** | Combined safety score penalizing violence, sexual content, language, and substance use. |
 
 ---
 
@@ -105,3 +115,34 @@ During Onboarding and inside Preferences, **netflix-narc** renders a side-by-sid
 - **Before / After Suitability Bars**: Displays instant visual comparison bars showing how your weight changes adjust suitability scores across sample titles in your Evidence Locker.
 - **Delta Indicator**: Shows exact numeric score shifts (e.g., `+1.2` or `-0.8`).
 - **📌 Pin a Title Selector**: Allows you to pin a specific title to watch its suitability score react in real-time as you tweak individual sliders.
+
+---
+
+## 5. The Help Screen (`h` / `?`)
+
+Press <kbd>h</kbd> or <kbd>?</kbd> at any time to open the **Help Screen**.
+
+![Help Screen](../assets/images/help_screen.svg){: .tui-screenshot }
+
+### Content & References
+
+- **App Philosophy & Guidance**: Explains how **netflix-narc** balances parental guidance and content evaluation.
+- **Scoring System Overview**: Quick reference for suitability thresholds and color bars.
+- **Keyboard Shortcut Reference**: Comprehensive table of global and screen-specific hotkeys.
+
+---
+
+## 6. Advanced Options Modal (`a`)
+
+Press <kbd>a</kbd> to open the **Advanced Options** modal for progressive disclosure of power-user actions.
+
+![Advanced Options Modal](../assets/images/advanced_screen.svg){: .tui-screenshot }
+
+### Actions & Configuration
+
+- **Load History File (<kbd>c</kbd>)**: Prompts to reload or switch Netflix viewing history CSV files.
+- **Evaluate Titles via API (<kbd>e</kbd>)**: Manually trigger rating metadata fetches from the configured rating provider.
+- **Max Records to Load**: Limit the number of recent viewing history items processed (default: 200).
+- **Min Quality Rating**: Filter threshold for minimum CSM quality stars (1-5).
+- **Max Age Rating**: Upper age threshold for content evaluation.
+- **Merge Evidence Locker Data Switch**: Enable/disable merging manual database dossier overrides into API results.

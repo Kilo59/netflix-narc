@@ -306,7 +306,7 @@ Below is the structured, sequential task breakdown to resolve all audit findings
   - Rewrite `tui-walkthrough.md` § 1 to accurately describe the sequential card review flow (Lineup). Add a new section for the **Main Inspection Table** (expandable rows, severity colors, view counts).
 - [x] **Task 2.4 — Expand Interrogation Room Details (Audit #5)**
   - Update `tui-walkthrough.md` § 2 to cover real-time suitability dashboard, sub-suitability bars, macOS clipboard image pasting, F2 web search, and follow-up flags.
-- [ ] **Task 2.5 — Document Sub-bars, Help Screen & Advanced Options (Audit #6, #12, #13)**
+- [x] **Task 2.5 — Document Sub-bars, Help Screen & Advanced Options (Audit #6, #12, #13)**
   - Add sections in `tui-walkthrough.md` for the 5 sub-suitability breakdown bars, the Help Screen (`h`/`?`), and the Advanced Options modal (`a`).
 - [ ] **Task 2.6 — Comprehensive Keybindings Table (Audit #11)**
   - Expand the keybindings reference table in `tui-walkthrough.md` to include missing keys (`h`, `a`, `c`, `e`, `f10`, `F2`, `x`).
