@@ -27,6 +27,7 @@ from textual.widgets import (
     Select,
     Static,
 )
+from textual.widgets._data_table import CellDoesNotExist
 from textual.worker import Worker, WorkerState
 
 from netflix_narc.evaluator import (
@@ -598,7 +599,7 @@ class NetflixNarcApp(App[None]):
             all_records = await self.evidence_locker.get_all_records()
             preview = WeightImpactPreview.select_preview_records(all_records, self.settings)
             all_eligible = WeightImpactPreview.get_eligible_records(all_records, self.settings)
-        except Exception:  # noqa: BLE001
+        except (sqlite3.Error, OSError):
             preview = []
             all_eligible = []
         self.push_screen(
@@ -871,7 +872,7 @@ class NetflixNarcApp(App[None]):
             if table.row_count == 0 or not table.cursor_coordinate:
                 return
             row_key = table.coordinate_to_cell_key(table.cursor_coordinate).row_key.value
-        except Exception:  # noqa: BLE001
+        except (LookupError, ValueError, CellDoesNotExist):
             return
 
         if not row_key or not isinstance(row_key, str):

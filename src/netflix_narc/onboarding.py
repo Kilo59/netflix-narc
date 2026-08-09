@@ -646,7 +646,7 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         lo, hi = age_range
         try:
             age_input.value = f"{lo}-{hi}" if lo != hi else str(lo)
-        except Exception as exc:  # noqa: BLE001
+        except (ValueError, TypeError) as exc:
             warnings.warn(
                 f"Failed to update age input value for age_range {age_range}: {exc}",
                 UserWarning,
