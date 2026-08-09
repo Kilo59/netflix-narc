@@ -11,6 +11,49 @@ Because `netflix-narc` targets non-technical users (parents, guardians, caregive
 
 ---
 
+## Agent Intelligence & Task Difficulty Matrix
+
+To optimize agent resource allocation, tasks are divided into three difficulty tiers based on required intelligence and complexity:
+
+| Tier | Recommended Agent Level | Model Suggestion | Task Nature |
+|------|-------------------------|------------------|-------------|
+| 🟢 **Tier 1: Low** | Basic / "Dumb" Agent | `flash_lite` / `flash` | Mechanical file creation, exact config snippets (`pyproject.toml`, `tasks.py`, `CONTRIBUTING.md`, `zensical.toml`), directory creation. |
+| 🟡 **Tier 2: Medium** | Standard Agent | `flash` / `pro` | Drafting structured user guides (`exporting-netflix-csv.md`, `tui-walkthrough.md`, `troubleshooting-faq.md`), writing GitHub Actions deployment workflow. |
+| 🔴 **Tier 3: High** | High Intelligence Agent | `pro` / `high` | Visual asset capture (TUI screenshots & `vhs` recordings), custom Zensical CSS theme matching TUI aesthetics, cross-link validation, end-to-end static site verification. |
+
+---
+
+## Modifiable Agent Task Checklist
+
+> **Instructions for Worker Agents**: Check off tasks `[x]` as you complete them. If a task encounters issues, add a note under the corresponding task checkbox.
+
+### 🟢 Tier 1: Low Difficulty Tasks (Basic / "Dumb" Agents)
+
+- [ ] **Task 1.1**: Update `pyproject.toml` to add `docs = ["zensical>=0.1.0"]` under `[dependency-groups]`. Run `uv lock`.
+- [ ] **Task 1.2**: Create `zensical.toml` in repository root with standard project metadata and theme config.
+- [ ] **Task 1.3**: Update `tasks.py` to add `docs_serve` and `docs_build` invoke tasks.
+- [ ] **Task 1.4**: Update `CONTRIBUTING.md` with documentation local preview commands (`uv run inv docs-serve`).
+- [ ] **Task 1.5**: Create directory structure: `docs/getting-started/`, `docs/guides/`, `docs/assets/images/`, `docs/assets/recordings/`.
+
+### 🟡 Tier 2: Medium Difficulty Tasks (Standard Agents)
+
+- [ ] **Task 2.1**: Write `docs/index.md` — Parent-focused introduction, feature highlights, and navigation callouts.
+- [ ] **Task 2.2**: Write `docs/getting-started/installation.md` — Binary download guide, macOS quarantine fix (`xattr -d com.apple.quarantine netflix-narc`), `uv`/`pip` options.
+- [ ] **Task 2.3**: Write `docs/getting-started/exporting-netflix-csv.md` — Visual guide for downloading `ViewingHistory.csv` from Netflix Account Settings.
+- [ ] **Task 2.4**: Write `docs/guides/onboarding-and-setup.md` — `OnboardingScreen` wizard walkthrough & optional API key setup (CSM, OMDb, TMDB).
+- [ ] **Task 2.5**: Write `docs/guides/tui-walkthrough.md` — Lineup Screen (`l`), Interrogation Room (`i`), and Preferences/Weights (`s`) guide.
+- [ ] **Task 2.6**: Write `docs/guides/troubleshooting-faq.md` — CSV parsing errors, rate limit tips, config reset guide (`~/.config/netflix-narc/.env`).
+- [ ] **Task 2.7**: Create `.github/workflows/docs.yml` — GitHub Actions workflow for GitHub Pages deployment using `uv run --group docs zensical build`.
+
+### 🔴 Tier 3: High Difficulty Tasks (High-Intelligence Agents)
+
+- [ ] **Task 3.1**: Generate & capture visual assets (high-res TUI screenshots & `vhs` recordings for Lineup & Onboarding) into `docs/assets/`.
+- [ ] **Task 3.2**: Customize Zensical theme palette/CSS overrides (`docs/assets/extra.css`) to match Textual TUI dark mode theme aesthetics.
+- [ ] **Task 3.3**: End-to-end verification — Execute `uv run --group docs zensical build`, check HTML output, validate all internal links and Disco search index.
+- [ ] **Task 3.4**: Run full code quality suite (`uv run ruff check . --fix`, `uv run ruff format .`, `uv run mypy .`, `uv run pytest -vv`).
+
+---
+
 ## Architecture & Technology Choice
 
 - **Static Site Generator**: Zensical (`zensical>=0.1.0`)
@@ -21,31 +64,9 @@ Because `netflix-narc` targets non-technical users (parents, guardians, caregive
 
 ---
 
-## Proposed Changes
+## Detailed Task Specifications & Code Snippets
 
-```text
-pyproject.toml                            # [MODIFY] Add dependency-groups.docs
-tasks.py                                  # [MODIFY] Add docs_serve & docs_build invoke tasks
-CONTRIBUTING.md                           # [MODIFY] Add local documentation build instructions
-zensical.toml                             # [NEW] Native Zensical configuration file
-.github/workflows/docs.yml                # [NEW] CI workflow for GitHub Pages deployment
-docs/
-  index.md                                # [NEW] Landing page & quick intro for parents
-  getting-started/
-    installation.md                       # [NEW] Installation guide (Binary, uv, pip)
-    exporting-netflix-csv.md              # [NEW] Step-by-step Netflix CSV export guide
-  guides/
-    onboarding-and-setup.md               # [NEW] Onboarding wizard & API keys guide
-    tui-walkthrough.md                    # [NEW] TUI Lineup, Interrogation Room & Settings guide
-    troubleshooting-faq.md                # [NEW] Common errors, FAQ & config resets
-  assets/
-    images/                               # [NEW] Directory for screenshots and SVGs
-    recordings/                           # [NEW] Directory for terminal UI recordings / GIFs
-```
-
----
-
-### Step 1: Dependencies & Configuration
+### Step 1: Dependencies & Configuration (Tier 1)
 
 #### [MODIFY] `pyproject.toml`
 
@@ -124,7 +145,7 @@ attr_list = {}
 
 ---
 
-### Step 2: Task Runner & Contributing Guides
+### Step 2: Task Runner & Contributing Guides (Tier 1 & Tier 2)
 
 #### [MODIFY] `tasks.py`
 
@@ -172,7 +193,7 @@ uv run inv docs-build
 
 ---
 
-### Step 3: Core Documentation Pages (`docs/`)
+### Step 3: Core Documentation Pages (`docs/`) (Tier 2)
 
 #### [NEW] `docs/index.md`
 
@@ -221,7 +242,7 @@ uv run inv docs-build
 
 ---
 
-### Step 4: GitHub Actions Workflow
+### Step 4: GitHub Actions Workflow (Tier 2)
 
 #### [NEW] `.github/workflows/docs.yml`
 
@@ -285,34 +306,6 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 ```
-
----
-
-## Detailed Step-by-Step Execution for Agents
-
-Follow these steps strictly in order:
-
-### 1. Update `pyproject.toml`
-Add the `docs = ["zensical>=0.1.0"]` dependency group to `pyproject.toml`.
-Run:
-```bash
-uv lock
-uv sync --group docs
-```
-
-### 2. Create `zensical.toml`
-Create `zensical.toml` at the repository root with the exact TOML structure defined above.
-
-### 3. Add `tasks.py` and `CONTRIBUTING.md` Entries
-Update `tasks.py` to include `docs_serve` and `docs_build`.
-Update `CONTRIBUTING.md` with documentation commands.
-
-### 4. Create Documentation Pages in `docs/`
-Create directory `docs/`, `docs/getting-started/`, `docs/guides/`, `docs/assets/images/`, `docs/assets/recordings/`.
-Create all 6 markdown files (`index.md`, `getting-started/installation.md`, `getting-started/exporting-netflix-csv.md`, `guides/onboarding-and-setup.md`, `guides/tui-walkthrough.md`, `guides/troubleshooting-faq.md`).
-
-### 5. Create `.github/workflows/docs.yml`
-Create the GitHub Actions workflow file with Pages deployment steps.
 
 ---
 
