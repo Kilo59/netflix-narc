@@ -281,7 +281,7 @@ Below is the structured, sequential task breakdown to resolve all audit findings
 ### 📦 Phase 1: Automated Media Infrastructure & Fixtures (High Leverage)
 *Goal: Build the programmatic screenshot script and test fixtures so that all missing/broken screenshots (e.g. Weight Impact Preview) can be generated automatically with populated data.*
 
-- [ ] **Task 1.1 — Mock Dataset Fixtures (`zensical_docs_plan.md` Task 4.5)**
+- [x] **Task 1.1 — Mock Dataset Fixtures (`zensical_docs_plan.md` Task 4.5)**
   - Create mock `ManualMetadata` records with completeness scores $\ge 70\%$ in `scripts/generate_tui_screenshots.py` so the `WeightImpactPreview` widget actually renders when the Preferences and Onboarding screens are captured.
 - [ ] **Task 1.2 — Automated TUI Screenshot Script (`zensical_docs_plan.md` Task 4.6)**
   - Implement `scripts/generate_tui_screenshots.py` using Textual's `run_test()` pilot to programmatically navigate and save native SVG screenshots for:

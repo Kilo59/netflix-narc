@@ -68,7 +68,7 @@ Adopting the automated media generation architecture from [`Kilo59/ruff-sync`](h
 #### 🟡 Tier 2: Medium Difficulty Tasks (Standard Agents)
 
 - [ ] **Task 4.4**: Create `tapes/onboarding_demo.tape` and `tapes/lineup_filtering.tape` scripts to record interactive CLI GIFs into `docs/assets/recordings/`.
-- [ ] **Task 4.5**: Create mock dataset fixtures in `scripts/generate_tui_screenshots.py` to populate realistic Netflix titles and severity flags.
+- [x] **Task 4.5**: Create mock dataset fixtures in `scripts/generate_tui_screenshots.py` to populate realistic Netflix titles and severity flags.
 
 #### 🔴 Tier 3: High Difficulty Tasks (High-Intelligence Agents)
 
