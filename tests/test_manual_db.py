@@ -13,6 +13,7 @@ import pytest
 import pytest_asyncio
 
 from netflix_narc.manual_db import EvidenceLocker, ManualMetadata
+from netflix_narc.manual_db import main as manual_db_main
 from netflix_narc.sync.models import DossierSyncItem
 
 
@@ -344,6 +345,61 @@ async def test_manual_db_ignore_and_unignore_title(temp_db: EvidenceLocker) -> N
     rec_unignored = await temp_db.get_record("Show 1")
     assert rec_unignored is not None
     assert rec_unignored.ignored is False
+
+
+@pytest.mark.asyncio
+async def test_manual_db_cli_main(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test CLI main() interface for export/import json/csv."""
+    db_file = tmp_path / "cli_test.sqlite"
+
+    locker = EvidenceLocker(db_file)
+    await locker.init()
+    await locker.upsert_record(ManualMetadata(title="CLI Show", user_rating=4.5))
+
+    json_export = tmp_path / "cli_out.json"
+    csv_export = tmp_path / "cli_out.csv"
+
+    # Export JSON
+    monkeypatch.setattr(
+        "sys.argv",
+        ["manual_db", "export", "json", str(json_export), "--db", str(db_file)],
+    )
+    await manual_db_main()
+    assert json_export.exists()
+
+    # Export CSV
+    monkeypatch.setattr(
+        "sys.argv",
+        ["manual_db", "export", "csv", str(csv_export), "--db", str(db_file)],
+    )
+    await manual_db_main()
+    assert csv_export.exists()
+
+    # Import JSON into fresh DB
+    db2_file = tmp_path / "cli_test2.sqlite"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["manual_db", "import", "json", str(json_export), "--db", str(db2_file)],
+    )
+    await manual_db_main()
+
+    locker2 = EvidenceLocker(db2_file)
+    rec_imported_json = await locker2.get_record("CLI Show")
+    assert rec_imported_json is not None
+    assert rec_imported_json.user_rating == 4.5
+
+    # Import CSV into fresh DB
+    db3_file = tmp_path / "cli_test3.sqlite"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["manual_db", "import", "csv", str(csv_export), "--db", str(db3_file)],
+    )
+    await manual_db_main()
+
+    locker3 = EvidenceLocker(db3_file)
+    rec_imported_csv = await locker3.get_record("CLI Show")
+    assert rec_imported_csv is not None
+    assert rec_imported_csv.user_rating == 4.5
 
 
 if __name__ == "__main__":

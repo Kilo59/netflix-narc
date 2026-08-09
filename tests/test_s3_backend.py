@@ -186,5 +186,23 @@ async def test_s3_backend_test_connection_failure_returns_false(
             assert await backend.test_connection() is False
 
 
+@pytest.mark.asyncio
+async def test_s3_backend_upload_bundle_auth_error(
+    make_s3_backend: S3BackendFactory,
+) -> None:
+    """upload_bundle() raises StorageBackendError on 403 Forbidden."""
+    bundle = SyncBundle(client_id="s3-client")
+    bundle_url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/bundle.json"
+    manifest_url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/manifest.json"
+
+    with respx.mock(assert_all_called=False) as respx_mock:
+        respx_mock.put(bundle_url).respond(status_code=403)
+        respx_mock.put(manifest_url).respond(status_code=403)
+        async with httpx.AsyncClient() as client:
+            backend = make_s3_backend(client, "netflix-narc", "my-bucket")
+            with pytest.raises(StorageBackendError):
+                await backend.upload_bundle(bundle)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

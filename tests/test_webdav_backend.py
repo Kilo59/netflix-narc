@@ -193,5 +193,23 @@ async def test_webdav_backend_get_manifest_handling(
             assert manifest.client_id == "wd-client"
 
 
+@pytest.mark.asyncio
+async def test_webdav_backend_upload_bundle_auth_error(
+    make_webdav_backend: WebDAVBackendFactory,
+) -> None:
+    """upload_bundle() raises StorageBackendError on 401 Unauthorized."""
+    bundle = SyncBundle(client_id="wd-client")
+    base_url = "https://nextcloud.example.com/remote.php/dav/files/user/netflix-narc/"
+    bundle_url = "https://nextcloud.example.com/remote.php/dav/files/user/netflix-narc/bundle.json"
+
+    with respx.mock(assert_all_called=False) as respx_mock:
+        respx_mock.request("PROPFIND", base_url).respond(status_code=200)
+        respx_mock.put(bundle_url).respond(status_code=401)
+        async with httpx.AsyncClient() as client:
+            backend = make_webdav_backend(client)
+            with pytest.raises(StorageBackendError):
+                await backend.upload_bundle(bundle)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])
