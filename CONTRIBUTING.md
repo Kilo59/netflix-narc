@@ -105,10 +105,21 @@ uv run inv docs-build
 To regenerate SVG TUI screenshots for documentation:
 
 ```bash
-uv run python scripts/generate_docs_screenshots.py
-# or using invoke
+uv run python scripts/generate_tui_screenshots.py
+# or using invoke aliases
+uv run inv screenshots
+# or
 uv run inv docs-screenshots
 ```
+
+To regenerate CLI terminal animation GIFs using Charm VHS:
+
+```bash
+vhs tapes/*.tape
+# or using invoke
+uv run inv recordings
+```
+
 
 
 ## Release Process & Versioning Strategy

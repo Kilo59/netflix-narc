@@ -172,13 +172,27 @@ def docs_build(ctx: Context) -> None:
 
 
 @task(
+    aliases=["screenshots"],
     help={
         "output_dir": "Directory where generated SVG screenshots will be saved",
-    }
+    },
 )
 def docs_screenshots(ctx: Context, output_dir: str | None = None) -> None:
     """Generate SVG TUI screenshots for documentation using Textual export."""
-    cmd = ["uv", "run", "python", "scripts/generate_docs_screenshots.py"]
+    cmd = ["uv", "run", "python", "scripts/generate_tui_screenshots.py"]
     if output_dir:
         cmd.extend(["--output-dir", shlex.quote(output_dir)])
     ctx.run(" ".join(cmd), echo=True, pty=USE_PTY)
+
+
+@task(
+    help={
+        "tape": "Specific tape script name (without .tape extension) to run",
+    }
+)
+def recordings(ctx: Context, tape: str | None = None) -> None:
+    """Regenerate CLI animation GIFs using Charm VHS tape scripts."""
+    if tape:
+        ctx.run(f"vhs tapes/{tape}.tape", echo=True, pty=USE_PTY)
+    else:
+        ctx.run("vhs tapes/*.tape", echo=True, pty=USE_PTY)

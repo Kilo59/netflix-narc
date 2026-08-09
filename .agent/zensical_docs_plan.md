@@ -62,8 +62,8 @@ Adopting the automated media generation architecture from [`Kilo59/ruff-sync`](h
 #### 🟢 Tier 1: Low Difficulty Tasks (Basic / "Dumb" Agents)
 
 - [ ] **Task 4.1**: Create `tapes/_common.tape` with shared Charm VHS terminal appearance config (font, theme, dimensions `1200x750`, padding).
-- [ ] **Task 4.2**: Add `screenshots` (`uv run python scripts/generate_tui_screenshots.py`) and `recordings` (`vhs tapes/*.tape`) invoke tasks to `tasks.py`.
-- [ ] **Task 4.3**: Update `CONTRIBUTING.md` to document `inv screenshots` and `inv recordings` developer workflows.
+- [x] **Task 4.2**: Add `screenshots` (`uv run python scripts/generate_tui_screenshots.py`) and `recordings` (`vhs tapes/*.tape`) invoke tasks to `tasks.py`.
+- [x] **Task 4.3**: Update `CONTRIBUTING.md` to document `inv screenshots` and `inv recordings` developer workflows.
 
 #### 🟡 Tier 2: Medium Difficulty Tasks (Standard Agents)
 

@@ -292,7 +292,7 @@ Below is the structured, sequential task breakdown to resolve all audit findings
     - Main DataTable with expanded row & sub-bars (**fixes Audit #12**)
     - Interrogation Room with populated scores & live suitability bars (**fixes Audit #5**)
     - Advanced Options modal (**fixes Audit #13**)
-- [ ] **Task 1.3 — Invoke Tasks & Contributing Docs (`zensical_docs_plan.md` Tasks 4.2 & 4.3)**
+- [x] **Task 1.3 — Invoke Tasks & Contributing Docs (`zensical_docs_plan.md` Tasks 4.2 & 4.3)**
   - Add `inv screenshots` and `inv recordings` tasks to `tasks.py` and document them in `CONTRIBUTING.md`.
 
 ### ✍️ Phase 2: Missing Documentation Content & Accuracy Fixes
