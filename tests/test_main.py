@@ -354,5 +354,83 @@ async def test_action_interrogate_child_row_resolution(
         assert top_screen.base_title == "Stranger Things"
 
 
+async def test_action_toggle_flag_from_data_table(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Pressing space on DataTable row toggles its flagged_for_followup state."""
+    fake_settings.child_age_range = (8, 12)
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    await app.evidence_locker.init()
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        record = ViewingRecord(
+            title="Stranger Things: Season 1: Chapter One",
+            date_watched=dt.datetime(2026, 1, 1, tzinfo=dt.UTC),
+        )
+        app.grouped_records.clear()
+        app.grouped_records["Stranger Things"] = [record]
+
+        await app.rebuild_table(evaluate=False)
+        await pilot.pause()
+
+        table = app.query_one(DataTable)
+        table.cursor_coordinate = Coordinate(0, 0)
+
+        # Press space to flag
+        await pilot.press("space")
+        await pilot.pause()
+
+        db_rec = await app.evidence_locker.get_record("Stranger Things")
+        assert db_rec is not None
+        assert db_rec.flagged_for_followup is True
+
+        # Check cell content in DataTable updated
+        cell_val = str(table.get_cell_at(Coordinate(0, 3)))
+        assert "(Flagged)" in cell_val
+
+        # Press space again to unflag
+        await pilot.press("space")
+        await pilot.pause()
+
+        db_rec2 = await app.evidence_locker.get_record("Stranger Things")
+        assert db_rec2 is not None
+        assert db_rec2.flagged_for_followup is False
+
+
+async def test_action_toggle_flag_child_row_resolution(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """action_toggle_flag correctly resolves child row keys back to base titles."""
+    fake_settings.child_age_range = (8, 12)
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    await app.evidence_locker.init()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        record = ViewingRecord(
+            title="Stranger Things: Season 1: Chapter One",
+            date_watched=dt.datetime(2026, 1, 1, tzinfo=dt.UTC),
+        )
+        app.grouped_records.clear()
+        app.grouped_records["Stranger Things"] = [record]
+        app.expanded_titles.add("Stranger Things")
+
+        await app.rebuild_table(evaluate=False)
+        await pilot.pause()
+
+        table = app.query_one(DataTable)
+        # Move cursor to child row
+        table.cursor_coordinate = Coordinate(1, 0)
+        await app.action_toggle_flag()
+
+        await pilot.pause()
+
+        db_rec = await app.evidence_locker.get_record("Stranger Things")
+        assert db_rec is not None
+        assert db_rec.flagged_for_followup is True
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

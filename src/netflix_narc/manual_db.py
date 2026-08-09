@@ -74,6 +74,15 @@ class ManualMetadata(BaseModel):
 
         return round(100 * filled / total_fields)
 
+    @property
+    def has_rating_data(self) -> bool:
+        """Return True if the record contains any content rating or quality score metadata."""
+        return (
+            self.content_rating is not None
+            or self.user_rating is not None
+            or len(self.category_scores) > 0
+        )
+
     def to_normalized_metadata(self) -> NormalizedMetadata:
         """Convert to standard NormalizedMetadata."""
         return NormalizedMetadata(
@@ -212,6 +221,16 @@ class EvidenceLocker:
         else:
             record = ManualMetadata(title=title, ignored=True)
         await self.upsert_record(record)
+
+    async def toggle_flag_title(self, title: str) -> bool:
+        """Toggle the flagged_for_followup state for a title. Return new state."""
+        record = await self.get_record(title)
+        if record:
+            record.flagged_for_followup = not record.flagged_for_followup
+        else:
+            record = ManualMetadata(title=title, flagged_for_followup=True)
+        await self.upsert_record(record)
+        return record.flagged_for_followup
 
     async def dump_dossiers(self) -> list[DossierSyncItem]:
         """Dump all evidence locker records as DossierSyncItem objects for sync."""

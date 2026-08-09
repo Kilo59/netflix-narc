@@ -141,5 +141,27 @@ async def test_lineup_empty_queue_pops(fake_settings: Settings, tmp_path: pathli
         assert not any(isinstance(s, LineupScreen) for s in app.screen_stack)
 
 
+@pytest.mark.asyncio
+async def test_lineup_flag_action(fake_settings: Settings, tmp_path: pathlib.Path) -> None:
+    """Pressing space or clicking Flag toggles flagged_for_followup state for current title."""
+    fake_settings.child_age_range = (8, 12)
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    await app.evidence_locker.init()
+
+    screen = LineupScreen(queue=["Lineup Flag Show"])
+
+    async with app.run_test() as pilot:
+        await app.push_screen(screen)
+        await pilot.pause()
+
+        await pilot.click("#btn-flag")
+        await pilot.pause()
+        await pilot.pause()
+
+        record = await app.evidence_locker.get_record("Lineup Flag Show")
+        assert record is not None
+        assert record.flagged_for_followup is True
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

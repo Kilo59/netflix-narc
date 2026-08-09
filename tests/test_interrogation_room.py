@@ -231,5 +231,47 @@ async def test_interrogation_room_browser_search_and_paste_image(
         assert image_input.value == original_image_url
 
 
+@pytest.mark.asyncio
+async def test_interrogation_room_space_key_toggles_flag(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Pressing space on InterrogationRoomScreen toggles the input-flag checkbox."""
+    fake_settings.child_age_range = (8, 12)
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    await app.evidence_locker.init()
+
+    screen = InterrogationRoomScreen("Space Test Show")
+
+    async with app.run_test(size=(160, 200)) as pilot:
+        await app.push_screen(screen)
+        await pilot.pause()
+
+        flag_cb = screen.query_one("#input-flag", Checkbox)
+        assert flag_cb.value is False
+
+        # Focus away from Input widgets to test action_toggle_flag
+        flag_cb.focus()
+        await pilot.pause()
+
+        # Press space to toggle flag checkbox
+        await pilot.press("space")
+        await pilot.pause()
+
+        assert flag_cb.value is True
+
+        await pilot.press("space")
+        await pilot.pause()
+
+        assert flag_cb.value is False
+
+        # Focus an Input widget: action_toggle_flag should be a no-op
+        age_input = screen.query_one("#input-age-rating", Input)
+        age_input.focus()
+        await pilot.pause()
+
+        screen.action_toggle_flag()
+        assert flag_cb.value is False
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

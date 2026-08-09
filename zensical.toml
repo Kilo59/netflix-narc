@@ -3,6 +3,7 @@ site_description = "A friendly CLI/TUI tool to flag inappropriate Netflix conten
 site_url = "https://kilo59.github.io/netflix-narc/"
 repo_url = "https://github.com/Kilo59/netflix-narc"
 repo_name = "Kilo59/netflix-narc"
+edit_uri = "edit/main/docs/"
 docs_dir = "docs"
 site_dir = "site"
 

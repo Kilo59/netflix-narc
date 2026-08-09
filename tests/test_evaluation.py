@@ -517,6 +517,13 @@ def test_merge_metadata_no_merge_manual_takes_precedence():
     assert merged.category_scores == {"Language": 1.0}
 
 
+def test_merge_metadata_flag_only_without_rating_data_returns_none():
+    """ManualMetadata with only flagged_for_followup=True returns None when api_meta is None."""
+    flag_only_manual = ManualMetadata(title="Unrated Show", flagged_for_followup=True)
+    merged = merge_metadata(None, flag_only_manual)
+    assert merged is None
+
+
 def test_explain_suitability_and_bar_thresholds():
     settings = Settings(child_age_range=(8, 12), _env_file=None)  # type: ignore[call-arg]
     metadata = NormalizedMetadata(
