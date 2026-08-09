@@ -300,6 +300,7 @@ async def test_rebuild_table_expanded_titles(
     """rebuild_table should render child viewing records when a title is expanded."""
     fake_settings.child_age_range = (8, 12)
     app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    await app.evidence_locker.init()
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -325,6 +326,7 @@ async def test_action_interrogate_child_row_resolution(
     """action_interrogate correctly maps child row keys back to base titles."""
     fake_settings.child_age_range = (8, 12)
     app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    await app.evidence_locker.init()
     async with app.run_test() as pilot:
         await pilot.pause()
 
