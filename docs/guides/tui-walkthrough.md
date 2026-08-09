@@ -4,17 +4,31 @@
 
 ---
 
-## Global Navigation & Keybindings
+## Keyboard Shortcuts & Keybindings Reference
 
-Navigate between screens using single-key hotkeys:
+### Global Hotkeys
 
 | Keybinding | Screen / Action | Description |
 |------------|-----------------|-------------|
-| <kbd>l</kbd> | **Lineup Screen** | Main discovery queue displaying flagged titles and viewing logs. |
-| <kbd>i</kbd> | **Interrogation Room** | Manual rating overrides and Evidence Locker database inspector. |
-| <kbd>s</kbd> | **Preferences** | Configure severity category weights and target child age limits. |
-| <kbd>?</kbd> | **Help Modal** | Display contextual keyboard shortcuts and navigation commands. |
-| <kbd>q</kbd> | **Quit** | Exit netflix-narc safely. |
+| <kbd>l</kbd> | **Lineup Screen** | Open the card-based review queue for sequential title triage. |
+| <kbd>i</kbd> | **Interrogation Room** | Edit manual rating overrides and Evidence Locker dossier for the selected title. |
+| <kbd>s</kbd> | **Preferences Screen** | Open full preferences panel (weights, scoring mode, provider, BYOS sync). |
+| <kbd>a</kbd> | **Advanced Options** | Progressive disclosure modal for power-user actions. |
+| <kbd>h</kbd> or <kbd>?</kbd> | **Help Screen** | Display contextual help, philosophy, and keyboard reference. |
+| <kbd>c</kbd> | **Load History File** | Reload or open a new Netflix viewing history CSV file. |
+| <kbd>e</kbd> | **Evaluate Titles** | Trigger rating metadata fetches for unrated titles via active provider API. |
+| <kbd>q</kbd>, <kbd>F10</kbd>, <kbd>Ctrl+C</kbd> | **Quit App** | Safely exit **netflix-narc**. |
+
+### Screen & Context Hotkeys
+
+| Context | Keybinding | Action | Description |
+|---------|------------|--------|-------------|
+| **Main Table** | <kbd>Enter</kbd> | **Expand / Collapse** | Toggle 5 sub-suitability breakdown bars for highlighted row. |
+| **Lineup Queue** | <kbd>i</kbd> | **Interrogate** | Open Interrogation Room for current card title. |
+| **Lineup Queue** | <kbd>x</kbd> | **Ignore Title** | Mark current title as ignored and advance to next item. |
+| **Lineup Queue** | <kbd>s</kbd> | **Skip Title** | Skip current title without modifying its status. |
+| **Interrogation** | <kbd>F2</kbd> | **Web Search** | Open Common Sense Media search for title in default browser. |
+| **Modals / Screens** | <kbd>Esc</kbd> | **Close / Back** | Dismiss current screen or modal dialog without saving changes. |
 
 ---
 

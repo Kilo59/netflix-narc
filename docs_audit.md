@@ -308,7 +308,7 @@ Below is the structured, sequential task breakdown to resolve all audit findings
   - Update `tui-walkthrough.md` § 2 to cover real-time suitability dashboard, sub-suitability bars, macOS clipboard image pasting, F2 web search, and follow-up flags.
 - [x] **Task 2.5 — Document Sub-bars, Help Screen & Advanced Options (Audit #6, #12, #13)**
   - Add sections in `tui-walkthrough.md` for the 5 sub-suitability breakdown bars, the Help Screen (`h`/`?`), and the Advanced Options modal (`a`).
-- [ ] **Task 2.6 — Comprehensive Keybindings Table (Audit #11)**
+- [x] **Task 2.6 — Comprehensive Keybindings Table (Audit #11)**
   - Expand the keybindings reference table in `tui-walkthrough.md` to include missing keys (`h`, `a`, `c`, `e`, `f10`, `F2`, `x`).
 - [ ] **Task 2.7 — Homepage & Installation Alignment (Audit #8, #14, #15)**
   - Fix `docs/index.md` (remove bogus "Quick Filtering" toggle claim; fix Weight Preview description).
