@@ -5,6 +5,8 @@
 !!! note "Privacy First"
     All viewing history evaluation is performed locally on your device. Your Netflix credentials are never requested or stored, and your viewing logs never leave your computer.
 
+![netflix-narc Lineup Screen TUI Preview](assets/images/lineup_screen.svg){: .tui-screenshot }
+
 ---
 
 ## Key Features

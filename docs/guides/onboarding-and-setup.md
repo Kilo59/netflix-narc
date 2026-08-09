@@ -2,6 +2,8 @@
 
 When launching **netflix-narc** for the first time, an interactive, step-by-step **Onboarding Wizard** (`OnboardingScreen`) automatically greets you to configure your family monitoring defaults.
 
+![netflix-narc Onboarding Wizard Screen](../assets/images/onboarding_screen.svg){: .tui-screenshot }
+
 ---
 
 ## Step 1: Target Child Age Range

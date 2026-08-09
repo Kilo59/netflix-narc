@@ -22,6 +22,8 @@ Navigate between screens using single-key hotkeys:
 
 The **Lineup Screen** serves as your primary inspection dashboard. It presents your uploaded viewing history alongside evaluated content safety scores.
 
+![Lineup Screen](../assets/images/lineup_screen.svg){: .tui-screenshot }
+
 ### Features
 
 - **Severity Indicators**:
@@ -37,6 +39,8 @@ The **Lineup Screen** serves as your primary inspection dashboard. It presents y
 
 When external APIs lack rating data for a niche title, or when you disagree with automated ratings, the **Interrogation Room** allows you to input manual ratings and store evidence locally.
 
+![Interrogation Room](../assets/images/interrogation_screen.svg){: .tui-screenshot }
+
 ### Features
 
 - **Manual Data Override**: Enter custom age recommendations and category severity scores for any title.
@@ -48,6 +52,8 @@ When external APIs lack rating data for a niche title, or when you disagree with
 ## 3. Preferences & Live Weight Impact Preview (`s`)
 
 Press <kbd>s</kbd> to open the **Preferences Screen** to tune your evaluation algorithm.
+
+![Preferences Screen](../assets/images/preferences_screen.svg){: .tui-screenshot }
 
 ### Features
 
