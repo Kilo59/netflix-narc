@@ -34,6 +34,19 @@ def parse_args() -> argparse.Namespace:
             "(default: docs/assets/images or $DOCS_SCREENSHOTS_DIR)"
         ),
     )
+
+    default_csv_env = os.environ.get("DOCS_CSV_PATH", "NetflixViewingHistory.csv")
+    default_csv_path = pathlib.Path(default_csv_env) if default_csv_env else None
+    parser.add_argument(
+        "--csv-path",
+        "-c",
+        type=pathlib.Path,
+        default=default_csv_path,
+        help=(
+            "Path to Netflix viewing history CSV file "
+            "(default: NetflixViewingHistory.csv or $DOCS_CSV_PATH)"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -62,18 +75,15 @@ async def _capture_onboarding_screenshots(
             (output_dir / "onboarding_screen.svg").write_text(svg_onb1)
 
             # Step 2: Content Weights with Weight Impact Preview
-            onb_screen._child_age_range = (8, 12)  # noqa: SLF001
-            onb_screen._age_valid = True  # noqa: SLF001
-            onb_screen._preview_records = records  # noqa: SLF001
-            onb_screen._all_eligible = records  # noqa: SLF001
-            onb_screen._go_to_step(2)  # noqa: SLF001
+            onb_screen.set_child_age_range((8, 12))
+            onb_screen.go_to_step(2)
             await pilot.pause(0.5)
 
             svg_onb2 = app_onb.export_screenshot()
             (output_dir / "onboarding_step2.svg").write_text(svg_onb2)
 
             # Step 3: API Provider
-            onb_screen._go_to_step(3)  # noqa: SLF001
+            onb_screen.go_to_step(3)
             await pilot.pause(0.5)
             svg_onb3 = app_onb.export_screenshot()
             (output_dir / "onboarding_step3.svg").write_text(svg_onb3)
@@ -146,11 +156,12 @@ async def _capture_main_app_screenshots(
         await pilot.pause(0.3)
 
 
-async def generate_screenshots(output_dir: pathlib.Path) -> None:
+async def generate_screenshots(
+    output_dir: pathlib.Path, csv_path: pathlib.Path | None = None
+) -> None:
     """Capture SVG screenshots of all main Textual screens in netflix-narc."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    sample_csv = pathlib.Path("NetflixViewingHistory.csv")
-    csv_to_use = sample_csv if sample_csv.exists() else None
+    csv_to_use = csv_path if (csv_path and csv_path.exists()) else None
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_cache_dir = pathlib.Path(tmp_dir)
@@ -165,7 +176,7 @@ async def generate_screenshots(output_dir: pathlib.Path) -> None:
 def main() -> None:
     """Main entrypoint for script execution."""
     args = parse_args()
-    asyncio.run(generate_screenshots(args.output_dir))
+    asyncio.run(generate_screenshots(args.output_dir, args.csv_path))
 
 
 if __name__ == "__main__":

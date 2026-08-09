@@ -290,5 +290,29 @@ async def test_onboarding_reset_all_weights_button(
         assert violence_row.value == 4
 
 
+@pytest.mark.asyncio
+async def test_onboarding_public_api_helpers(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """go_to_step and set_child_age_range public methods drive wizard navigation cleanly."""
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test(size=(120, 60)) as pilot:
+        await pilot.pause()
+
+        onb = next(s for s in pilot.app.screen_stack if isinstance(s, OnboardingScreen))
+
+        onb.set_child_age_range((8, 12))
+        onb.go_to_step(2)
+        await pilot.pause()
+
+        assert onb._current_step == 2  # noqa: SLF001
+        assert onb._child_age_range == (8, 12)  # noqa: SLF001
+        assert onb._age_valid is True  # noqa: SLF001
+
+        onb.go_to_step(3)
+        await pilot.pause()
+        assert onb._current_step == 3  # noqa: SLF001
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

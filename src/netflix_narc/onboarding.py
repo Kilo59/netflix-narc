@@ -598,6 +598,21 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
 
     # ── Navigation ────────────────────────────────────────────────────────
 
+    def go_to_step(self, step: int) -> None:
+        """Navigate programmatically to a specific step in the wizard (0-indexed)."""
+        self._go_to_step(step)
+
+    def set_child_age_range(self, age_range: tuple[int, int]) -> None:
+        """Programmatically set the target child age range and mark age validation as valid."""
+        self._child_age_range = age_range
+        self._age_valid = True
+        try:
+            age_input = self.query_one("#age-input", Input)
+            lo, hi = age_range
+            age_input.value = f"{lo}-{hi}" if lo != hi else str(lo)
+        except Exception:  # noqa: BLE001, S110
+            pass
+
     def _go_to_step(self, step: int) -> None:
         self._current_step = step
         for i, step_id in enumerate(_STEPS):

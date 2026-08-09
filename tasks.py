@@ -175,13 +175,18 @@ def docs_build(ctx: Context) -> None:
     aliases=["screenshots"],
     help={
         "output_dir": "Directory where generated SVG screenshots will be saved",
+        "csv_path": "Path to Netflix viewing history CSV file",
     },
 )
-def docs_screenshots(ctx: Context, output_dir: str | None = None) -> None:
+def docs_screenshots(
+    ctx: Context, output_dir: str | None = None, csv_path: str | None = None
+) -> None:
     """Generate SVG TUI screenshots for documentation using Textual export."""
     cmd = ["uv", "run", "python", "scripts/generate_tui_screenshots.py"]
     if output_dir:
         cmd.extend(["--output-dir", shlex.quote(output_dir)])
+    if csv_path:
+        cmd.extend(["--csv-path", shlex.quote(csv_path)])
     ctx.run(" ".join(cmd), echo=True, pty=USE_PTY)
 
 
