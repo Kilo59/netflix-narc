@@ -317,9 +317,9 @@ Below is the structured, sequential task breakdown to resolve all audit findings
 ### 📸 Phase 3: Screenshot Re-capture & Visual Verification
 *Goal: Run the automated screenshot generator and embed updated SVGs into the docs.*
 
-- [ ] **Task 3.1 — Re-generate SVG Assets**
+- [x] **Task 3.1 — Re-generate SVG Assets**
   - Run `uv run inv screenshots` to produce all updated SVG captures into `docs/assets/images/`.
-- [ ] **Task 3.2 — Update Markdown Image Embeds**
+- [x] **Task 3.2 — Update Markdown Image Embeds**
   - Update `tui-walkthrough.md`, `onboarding-and-setup.md`, and `index.md` to reference the newly captured screenshots (including Onboarding steps, Help Screen, DataTable sub-bars, and Preferences with preview).
 
 ### 🎥 Phase 4: Animated CLI Recordings & Final Verification
