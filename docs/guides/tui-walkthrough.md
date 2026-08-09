@@ -18,20 +18,35 @@ Navigate between screens using single-key hotkeys:
 
 ---
 
-## 1. The Lineup Screen (`l`)
+## 1. Main Inspection Table (Home Screen)
 
-The **Lineup Screen** serves as your primary inspection dashboard. It presents your uploaded viewing history alongside evaluated content safety scores.
+Upon launching **netflix-narc** after setup, your uploaded Netflix viewing history is presented in the **Main Inspection Table**.
 
-![Lineup Screen](../assets/images/lineup_screen.svg){: .tui-screenshot }
+![Main Inspection Table](../assets/images/datatable_expanded.svg){: .tui-screenshot }
 
 ### Features
 
-- **Severity Indicators**:
-  - 🚨 **High Severity**: Exceeds acceptable safety thresholds (e.g. intense violence or explicit content for target age).
-  - ⚠️ **Medium Severity**: Borderline content requiring parental caution or discussion.
-  - 🟢 **Low / Safe**: Content verified appropriate for your configured age range.
-- **Content Category Breakdown**: Displays scores across Violence, Sex/Nudity, Language, Drugs/Alcohol, and Educational Value.
-- **Quick Filtering**: Toggle view between all titles, flagged titles only, or unrated items.
+- **Row Expansion (<kbd>Enter</kbd>)**: Press <kbd>Enter</kbd> or click any row to expand/collapse detailed sub-suitability breakdown bars.
+- **Color-Coded Suitability Bars**: Displays overall suitability scores from `0.0/10` to `10.0/10` (🟢 Green $\ge 7.5$, 🟡 Yellow $\ge 5.0$, 🔴 Red $< 5.0$).
+- **View Count & Watch Dates**: Displays total view count and first/last watch dates extracted from your Netflix CSV.
+- **Evidence Locker Indicator**: Icons indicate whether a title has been manually reviewed and stored in your local Evidence Locker database.
+
+---
+
+## 2. The Lineup Screen (`l`)
+
+Press <kbd>l</kbd> to enter **The Lineup Screen**—a sequential, card-based review queue designed for fast, focused title triage.
+
+![Lineup Screen](../assets/images/lineup_screen.svg){: .tui-screenshot }
+
+### Features & Actions
+
+- **Sequential Card View**: Displays titles one at a time with title metadata, view count, and watch history dates.
+- **Dossier Completeness Progress Bar**: Shows current Evidence Locker completeness (e.g., `[████████░░] 80%`).
+- **Triage Actions**:
+  - <kbd>i</kbd> **Interrogate**: Open the Interrogation Room to input manual category ratings and notes.
+  - <kbd>x</kbd> **Ignore**: Mark the title as ignored so it drops out of active review queues.
+  - <kbd>s</kbd> **Skip**: Skip to the next title in the review queue.
 
 ---
 

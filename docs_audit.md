@@ -302,7 +302,7 @@ Below is the structured, sequential task breakdown to resolve all audit findings
   - Create `docs/guides/storage-and-sync.md` covering Local Folder/iCloud, S3/Cloudflare R2, and WebDAV/Nextcloud configurations, test connection button, and `.env` setup. Update `zensical.toml` navigation.
 - [x] **Task 2.2 — Scoring Modes & Algorithm Section (Audit #2)**
   - Add a dedicated section to `tui-walkthrough.md` (under Preferences) explaining **Quality Focus** vs **Balanced** scoring modes. Update the FAQ response in `troubleshooting-faq.md`.
-- [ ] **Task 2.3 — Correct Lineup vs Main DataTable Descriptions (Audit #7 & #16)**
+- [x] **Task 2.3 — Correct Lineup vs Main DataTable Descriptions (Audit #7 & #16)**
   - Rewrite `tui-walkthrough.md` § 1 to accurately describe the sequential card review flow (Lineup). Add a new section for the **Main Inspection Table** (expandable rows, severity colors, view counts).
 - [ ] **Task 2.4 — Expand Interrogation Room Details (Audit #5)**
   - Update `tui-walkthrough.md` § 2 to cover real-time suitability dashboard, sub-suitability bars, macOS clipboard image pasting, F2 web search, and follow-up flags.
