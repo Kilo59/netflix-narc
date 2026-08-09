@@ -264,6 +264,14 @@ async def test_interrogation_room_space_key_toggles_flag(
 
         assert flag_cb.value is False
 
+        # Focus an Input widget: action_toggle_flag should be a no-op
+        age_input = screen.query_one("#input-age-rating", Input)
+        age_input.focus()
+        await pilot.pause()
+
+        screen.action_toggle_flag()
+        assert flag_cb.value is False
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])
