@@ -431,6 +431,21 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         self._child_age_range: tuple[int, int] | None = None
         self._age_valid = False
 
+    @property
+    def current_step(self) -> int:
+        """Get the current wizard step index (0-indexed)."""
+        return self._current_step
+
+    @property
+    def child_age_range(self) -> tuple[int, int] | None:
+        """Get the target child age range setting."""
+        return self._child_age_range
+
+    @property
+    def is_age_valid(self) -> bool:
+        """Check if the entered age range is valid."""
+        return self._age_valid
+
     @override
     def compose(self) -> ComposeResult:
         """Compose the onboarding screen elements."""

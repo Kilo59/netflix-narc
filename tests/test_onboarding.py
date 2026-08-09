@@ -305,13 +305,13 @@ async def test_onboarding_public_api_helpers(
         onb.go_to_step(2)
         await pilot.pause()
 
-        assert onb._current_step == 2  # noqa: SLF001
-        assert onb._child_age_range == (8, 12)  # noqa: SLF001
-        assert onb._age_valid is True  # noqa: SLF001
+        assert onb.current_step == 2
+        assert onb.child_age_range == (8, 12)
+        assert onb.is_age_valid is True
 
         onb.go_to_step(3)
         await pilot.pause()
-        assert onb._current_step == 3  # noqa: SLF001
+        assert onb.current_step == 3
 
 
 if __name__ == "__main__":
