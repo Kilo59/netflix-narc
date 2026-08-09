@@ -141,5 +141,50 @@ def test_s3_canonical_query_sorting() -> None:
     assert canonical == "a=1&b=2&empty=&prefix=foo%2Fbar"
 
 
+@pytest.mark.asyncio
+async def test_s3_backend_get_manifest_success_and_not_found(
+    make_s3_backend: S3BackendFactory,
+) -> None:
+    """get_manifest() retrieves valid manifest or returns None on 404."""
+    manifest_url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/manifest.json"
+
+    # Test 404 Not Found -> returns None
+    with respx.mock(assert_all_called=False) as respx_mock:
+        respx_mock.get(manifest_url).respond(status_code=404)
+        async with httpx.AsyncClient() as client:
+            backend = make_s3_backend(client, "netflix-narc", "my-bucket")
+            manifest = await backend.get_manifest()
+            assert manifest is None
+
+    # Test 200 OK -> returns SyncManifest
+    manifest_data = {
+        "latest_bundle_id": "bundle.json",
+        "last_updated": "2026-01-01T00:00:00Z",
+        "client_id": "client-123",
+        "version": 1,
+    }
+    with respx.mock(assert_all_called=False) as respx_mock:
+        respx_mock.get(manifest_url).respond(status_code=200, json=manifest_data)
+        async with httpx.AsyncClient() as client:
+            backend = make_s3_backend(client, "netflix-narc", "my-bucket")
+            manifest = await backend.get_manifest()
+            assert manifest is not None
+            assert manifest.client_id == "client-123"
+
+
+@pytest.mark.asyncio
+async def test_s3_backend_test_connection_failure_returns_false(
+    make_s3_backend: S3BackendFactory,
+) -> None:
+    """test_connection() returns False when HTTP connection fails."""
+    ping_url = "https://r2.cloudflarestorage.com/my-bucket/netflix-narc/.test_ping"
+
+    with respx.mock(assert_all_called=False) as respx_mock:
+        respx_mock.head(ping_url).side_effect = httpx.ConnectError("Connection failed")
+        async with httpx.AsyncClient() as client:
+            backend = make_s3_backend(client, "netflix-narc", "my-bucket")
+            assert await backend.test_connection() is False
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

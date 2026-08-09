@@ -19,7 +19,9 @@ import pytest
 from pydantic import SecretStr
 from textual.widgets import DataTable
 
-from netflix_narc.main import NetflixNarcApp
+from netflix_narc.help_screen import HelpScreen
+from netflix_narc.lineup import LineupScreen
+from netflix_narc.main import AdvancedScreen, LoadCsvScreen, NetflixNarcApp
 from netflix_narc.onboarding import OnboardingScreen
 from netflix_narc.preferences import PreferencesScreen
 from netflix_narc.settings import Settings
@@ -116,6 +118,84 @@ async def test_preferences_screen_relaunch_button_pushes_onboarding_screen(
         await pilot.pause()
 
         assert any(isinstance(s, OnboardingScreen) for s in pilot.app.screen_stack)
+
+
+async def test_action_show_help_pushes_help_screen(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Pressing '?' or 'h' should push HelpScreen onto screen stack."""
+    fake_settings.child_age_range = (8, 12)
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("?")
+        await pilot.pause()
+
+        assert any(isinstance(s, HelpScreen) for s in pilot.app.screen_stack)
+
+
+async def test_action_start_lineup_pushes_lineup_screen(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Pressing 'l' should launch LineupScreen."""
+    fake_settings.child_age_range = (8, 12)
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("l")
+        await pilot.pause()
+
+        assert any(isinstance(s, LineupScreen) for s in pilot.app.screen_stack)
+
+
+async def test_action_advanced_pushes_advanced_screen(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Pressing 'a' should launch AdvancedScreen modal."""
+    fake_settings.child_age_range = (8, 12)
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("a")
+        await pilot.pause()
+
+        assert any(isinstance(s, AdvancedScreen) for s in pilot.app.screen_stack)
+
+
+async def test_advanced_screen_close_button(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Clicking close in AdvancedScreen dismisses the modal."""
+    fake_settings.child_age_range = (8, 12)
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("a")
+        await pilot.pause()
+
+        await pilot.click("#adv-close")
+        await pilot.pause()
+
+        assert not any(isinstance(s, AdvancedScreen) for s in pilot.app.screen_stack)
+
+
+async def test_load_csv_screen_cancel_action(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """LoadCsvScreen cancel button dismisses screen."""
+    fake_settings.child_age_range = (8, 12)
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        screen = LoadCsvScreen(current_path=tmp_path / "ViewingHistory.csv")
+        await app.push_screen(screen)
+        await pilot.pause()
+
+        await pilot.click("#cancel-btn")
+        await pilot.pause()
+
+        assert not any(isinstance(s, LoadCsvScreen) for s in app.screen_stack)
 
 
 if __name__ == "__main__":

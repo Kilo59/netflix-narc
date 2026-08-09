@@ -161,5 +161,37 @@ async def test_webdav_backend_download_bundle_raises_on_malformed_json(
                 await backend.download_bundle()
 
 
+@pytest.mark.asyncio
+async def test_webdav_backend_get_manifest_handling(
+    make_webdav_backend: WebDAVBackendFactory,
+) -> None:
+    """get_manifest() returns SyncManifest on 200 OK and None on 404 Not Found."""
+    manifest_url = (
+        "https://nextcloud.example.com/remote.php/dav/files/user/netflix-narc/manifest.json"
+    )
+
+    # 404 -> returns None
+    with respx.mock(assert_all_called=False) as respx_mock:
+        respx_mock.get(manifest_url).respond(status_code=404)
+        async with httpx.AsyncClient() as client:
+            backend = make_webdav_backend(client)
+            assert await backend.get_manifest() is None
+
+    # 200 -> returns SyncManifest
+    data = {
+        "latest_bundle_id": "bundle.json",
+        "last_updated": "2026-01-01T00:00:00Z",
+        "client_id": "wd-client",
+        "version": 1,
+    }
+    with respx.mock(assert_all_called=False) as respx_mock:
+        respx_mock.get(manifest_url).respond(status_code=200, json=data)
+        async with httpx.AsyncClient() as client:
+            backend = make_webdav_backend(client)
+            manifest = await backend.get_manifest()
+            assert manifest is not None
+            assert manifest.client_id == "wd-client"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])

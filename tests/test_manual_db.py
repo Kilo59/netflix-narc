@@ -325,5 +325,26 @@ async def test_db_migration_backfills_updated_at(tmp_path: pathlib.Path) -> None
     assert record.updated_at is not None
 
 
+@pytest.mark.asyncio
+async def test_manual_db_ignore_and_unignore_title(temp_db: EvidenceLocker) -> None:
+    """Test ignore_title and un-ignoring a title via EvidenceLocker."""
+    await temp_db.upsert_record(ManualMetadata(title="Show 1"))
+
+    rec1 = await temp_db.get_record("Show 1")
+    assert rec1 is not None
+    assert rec1.ignored is False
+
+    await temp_db.ignore_title("Show 1")
+    rec_ignored = await temp_db.get_record("Show 1")
+    assert rec_ignored is not None
+    assert rec_ignored.ignored is True
+
+    rec_ignored.ignored = False
+    await temp_db.upsert_record(rec_ignored)
+    rec_unignored = await temp_db.get_record("Show 1")
+    assert rec_unignored is not None
+    assert rec_unignored.ignored is False
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])
