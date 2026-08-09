@@ -72,6 +72,7 @@ async def test_lineup_skip_action(fake_settings: Settings, tmp_path: pathlib.Pat
 
         await pilot.click("#btn-skip")
         await pilot.pause()
+        await pilot.pause()  # extra pause ensures _refresh_ui has settled
 
         counter = screen.query_one("#lineup-counter", Static)
         assert "Title 2 of 2" in str(counter.content)
@@ -92,6 +93,9 @@ async def test_lineup_ignore_action(fake_settings: Settings, tmp_path: pathlib.P
 
         await pilot.click("#btn-ignore")
         await pilot.pause()
+        await (
+            pilot.pause()
+        )  # action_ignore runs as asyncio.create_task; second pause lets it complete
 
         record = await app.evidence_locker.get_record("Ignored Show")
         assert record is not None
