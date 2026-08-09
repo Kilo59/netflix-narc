@@ -1,0 +1,38 @@
+/* Custom CSS Overrides for netflix-narc docs matching Textual TUI aesthetics */
+
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #141414;
+  --md-default-bg-color--light: #181818;
+  --md-default-bg-color--lighter: #262626;
+  --md-default-bg-color--lightest: #2f2f2f;
+  --md-default-fg-color: #e5e5e5;
+  --md-default-fg-color--light: #b3b3b3;
+  --md-default-fg-color--lighter: #808080;
+  --md-primary-fg-color: #e50914;
+  --md-primary-fg-color--dark: #b81d24;
+  --md-accent-fg-color: #e50914;
+  --md-code-bg-color: #1a1a1a;
+}
+
+/* TUI Screenshot Containers */
+.tui-screenshot {
+  display: block;
+  margin: 1.5rem auto;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  border: 1px solid #333333;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Keyboard hint styling */
+kbd {
+  background-color: #2f2f2f;
+  color: #e50914;
+  border: 1px solid #444;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  padding: 0.15em 0.4em;
+  font-family: var(--md-code-font-family);
+  font-weight: bold;
+}

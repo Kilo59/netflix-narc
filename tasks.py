@@ -151,3 +151,34 @@ def build_binary(ctx: Context, *, embed: bool = True, archive: bool = True) -> N
         tarball_path = dist_dir / "netflix-narc.tar.gz"
         print(f"Archiving binary to: {tarball_path}")
         ctx.run(f"tar -czf {tarball_path} -C {dist_dir} netflix-narc", echo=True, pty=USE_PTY)
+
+
+@task(
+    aliases=["docs"],
+    help={
+        "host": "Host interface to bind (default: 127.0.0.1)",
+        "port": "Port to bind (default: 8000)",
+    },
+)
+def docs_serve(ctx: Context, host: str = "127.0.0.1", port: int = 8000) -> None:
+    """Serve documentation locally using Zensical."""
+    ctx.run(f"uv run --group docs zensical serve -a {host}:{port}", echo=True, pty=USE_PTY)
+
+
+@task
+def docs_build(ctx: Context) -> None:
+    """Build documentation static site using Zensical."""
+    ctx.run("uv run --group docs zensical build", echo=True, pty=USE_PTY)
+
+
+@task(
+    help={
+        "output_dir": "Directory where generated SVG screenshots will be saved",
+    }
+)
+def docs_screenshots(ctx: Context, output_dir: str | None = None) -> None:
+    """Generate SVG TUI screenshots for documentation using Textual export."""
+    cmd = ["uv", "run", "python", "scripts/generate_docs_screenshots.py"]
+    if output_dir:
+        cmd.extend(["--output-dir", shlex.quote(output_dir)])
+    ctx.run(" ".join(cmd), echo=True, pty=USE_PTY)
