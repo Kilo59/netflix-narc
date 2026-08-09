@@ -38,7 +38,7 @@ To optimize agent resource allocation, tasks are divided into three difficulty t
 ### 🟡 Tier 2: Medium Difficulty Tasks (Standard Agents)
 
 - [x] **Task 2.1**: Write `docs/index.md` — Parent-focused introduction, feature highlights, and navigation callouts.
-- [ ] **Task 2.2**: Write `docs/getting-started/installation.md` — Binary download guide, macOS quarantine fix (`xattr -d com.apple.quarantine netflix-narc`), `uv`/`pip` options.
+- [x] **Task 2.2**: Write `docs/getting-started/installation.md` — Binary download guide, macOS quarantine fix (`xattr -d com.apple.quarantine netflix-narc`), `uv`/`pip` options.
 - [ ] **Task 2.3**: Write `docs/getting-started/exporting-netflix-csv.md` — Visual guide for downloading `ViewingHistory.csv` from Netflix Account Settings.
 - [ ] **Task 2.4**: Write `docs/guides/onboarding-and-setup.md` — `OnboardingScreen` wizard walkthrough & optional API key setup (CSM, OMDb, TMDB).
 - [ ] **Task 2.5**: Write `docs/guides/tui-walkthrough.md` — Lineup Screen (`l`), Interrogation Room (`i`), and Preferences/Weights (`s`) guide.
