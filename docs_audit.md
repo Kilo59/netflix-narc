@@ -271,3 +271,64 @@ The current nav has 3 top-level groups: Overview, Getting Started, User Guides. 
 - [ ] Advanced Options modal
 - [ ] Main DataTable with expanded row showing sub-bars
 - [ ] Interrogation Room with filled data and live suitability bars
+
+---
+
+## Remediation Plan & Prioritized Execution Order
+
+Below is the structured, sequential task breakdown to resolve all audit findings and complete the Zensical documentation site.
+
+### 📦 Phase 1: Automated Media Infrastructure & Fixtures (High Leverage)
+*Goal: Build the programmatic screenshot script and test fixtures so that all missing/broken screenshots (e.g. Weight Impact Preview) can be generated automatically with populated data.*
+
+- [ ] **Task 1.1 — Mock Dataset Fixtures (`zensical_docs_plan.md` Task 4.5)**
+  - Create mock `ManualMetadata` records with completeness scores $\ge 70\%$ in `scripts/generate_tui_screenshots.py` so the `WeightImpactPreview` widget actually renders when the Preferences and Onboarding screens are captured.
+- [ ] **Task 1.2 — Automated TUI Screenshot Script (`zensical_docs_plan.md` Task 4.6)**
+  - Implement `scripts/generate_tui_screenshots.py` using Textual's `run_test()` pilot to programmatically navigate and save native SVG screenshots for:
+    - Preferences Screen (with `WeightImpactPreview` panel visible — **fixes Audit #1**)
+    - Onboarding Steps 1, 2, 3 (**fixes Audit #4**)
+    - Help Screen (`?`) (**fixes Audit #6**)
+    - Lineup card view (**fixes Audit #7**)
+    - Main DataTable with expanded row & sub-bars (**fixes Audit #12**)
+    - Interrogation Room with populated scores & live suitability bars (**fixes Audit #5**)
+    - Advanced Options modal (**fixes Audit #13**)
+- [ ] **Task 1.3 — Invoke Tasks & Contributing Docs (`zensical_docs_plan.md` Tasks 4.2 & 4.3)**
+  - Add `inv screenshots` and `inv recordings` tasks to `tasks.py` and document them in `CONTRIBUTING.md`.
+
+### ✍️ Phase 2: Missing Documentation Content & Accuracy Fixes
+*Goal: Fix inaccurate descriptions, document missing features (Scoring Modes, BYOS Sync, Sub-bars), and create missing guide pages.*
+
+- [ ] **Task 2.1 — Storage & Sync (BYOS) Guide (Audit #3 & #18)**
+  - Create `docs/guides/storage-and-sync.md` covering Local Folder/iCloud, S3/Cloudflare R2, and WebDAV/Nextcloud configurations, test connection button, and `.env` setup. Update `zensical.toml` navigation.
+- [ ] **Task 2.2 — Scoring Modes & Algorithm Section (Audit #2)**
+  - Add a dedicated section to `tui-walkthrough.md` (under Preferences) explaining **Quality Focus** vs **Balanced** scoring modes. Update the FAQ response in `troubleshooting-faq.md`.
+- [ ] **Task 2.3 — Correct Lineup vs Main DataTable Descriptions (Audit #7 & #16)**
+  - Rewrite `tui-walkthrough.md` § 1 to accurately describe the sequential card review flow (Lineup). Add a new section for the **Main Inspection Table** (expandable rows, severity colors, view counts).
+- [ ] **Task 2.4 — Expand Interrogation Room Details (Audit #5)**
+  - Update `tui-walkthrough.md` § 2 to cover real-time suitability dashboard, sub-suitability bars, macOS clipboard image pasting, F2 web search, and follow-up flags.
+- [ ] **Task 2.5 — Document Sub-bars, Help Screen & Advanced Options (Audit #6, #12, #13)**
+  - Add sections in `tui-walkthrough.md` for the 5 sub-suitability breakdown bars, the Help Screen (`h`/`?`), and the Advanced Options modal (`a`).
+- [ ] **Task 2.6 — Comprehensive Keybindings Table (Audit #11)**
+  - Expand the keybindings reference table in `tui-walkthrough.md` to include missing keys (`h`, `a`, `c`, `e`, `f10`, `F2`, `x`).
+- [ ] **Task 2.7 — Homepage & Installation Alignment (Audit #8, #14, #15)**
+  - Fix `docs/index.md` (remove bogus "Quick Filtering" toggle claim; fix Weight Preview description).
+  - Sync `docs/getting-started/installation.md` with `README.md` (architecture-specific binary tarballs, `xattr` quarantine fix, `pipx`, SHA256 checksum verification).
+
+### 📸 Phase 3: Screenshot Re-capture & Visual Verification
+*Goal: Run the automated screenshot generator and embed updated SVGs into the docs.*
+
+- [ ] **Task 3.1 — Re-generate SVG Assets**
+  - Run `uv run inv screenshots` to produce all updated SVG captures into `docs/assets/images/`.
+- [ ] **Task 3.2 — Update Markdown Image Embeds**
+  - Update `tui-walkthrough.md`, `onboarding-and-setup.md`, and `index.md` to reference the newly captured screenshots (including Onboarding steps, Help Screen, DataTable sub-bars, and Preferences with preview).
+
+### 🎥 Phase 4: Animated CLI Recordings & Final Verification
+*Goal: Create animated VHS terminal recordings and verify the built Zensical site.*
+
+- [ ] **Task 4.1 — VHS Config & Tape Scripts (`zensical_docs_plan.md` Tasks 4.1 & 4.4 / Audit #10)**
+  - Create `tapes/_common.tape`, `tapes/onboarding_demo.tape`, and `tapes/lineup_filtering.tape`.
+  - Run `uv run inv recordings` to render `.gif` animations into `docs/assets/recordings/`.
+- [ ] **Task 4.2 — Embed Recordings in Docs**
+  - Embed the generated GIFs in `onboarding-and-setup.md` and `tui-walkthrough.md`.
+- [ ] **Task 4.3 — End-to-End Build & Validation**
+  - Run `uv run --group docs zensical build` to ensure 0 build errors, clean internal links, and a fully rendered `site/` output.
