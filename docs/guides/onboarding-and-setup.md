@@ -22,9 +22,9 @@ Configure your content sensitivity weights and choose an evaluation scoring mode
 ![Onboarding Weights & Live Weight Impact Preview](../assets/images/onboarding_step2.svg){: .tui-screenshot }
 
 - **Scoring Modes**: Select an evaluation algorithm that matches your parental philosophy:
-  - **Option A (Quality Focus)**: Quality and educational content drive the base score; content safety and age misfits act strictly as penalty deductions.
-  - **Option B (Balanced)** *(Default)*: All 5 sub-suitability components contribute to a weighted average, with neutral safety capped at `7.0/10`.
-  - 📖 *For full details on the mathematical mechanics and algorithm trade-offs, see [Scoring Modes in the TUI Walkthrough](tui-walkthrough.md#scoring-modes).*
+  - **Option A (Quality Focus)** 🛡️ *(Stricter / Safer for Flagging Inappropriate Content)*: Content safety issues and age misfits act as direct, unmitigated penalty deductions. Mature or inappropriate content is penalized aggressively regardless of high critic ratings or positive messages.
+  - **Option B (Balanced)** ⚖️ *(Default — More Forgiving)*: All 5 sub-suitability components contribute to a weighted average (with neutral safety capped at `7.0/10`), allowing high educational or quality scores to temper mild safety warnings.
+  - 📖 *For full details on mathematical mechanics, see [Scoring Modes in the TUI Walkthrough](tui-walkthrough.md#scoring-modes).*
 - **Category Weights**: Adjust 1–5 sensitivity sliders for Violence, Language, Sexual Content, Educational Value, and Positive Role Models.
 - **Live Weight Impact Preview**: Observe real-time suitability bar shifts and deltas on sample titles as you adjust weights.
 

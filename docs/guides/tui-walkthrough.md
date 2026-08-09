@@ -120,6 +120,13 @@ Press <kbd>s</kbd> to open the **Preferences Screen** to tune your evaluation al
 - **Mathematical Mechanics**: Gate safety factors are capped at a neutral ceiling of `7.0/10` (`GATE_NEUTRAL_CAP`) before entering the weighted average calculation. This prevents completely safe but low-quality or non-educational shows from receiving an artificially inflated `10.0` overall suitability score simply because they contain zero violence or language.
 - **Best For**: A holistic view where strong educational value, positive messages, or high quality can offset mild content concerns or minor age discrepancies.
 
+#### 🛡️ Which Mode is Safer for Flagging Inappropriate Content?
+
+- **Option A (Quality Focus) is the STRICTER / SAFER mode for flagging inappropriate content.** Because content safety issues and age misfits act as direct, unmitigated penalty deductions subtracted from the quality base score, any show with high violence, sexual content, bad language, or drug use is penalized aggressively. High critic reviews or positive messages **can never shield or inflate** a show that has content safety violations.
+- **Option B (Balanced) is MORE FORGIVING.** Because all 5 components contribute to a single weighted average pool, high quality ratings or strong educational themes can partially cushion or soften mild content warnings.
+
+> 💡 **Rule of Thumb**: If your primary goal is **strict content protection** (zero-tolerance for inappropriate content), choose **Option A (Quality Focus)**. If your goal is a **holistic evaluation** (where educational merit or high quality can offset minor concerns), choose **Option B (Balanced)**.
+
 !!! tip "Recommended Calibration Strategy: Pin Titles You Know Well"
     When tuning your scoring mode and category sensitivity weights, we strongly recommend picking 2–3 titles in your viewing history that you know intimately (for example: one show you consider ideal for your child, one borderline show, and one show you strictly prohibit).
 

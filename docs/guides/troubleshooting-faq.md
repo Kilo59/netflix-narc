@@ -66,8 +66,8 @@ rm ~/.config/netflix-narc/.env
 
 The app supports two **Scoring Modes** (configurable in Preferences or during Onboarding):
 
-- **Option A (Quality Focus)**: Quality and educational components drive the baseline score, while Age Suitability and Content Safety act strictly as penalty-only deductions. High safety scores will not inflate a low-quality show, but safety violations will directly lower suitability.
-- **Option B (Balanced)** *(Default)*: All 5 components contribute to a weighted average score, with neutral safety factors capped at 7.0/10 to avoid inflating non-educational titles.
+- **Option A (Quality Focus)** 🛡️ *(Stricter / Safer for Flagging Inappropriate Content)*: Content safety issues and age misfits act as direct, unmitigated penalty deductions. Mature or inappropriate content is penalized aggressively regardless of high critic ratings or positive messages.
+- **Option B (Balanced)** ⚖️ *(Default — More Forgiving)*: All 5 components contribute to a weighted average score (with neutral safety capped at 7.0/10), allowing high quality or educational merit to soften mild content warnings.
 
 📖 **For complete details on mathematical formulas, mechanics, and use cases, see [Scoring Modes in the TUI Walkthrough](tui-walkthrough.md#scoring-modes).**
 
