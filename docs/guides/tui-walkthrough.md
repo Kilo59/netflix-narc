@@ -50,21 +50,29 @@ Press <kbd>l</kbd> to enter **The Lineup Screen**—a sequential, card-based rev
 
 ---
 
-## 2. The Interrogation Room (`i`)
+## 3. The Interrogation Room (`i`)
 
-When external APIs lack rating data for a niche title, or when you disagree with automated ratings, the **Interrogation Room** allows you to input manual ratings and store evidence locally.
+When external APIs lack rating data for a niche title, or when you disagree with automated ratings, the **Interrogation Room** provides a manual data entry and evaluation workbench.
 
 ![Interrogation Room](../assets/images/interrogation_screen.svg){: .tui-screenshot }
 
-### Features
+### Features & Capabilities
 
-- **Manual Data Override**: Enter custom age recommendations and category severity scores for any title.
-- **Evidence Locker Store**: Saves your custom notes and overrides into a local async SQLite database (`manual_db.py`).
-- **Persistent Local Overrides**: Manual entries take precedence over automated API results during future evaluation runs.
+- **Real-Time Suitability Dashboard**: Recalculates overall suitability scores and color-coded sub-bars in real-time as you type or adjust scores.
+- **5 Sub-Suitability Score Bars**: Visual indicators for Base Quality, Age Suitability, Educational Suitability, Positive Content, and Content Safety.
+- **Category Severity Scores**: Input 0–5 rating scores for:
+  - *Violence & Scariness*, *Language*, *Sexy Stuff*, *Drinking, Drugs & Smoking*, *Educational Value*, *Positive Messages*, *Positive Role Models*.
+- **Quality Rating (1.0–5.0 stars)**: Input star ratings which are clamped and mapped to normalized 0–10 scores.
+- **Cover Image Attachment**:
+  - **Paste Image from Clipboard**: On macOS, click **Paste Cover Image** to attach an image from your clipboard directly into the dossier.
+  - **URL Download**: Enter any HTTP(S) image URL to auto-download and store cover art locally.
+- **Web Search Shortcut (<kbd>F2</kbd>)**: Opens Common Sense Media search for the active title in your web browser.
+- **Flag for Follow-up**: Checkbox to mark titles requiring further parental discussion.
+- **Async Evidence Locker Storage**: Saves your custom notes, scores, and image references into a local SQLite database (`manual_db.sqlite`). Manual entries override or supplement API metadata.
 
 ---
 
-## 3. Preferences & Live Weight Impact Preview (`s`)
+## 4. Preferences & Live Weight Impact Preview (`s`)
 
 Press <kbd>s</kbd> to open the **Preferences Screen** to tune your evaluation algorithm.
 
