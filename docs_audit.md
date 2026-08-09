@@ -283,7 +283,7 @@ Below is the structured, sequential task breakdown to resolve all audit findings
 
 - [x] **Task 1.1 — Mock Dataset Fixtures (`zensical_docs_plan.md` Task 4.5)**
   - Create mock `ManualMetadata` records with completeness scores $\ge 70\%$ in `scripts/generate_tui_screenshots.py` so the `WeightImpactPreview` widget actually renders when the Preferences and Onboarding screens are captured.
-- [ ] **Task 1.2 — Automated TUI Screenshot Script (`zensical_docs_plan.md` Task 4.6)**
+- [x] **Task 1.2 — Automated TUI Screenshot Script (`zensical_docs_plan.md` Task 4.6)**
   - Implement `scripts/generate_tui_screenshots.py` using Textual's `run_test()` pilot to programmatically navigate and save native SVG screenshots for:
     - Preferences Screen (with `WeightImpactPreview` panel visible — **fixes Audit #1**)
     - Onboarding Steps 1, 2, 3 (**fixes Audit #4**)

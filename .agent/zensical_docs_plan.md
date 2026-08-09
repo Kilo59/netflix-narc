@@ -72,7 +72,7 @@ Adopting the automated media generation architecture from [`Kilo59/ruff-sync`](h
 
 #### 🔴 Tier 3: High Difficulty Tasks (High-Intelligence Agents)
 
-- [ ] **Task 4.6**: Write `scripts/generate_tui_screenshots.py` using Textual's async `run_test()` pilot to programmatically navigate screens and capture native vector SVG snapshots (`onboarding.svg`, `lineup.svg`, `interrogation.svg`, `preferences.svg`) into `docs/assets/images/`.
+- [x] **Task 4.6**: Write `scripts/generate_tui_screenshots.py` using Textual's async `run_test()` pilot to programmatically navigate screens and capture native vector SVG snapshots (`onboarding.svg`, `lineup.svg`, `interrogation.svg`, `preferences.svg`) into `docs/assets/images/`.
 
 ---
 

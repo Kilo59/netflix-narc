@@ -204,6 +204,7 @@ async def test_interrogation_room_browser_search_and_paste_image(
     """Search web opens browser URL and paste image button handles clipboard failure gracefully."""
     fake_settings.child_age_range = (8, 12)
     app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    await app.evidence_locker.init()
 
     opened_urls: list[str] = []
     monkeypatch.setattr("webbrowser.open", opened_urls.append)
