@@ -217,9 +217,15 @@ async def test_interrogation_room_browser_search_and_paste_image(
         assert len(opened_urls) == 1
         assert "The+Matrix" in opened_urls[0]
 
-        # Test paste image button when clipboard has no image
+        # Test paste image button when clipboard has no image:
+        # the image URL input should remain unchanged to prove graceful error handling.
+        image_input = screen.query_one("#input-image-url", Input)
+        original_image_url = image_input.value
+
         await pilot.click("#btn-paste-image")
         await pilot.pause()
+
+        assert image_input.value == original_image_url
 
 
 if __name__ == "__main__":

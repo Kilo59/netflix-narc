@@ -131,8 +131,10 @@ async def test_preferences_invalid_age_shows_error(
 
 
 @pytest.mark.asyncio
-async def test_preferences_dismiss_action(fake_settings: Settings, tmp_path: pathlib.Path) -> None:
-    """Clicking close or pressing escape dismisses preferences without saving."""
+async def test_preferences_dismiss_via_close_button(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Clicking close button dismisses preferences without saving."""
     fake_settings.child_age_range = (8, 12)
     app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
     screen = PreferencesScreen(settings=fake_settings)
@@ -142,6 +144,25 @@ async def test_preferences_dismiss_action(fake_settings: Settings, tmp_path: pat
         await pilot.pause()
 
         await pilot.click("#pref-close")
+        await pilot.pause()
+
+        assert not any(isinstance(s, PreferencesScreen) for s in app.screen_stack)
+
+
+@pytest.mark.asyncio
+async def test_preferences_dismiss_via_escape_key(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """Pressing escape key dismisses preferences without saving."""
+    fake_settings.child_age_range = (8, 12)
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    screen = PreferencesScreen(settings=fake_settings)
+
+    async with app.run_test(size=(160, 200)) as pilot:
+        await app.push_screen(screen)
+        await pilot.pause()
+
+        await pilot.press("escape")
         await pilot.pause()
 
         assert not any(isinstance(s, PreferencesScreen) for s in app.screen_stack)
