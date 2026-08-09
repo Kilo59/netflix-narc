@@ -171,7 +171,14 @@ def docs_build(ctx: Context) -> None:
     ctx.run("uv run --group docs zensical build", echo=True, pty=USE_PTY)
 
 
-@task
-def docs_screenshots(ctx: Context) -> None:
+@task(
+    help={
+        "output_dir": "Directory where generated SVG screenshots will be saved",
+    }
+)
+def docs_screenshots(ctx: Context, output_dir: str | None = None) -> None:
     """Generate SVG TUI screenshots for documentation using Textual export."""
-    ctx.run("uv run python scripts/generate_docs_screenshots.py", echo=True, pty=USE_PTY)
+    cmd = ["uv", "run", "python", "scripts/generate_docs_screenshots.py"]
+    if output_dir:
+        cmd.extend(["--output-dir", shlex.quote(output_dir)])
+    ctx.run(" ".join(cmd), echo=True, pty=USE_PTY)

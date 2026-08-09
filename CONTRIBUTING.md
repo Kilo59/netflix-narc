@@ -102,7 +102,7 @@ uv run --group docs zensical build
 uv run inv docs-build
 ```
 
-To re-generate SVG TUI screenshots for documentation:
+To regenerate SVG TUI screenshots for documentation:
 
 ```bash
 uv run python scripts/generate_docs_screenshots.py

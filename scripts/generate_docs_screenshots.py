@@ -2,19 +2,39 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
+import os
 import pathlib
 import tempfile
 
 from netflix_narc.main import NetflixNarcApp
-from netflix_narc.manual_db import ManualMetadata
+from netflix_narc.sample_data import get_sample_manual_records
 from netflix_narc.settings import Settings
 
 
-async def generate_screenshots() -> None:
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Capture high-resolution SVG TUI screenshots for documentation."
+    )
+    default_output_dir = pathlib.Path(os.environ.get("DOCS_SCREENSHOTS_DIR", "docs/assets/images"))
+    parser.add_argument(
+        "--output-dir",
+        "-o",
+        type=pathlib.Path,
+        default=default_output_dir,
+        help=(
+            "Directory where generated SVG screenshots will be saved "
+            "(default: docs/assets/images or $DOCS_SCREENSHOTS_DIR)"
+        ),
+    )
+    return parser.parse_args()
+
+
+async def generate_screenshots(output_dir: pathlib.Path) -> None:
     """Capture SVG screenshots of all main Textual screens in netflix-narc."""
-    assets_dir = pathlib.Path("docs/assets/images")
-    assets_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_cache_dir = pathlib.Path(tmp_dir)
@@ -27,7 +47,7 @@ async def generate_screenshots() -> None:
             await pilot.pause()
             await pilot.pause()
             svg_onb = app_onb.export_screenshot()
-            (assets_dir / "onboarding_screen.svg").write_text(svg_onb)
+            (output_dir / "onboarding_screen.svg").write_text(svg_onb)
 
         # 2. Main App (Lineup Screen, Interrogation Room, Preferences Screen)
         print("Capturing Lineup, Interrogation Room, and Preferences screens...")
@@ -35,38 +55,8 @@ async def generate_screenshots() -> None:
         app = NetflixNarcApp(settings=settings, csv_path=None, cache_dir=tmp_cache_dir)
 
         await app.evidence_locker.init()
-        await app.evidence_locker.upsert_record(
-            ManualMetadata(
-                title="Stranger Things",
-                content_rating="TV-14",
-                user_rating=8.7,
-                image_url="http://example.com/st.jpg",
-                category_scores={
-                    "Violence & Scariness": 4,
-                    "Educational Value": 2,
-                    "Positive Messages": 3,
-                    "Positive Role Models": 3,
-                    "Language": 3,
-                    "Sexy Stuff": 2,
-                },
-            )
-        )
-        await app.evidence_locker.upsert_record(
-            ManualMetadata(
-                title="PAW Patrol: The Movie",
-                content_rating="G",
-                user_rating=6.1,
-                image_url="http://example.com/paw.jpg",
-                category_scores={
-                    "Violence & Scariness": 1,
-                    "Educational Value": 5,
-                    "Positive Messages": 5,
-                    "Positive Role Models": 5,
-                    "Language": 1,
-                    "Sexy Stuff": 1,
-                },
-            )
-        )
+        for record in get_sample_manual_records():
+            await app.evidence_locker.upsert_record(record)
 
         async with app.run_test(size=(120, 36)) as pilot:
             await pilot.pause()
@@ -74,22 +64,28 @@ async def generate_screenshots() -> None:
 
             # Save Lineup Screen
             svg_lineup = app.export_screenshot()
-            (assets_dir / "lineup_screen.svg").write_text(svg_lineup)
+            (output_dir / "lineup_screen.svg").write_text(svg_lineup)
 
             # Save Interrogation Room
             await pilot.press("i")
             await pilot.pause()
             svg_interrogation = app.export_screenshot()
-            (assets_dir / "interrogation_screen.svg").write_text(svg_interrogation)
+            (output_dir / "interrogation_screen.svg").write_text(svg_interrogation)
 
             # Save Preferences Screen
             await pilot.press("s")
             await pilot.pause()
             svg_preferences = app.export_screenshot()
-            (assets_dir / "preferences_screen.svg").write_text(svg_preferences)
+            (output_dir / "preferences_screen.svg").write_text(svg_preferences)
 
-        print("All screenshots generated successfully in docs/assets/images/")
+        print(f"All screenshots generated successfully in {output_dir}/")
+
+
+def main() -> None:
+    """Main entrypoint for script execution."""
+    args = parse_args()
+    asyncio.run(generate_screenshots(args.output_dir))
 
 
 if __name__ == "__main__":
-    asyncio.run(generate_screenshots())
+    main()
