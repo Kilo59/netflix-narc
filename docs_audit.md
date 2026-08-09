@@ -325,10 +325,10 @@ Below is the structured, sequential task breakdown to resolve all audit findings
 ### 🎥 Phase 4: Animated CLI Recordings & Final Verification
 *Goal: Create animated VHS terminal recordings and verify the built Zensical site.*
 
-- [ ] **Task 4.1 — VHS Config & Tape Scripts (`zensical_docs_plan.md` Tasks 4.1 & 4.4 / Audit #10)**
+- [x] **Task 4.1 — VHS Config & Tape Scripts (`zensical_docs_plan.md` Tasks 4.1 & 4.4 / Audit #10)**
   - Create `tapes/_common.tape`, `tapes/onboarding_demo.tape`, and `tapes/lineup_filtering.tape`.
   - Run `uv run inv recordings` to render `.gif` animations into `docs/assets/recordings/`.
-- [ ] **Task 4.2 — Embed Recordings in Docs**
+- [x] **Task 4.2 — Embed Recordings in Docs**
   - Embed the generated GIFs in `onboarding-and-setup.md` and `tui-walkthrough.md`.
-- [ ] **Task 4.3 — End-to-End Build & Validation**
+- [x] **Task 4.3 — End-to-End Build & Validation**
   - Run `uv run --group docs zensical build` to ensure 0 build errors, clean internal links, and a fully rendered `site/` output.
