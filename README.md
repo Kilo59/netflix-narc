@@ -15,7 +15,7 @@ Whether it's too violent, contains sketchy language, or is just completely devoi
 
 ## 📚 Documentation
 
-For full guides, detailed architecture, and troubleshooting, visit the [**Netflix Narc Documentation Homepage**](docs/index.md):
+For full guides, detailed architecture, and troubleshooting, visit the [**Netflix Narc Documentation Homepage**](https://kilo59.github.io/netflix-narc/):
 
 - 📥 **[Exporting Netflix Viewing History](docs/getting-started/exporting-netflix-csv.md)** — Step-by-step export guide from Netflix Account Activity.
 - 🚀 **[Installation Guide](docs/getting-started/installation.md)** — Pre-built binary extraction, Gatekeeper resolution, & package manager options.

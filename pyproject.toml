@@ -25,7 +25,9 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/Kilo59/netflix-narc"
+"Homepage" = "https://kilo59.github.io/netflix-narc/"
+"Documentation" = "https://kilo59.github.io/netflix-narc/"
+"Repository" = "https://github.com/Kilo59/netflix-narc"
 "Bug Tracker" = "https://github.com/Kilo59/netflix-narc/issues"
 
 [project.scripts]
