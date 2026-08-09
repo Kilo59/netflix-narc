@@ -169,3 +169,9 @@ def docs_serve(ctx: Context, host: str = "127.0.0.1", port: int = 8000) -> None:
 def docs_build(ctx: Context) -> None:
     """Build documentation static site using Zensical."""
     ctx.run("uv run --group docs zensical build", echo=True, pty=USE_PTY)
+
+
+@task
+def docs_screenshots(ctx: Context) -> None:
+    """Generate SVG TUI screenshots for documentation using Textual export."""
+    ctx.run("uv run python scripts/generate_docs_screenshots.py", echo=True, pty=USE_PTY)
