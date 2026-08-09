@@ -10,8 +10,6 @@ from netflix_narc.main import NetflixNarcApp
 from netflix_narc.manual_db import ManualMetadata
 from netflix_narc.settings import Settings
 
-# ruff: noqa: T201, ASYNC240, INP001
-
 
 async def generate_screenshots() -> None:
     """Capture SVG screenshots of all main Textual screens in netflix-narc."""

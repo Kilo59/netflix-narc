@@ -224,6 +224,12 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "PT", # not a pytest file
     "T201", # Print statements in python files
 ]
+"scripts/*" = [
+    "T201",     # Print statements in helper scripts
+    "INP001",   # Implicit namespace package in scripts directory
+    "ASYNC240", # Async functions using pathlib.Path methods
+    "S108",     # Temporary file or directory path usage
+]
 "tests/*" = [
     "ANN201", # Missing return type annotation in test functions
     "D",   # Don't care about docstrings in tests
