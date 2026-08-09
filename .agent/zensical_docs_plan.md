@@ -47,10 +47,11 @@ To optimize agent resource allocation, tasks are divided into three difficulty t
 
 ### 🔴 Tier 3: High Difficulty Tasks (High-Intelligence Agents)
 
-- [ ] **Task 3.1**: Generate & capture visual assets (high-res TUI screenshots & `vhs` recordings for Lineup & Onboarding) into `docs/assets/`.
-- [ ] **Task 3.2**: Customize Zensical theme palette/CSS overrides (`docs/assets/extra.css`) to match Textual TUI dark mode theme aesthetics.
-- [ ] **Task 3.3**: End-to-end verification — Execute `uv run --group docs zensical build`, check HTML output, validate all internal links and Disco search index.
-- [ ] **Task 3.4**: Run full code quality suite (`uv run ruff check . --fix`, `uv run ruff format .`, `uv run mypy .`, `uv run pytest -vv`).
+- [x] **Task 3.1**: Generate & capture visual assets (high-res SVG TUI screenshots for Lineup, Onboarding, Interrogation, and Preferences) into `docs/assets/images/`.
+  - *Note*: Generated using Textual pilot native SVG renderer (`export_screenshot()`).
+- [x] **Task 3.2**: Customize Zensical theme palette/CSS overrides (`docs/assets/extra.css`) to match Textual TUI dark mode theme aesthetics.
+- [x] **Task 3.3**: End-to-end verification — Execute `uv run --group docs zensical build`, check HTML output, validate all internal links and Disco search index.
+- [x] **Task 3.4**: Run full code quality suite (`uv run ruff check . --fix`, `uv run ruff format .`, `uv run mypy .`, `uv run pytest -vv`).
 
 ---
 
