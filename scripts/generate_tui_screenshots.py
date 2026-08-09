@@ -161,7 +161,14 @@ async def generate_screenshots(
 ) -> None:
     """Capture SVG screenshots of all main Textual screens in netflix-narc."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    csv_to_use = csv_path if (csv_path and csv_path.exists()) else None
+    if csv_path and not csv_path.exists():
+        print(
+            f"Warning: Specified CSV file does not exist: {csv_path}. "
+            "Proceeding without sample CSV data."
+        )
+        csv_to_use = None
+    else:
+        csv_to_use = csv_path
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_cache_dir = pathlib.Path(tmp_dir)

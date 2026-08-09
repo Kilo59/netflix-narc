@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import re
 import shlex
 import shutil
 import sys
@@ -198,6 +199,10 @@ def docs_screenshots(
 def recordings(ctx: Context, tape: str | None = None) -> None:
     """Regenerate CLI animation GIFs using Charm VHS tape scripts."""
     if tape:
-        ctx.run(f"vhs tapes/{tape}.tape", echo=True, pty=USE_PTY)
+        if not re.match(r"^[a-zA-Z0-9_-]+$", tape):
+            msg = f"Invalid tape script name: {tape!r}"
+            raise ValueError(msg)
+        safe_tape = shlex.quote(tape)
+        ctx.run(f"vhs tapes/{safe_tape}.tape", echo=True, pty=USE_PTY)
     else:
         ctx.run("vhs tapes/*.tape", echo=True, pty=USE_PTY)

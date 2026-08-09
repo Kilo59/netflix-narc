@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import copy
+import logging
 from typing import TYPE_CHECKING, ClassVar, NamedTuple, cast, override
 
 from pydantic import SecretStr, TypeAdapter
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
+from textual.css.query import NoMatches, TooManyMatches
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
@@ -22,6 +24,8 @@ from netflix_narc.settings import (
     ScoringMode,
     parse_str_age_range,
 )
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -613,6 +617,11 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
 
     # ── Navigation ────────────────────────────────────────────────────────
 
+    @property
+    def child_age_input(self) -> Input:
+        """Get the child age input widget."""
+        return self.query_one("#age-input", Input)
+
     def go_to_step(self, step: int) -> None:
         """Navigate programmatically to a specific step in the wizard (0-indexed)."""
         self._go_to_step(step)
@@ -621,12 +630,27 @@ class OnboardingScreen(Screen[OnboardingResult | None]):
         """Programmatically set the target child age range and mark age validation as valid."""
         self._child_age_range = age_range
         self._age_valid = True
+
+        # Keep UI in sync with the internal age range state; failures are logged but don't crash.
         try:
             age_input = self.query_one("#age-input", Input)
-            lo, hi = age_range
+        except (NoMatches, TooManyMatches) as exc:
+            logger.warning(
+                "Failed to locate age input widget for age_range %s: %s",
+                age_range,
+                exc,
+            )
+            return
+
+        lo, hi = age_range
+        try:
             age_input.value = f"{lo}-{hi}" if lo != hi else str(lo)
-        except Exception:  # noqa: BLE001, S110
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Failed to update age input value for age_range %s: %s",
+                age_range,
+                exc,
+            )
 
     def _go_to_step(self, step: int) -> None:
         self._current_step = step

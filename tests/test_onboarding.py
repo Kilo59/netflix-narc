@@ -314,5 +314,24 @@ async def test_onboarding_public_api_helpers(
         assert onb.current_step == 3
 
 
+@pytest.mark.asyncio
+async def test_onboarding_public_api_single_age_helper(
+    fake_settings: Settings, tmp_path: pathlib.Path
+) -> None:
+    """set_child_age_range formats single ages cleanly and marks age as valid."""
+    app = NetflixNarcApp(settings=fake_settings, csv_path=None, cache_dir=tmp_path)
+    async with app.run_test(size=(120, 60)) as pilot:
+        await pilot.pause()
+
+        onb = next(s for s in pilot.app.screen_stack if isinstance(s, OnboardingScreen))
+
+        onb.set_child_age_range((10, 10))
+        await pilot.pause()
+
+        assert onb.child_age_range == (10, 10)
+        assert onb.is_age_valid is True
+        assert onb.child_age_input.value == "10"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vv"])
