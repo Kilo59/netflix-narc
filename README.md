@@ -39,7 +39,7 @@ For full guides, detailed architecture, and troubleshooting, visit the [**Netfli
 
 ## 📸 App in Action
 
-![Netflix Narc TUI](./assets/screenshot.png)
+![Netflix Narc TUI Mockup](./assets/screenshot.png)
 
 ## 🚀 Getting Started
 
