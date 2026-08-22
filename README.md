@@ -13,6 +13,17 @@ Netflix Narc is a fast, beautiful Terminal UI built to ingest your family's Netf
 
 Whether it's too violent, contains sketchy language, or is just completely devoid of educational value — you decide the criteria and Netflix Narc tells you what's been watched.
 
+## 📚 Documentation
+
+For full guides, detailed architecture, and troubleshooting, visit the [**Netflix Narc Documentation Homepage**](https://kilo59.github.io/netflix-narc/):
+
+- 📥 **[Exporting Netflix Viewing History](https://kilo59.github.io/netflix-narc/getting-started/exporting-netflix-csv/)** — Step-by-step export guide from Netflix Account Activity.
+- 🚀 **[Installation Guide](https://kilo59.github.io/netflix-narc/getting-started/installation/)** — Pre-built binary extraction, Gatekeeper resolution, & package manager options.
+- 📋 **[Onboarding & Setup Guide](https://kilo59.github.io/netflix-narc/guides/onboarding-and-setup/)** — First-run wizard, API key setup, and weight tuning.
+- 💻 **[TUI Feature Walkthrough](https://kilo59.github.io/netflix-narc/guides/tui-walkthrough/)** — Lineup queue, Interrogation Room, and Scoring Modes.
+- ☁️ **[Storage & Sync Guide (BYOS)](https://kilo59.github.io/netflix-narc/guides/storage-and-sync/)** — Synchronize across devices via iCloud, S3/R2, or WebDAV/Nextcloud.
+- ❓ **[Troubleshooting & FAQ](https://kilo59.github.io/netflix-narc/guides/troubleshooting-faq/)** — Frequently asked questions & resolution steps.
+
 ## ✨ Features
 
 - **🍿 Netflix History Integration**: Ingest your profile's `NetflixViewingHistory.csv` to analyze watching habits.
